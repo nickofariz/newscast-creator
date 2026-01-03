@@ -353,6 +353,13 @@ const Index = () => {
                     exportProgress.status === "rendering" ? "Merender" : 
                     exportProgress.status === "encoding" ? "Encoding" : 
                     exportProgress.status === "complete" ? "Selesai" : "Memulai"}</span>
+                  {exportProgress.estimatedTimeRemaining !== undefined && exportProgress.estimatedTimeRemaining > 0 && (
+                    <span className="font-medium">
+                      ~{exportProgress.estimatedTimeRemaining < 60 
+                        ? `${exportProgress.estimatedTimeRemaining}s` 
+                        : `${Math.floor(exportProgress.estimatedTimeRemaining / 60)}m ${exportProgress.estimatedTimeRemaining % 60}s`} tersisa
+                    </span>
+                  )}
                 </div>
                 <Button 
                   variant="outline" 
