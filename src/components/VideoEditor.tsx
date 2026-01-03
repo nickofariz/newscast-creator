@@ -529,6 +529,31 @@ const VideoEditor = ({
                             </span>
                           </div>
 
+                          {/* Trim Indicator */}
+                          {(clip.trimStart > 0 || clip.trimEnd < 1) && (
+                            <div className="absolute top-0.5 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white text-[7px] px-1 rounded-sm font-medium shadow-sm">
+                              {Math.round(clip.trimStart * 100)}% - {Math.round(clip.trimEnd * 100)}%
+                            </div>
+                          )}
+
+                          {/* Trim visual overlay - show trimmed areas */}
+                          {clip.trimStart > 0 && (
+                            <div 
+                              className="absolute top-0 bottom-0 left-0 bg-black/50 pointer-events-none"
+                              style={{ width: `${clip.trimStart * 100}%` }}
+                            >
+                              <div className="absolute inset-0 bg-stripes opacity-30" />
+                            </div>
+                          )}
+                          {clip.trimEnd < 1 && (
+                            <div 
+                              className="absolute top-0 bottom-0 right-0 bg-black/50 pointer-events-none"
+                              style={{ width: `${(1 - clip.trimEnd) * 100}%` }}
+                            >
+                              <div className="absolute inset-0 bg-stripes opacity-30" />
+                            </div>
+                          )}
+
                           {/* Trim handle - left side (trim start) */}
                           <ResizeHandle
                             side="left"
