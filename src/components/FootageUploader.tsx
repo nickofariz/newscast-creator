@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { Upload, Film, X, Check, Image, Plus, GripVertical, Clock, Maximize2 } from "lucide-react";
+import { Upload, Film, X, Check, Image, Plus, GripVertical, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -57,16 +57,39 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
     setTotalDuration(duration);
   }, [uploadedFiles]);
 
-  // Handle ESC key to close preview
+  // Get current preview index
+  const currentPreviewIndex = previewMedia 
+    ? uploadedFiles.findIndex(m => m.id === previewMedia.id) 
+    : -1;
+
+  const goToPrevMedia = useCallback(() => {
+    if (currentPreviewIndex > 0) {
+      setPreviewMedia(uploadedFiles[currentPreviewIndex - 1]);
+    }
+  }, [currentPreviewIndex, uploadedFiles]);
+
+  const goToNextMedia = useCallback(() => {
+    if (currentPreviewIndex < uploadedFiles.length - 1) {
+      setPreviewMedia(uploadedFiles[currentPreviewIndex + 1]);
+    }
+  }, [currentPreviewIndex, uploadedFiles]);
+
+  // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && previewMedia) {
+      if (!previewMedia) return;
+      
+      if (e.key === 'Escape') {
         setPreviewMedia(null);
+      } else if (e.key === 'ArrowLeft') {
+        goToPrevMedia();
+      } else if (e.key === 'ArrowRight') {
+        goToNextMedia();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewMedia]);
+  }, [previewMedia, goToPrevMedia, goToNextMedia]);
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -437,8 +460,35 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
               </div>
             </div>
 
+            {/* Prev button */}
+            {currentPreviewIndex > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToPrevMedia();
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <ChevronLeft className="w-8 h-8 text-white" />
+              </button>
+            )}
+
+            {/* Next button */}
+            {currentPreviewIndex < uploadedFiles.length - 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNextMedia();
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <ChevronRight className="w-8 h-8 text-white" />
+              </button>
+            )}
+
             {/* Media content */}
             <motion.div
+              key={previewMedia.id}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
@@ -463,9 +513,14 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
               )}
             </motion.div>
 
-            {/* Navigation hint */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-sm">
-              Klik di luar atau tekan ESC untuk menutup
+            {/* Navigation hint & counter */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+              <div className="bg-white/10 rounded-full px-4 py-1.5 text-white text-sm font-medium">
+                {currentPreviewIndex + 1} / {uploadedFiles.length}
+              </div>
+              <span className="text-white/50 text-xs">
+                ← → untuk navigasi • ESC untuk menutup
+              </span>
             </div>
           </motion.div>,
           document.body
