@@ -129,9 +129,6 @@ const Index = () => {
               <div className="glass-card rounded-2xl p-6 space-y-6">
                 <NewsInput value={newsText} onChange={setNewsText} />
                 <VoiceSelector selected={selectedVoice} onChange={setSelectedVoice} />
-                <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
-                <FootageUploader onUpload={setUploadedFootage} uploadedFile={uploadedFootage} />
-                
                 <AudioPreview
                   isGenerating={isGeneratingAudio}
                   audioUrl={audioUrl}
@@ -143,6 +140,8 @@ const Index = () => {
                   onGenerate={handleGenerateAudio}
                   disabled={!newsText.trim()}
                 />
+                <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
+                <FootageUploader onUpload={setUploadedFootage} uploadedFile={uploadedFootage} />
 
                 {/* Generate Button */}
                 <motion.div
