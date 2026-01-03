@@ -273,6 +273,7 @@ const EditorStep = ({
                     subtitleStyle={subtitleStyle}
                     onPlay={onPlay}
                     onPause={onPause}
+                    onSeek={onSeek}
                   />
                 </div>
               </div>
@@ -357,6 +358,7 @@ const EditorStep = ({
               subtitleStyle={subtitleStyle}
               onPlay={onPlay}
               onPause={onPause}
+              onSeek={onSeek}
             />
           </div>
         </div>
