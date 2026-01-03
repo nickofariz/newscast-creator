@@ -10,7 +10,9 @@ import VideoPreview from "@/components/VideoPreview";
 import VideoHistory, { VideoItem } from "@/components/VideoHistory";
 import FootageUploader from "@/components/FootageUploader";
 import AudioPreview from "@/components/AudioPreview";
+import SubtitlePreview from "@/components/SubtitlePreview";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
+import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
 import { toast } from "sonner";
 
 type VoiceType = "male" | "female";
@@ -35,8 +37,21 @@ const Index = () => {
     currentTime,
   } = useTextToSpeech();
 
+  const {
+    generateSubtitles,
+    isGenerating: isGeneratingSubtitles,
+    words: subtitleWords,
+    downloadSRT,
+  } = useSubtitleGenerator();
+
   const handleGenerateAudio = () => {
     generateSpeech(newsText, selectedVoice);
+  };
+
+  const handleGenerateSubtitles = () => {
+    if (audioUrl) {
+      generateSubtitles(audioUrl);
+    }
   };
 
   // Mock video history
@@ -139,6 +154,14 @@ const Index = () => {
                   onPause={pauseAudio}
                   onGenerate={handleGenerateAudio}
                   disabled={!newsText.trim()}
+                />
+                <SubtitlePreview
+                  words={subtitleWords}
+                  isGenerating={isGeneratingSubtitles}
+                  currentTime={currentTime}
+                  onGenerate={handleGenerateSubtitles}
+                  disabled={!audioUrl}
+                  onDownloadSRT={downloadSRT}
                 />
                 <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
                 <FootageUploader onUpload={setUploadedFootage} uploadedFile={uploadedFootage} />
