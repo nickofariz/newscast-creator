@@ -151,6 +151,9 @@ const EditorStep = ({
               mediaFiles={mediaFiles}
               onMediaUpdate={onMediaUpdate}
               audioDuration={audioDuration}
+              audioUrl={audioUrl}
+              overlayText={newsText}
+              overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
             />
           </div>
         </TabsContent>
