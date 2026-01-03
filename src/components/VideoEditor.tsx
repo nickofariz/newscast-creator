@@ -554,15 +554,62 @@ const VideoEditor = ({
               ));
             }}
           >
-            <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-popover border border-border shadow-lg z-50">
-              <SelectItem value="none">Tanpa Transisi</SelectItem>
-              <SelectItem value="fade">Fade In</SelectItem>
-              <SelectItem value="slide">Slide</SelectItem>
-              <SelectItem value="zoom">Zoom In</SelectItem>
-              <SelectItem value="blur">Blur In</SelectItem>
+            <SelectContent className="bg-popover border border-border shadow-lg z-50 min-w-[180px]">
+              <SelectItem value="none" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center">
+                    <div className="w-3 h-3 bg-muted-foreground/40 rounded-sm" />
+                  </div>
+                  <span>Tanpa Transisi</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="fade" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <div className="w-3 h-3 bg-primary rounded-sm animate-pulse" />
+                  </div>
+                  <span>Fade In</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="slide" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <motion.div 
+                      className="w-3 h-3 bg-blue-500 rounded-sm"
+                      animate={{ x: [6, 0] }}
+                      transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.5 }}
+                    />
+                  </div>
+                  <span>Slide</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="zoom" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <motion.div 
+                      className="w-3 h-3 bg-green-500 rounded-sm"
+                      animate={{ scale: [1.4, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.5 }}
+                    />
+                  </div>
+                  <span>Zoom In</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="blur" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <motion.div 
+                      className="w-3 h-3 bg-purple-500 rounded-sm"
+                      animate={{ filter: ["blur(3px)", "blur(0px)"] }}
+                      transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.5 }}
+                    />
+                  </div>
+                  <span>Blur In</span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
           <span className="text-[10px] text-muted-foreground">
