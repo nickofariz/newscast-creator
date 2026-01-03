@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, forwardRef } from "react";
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useMemo } from "react";
 import { motion, Reorder } from "framer-motion";
 import { 
   Film, 
@@ -61,6 +61,8 @@ export interface EditedClip {
   transition: TransitionType;
 }
 
+export type DurationMode = "longest" | "media" | "audio";
+
 interface VideoEditorProps {
   mediaFiles: MediaFile[];
   onMediaUpdate: (files: MediaFile[]) => void;
@@ -72,6 +74,7 @@ interface VideoEditorProps {
   isPlaying: boolean;
   onSeek?: (time: number) => void;
   onClipsChange?: (clips: EditedClip[]) => void;
+  durationMode?: DurationMode;
 }
 
 const DEFAULT_CLIP_DURATION = 3;
@@ -88,7 +91,8 @@ const VideoEditor = ({
   currentTime,
   isPlaying,
   onSeek,
-  onClipsChange
+  onClipsChange,
+  durationMode = "longest"
 }: VideoEditorProps) => {
   const [clips, setClips] = useState<MediaClip[]>([]);
   const [selectedClipIndex, setSelectedClipIndex] = useState<number | null>(null);
@@ -133,7 +137,20 @@ const VideoEditor = ({
     return acc + effectiveDuration;
   }, 0);
 
-  const totalDuration = Math.max(mediaDuration, audioDuration || 0, textTiming.startTime + textTiming.duration, imageTiming.startTime + imageTiming.duration);
+  // Calculate total duration based on duration mode
+  const totalDuration = useMemo(() => {
+    const layerMax = Math.max(textTiming.startTime + textTiming.duration, imageTiming.startTime + imageTiming.duration);
+    
+    switch (durationMode) {
+      case "media":
+        return Math.max(mediaDuration, layerMax);
+      case "audio":
+        return Math.max(audioDuration || 0, layerMax);
+      case "longest":
+      default:
+        return Math.max(mediaDuration, audioDuration || 0, layerMax);
+    }
+  }, [durationMode, mediaDuration, audioDuration, textTiming, imageTiming]);
 
   // Calculate and expose edited clips data for VideoPreview
   useEffect(() => {

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 export type VideoFormatType = "short" | "tv";
+export type DurationMode = "longest" | "media" | "audio";
 
 const Index = () => {
   // Step navigation
@@ -27,6 +28,7 @@ const Index = () => {
   // Media state
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
   const [videoFormat, setVideoFormat] = useState<VideoFormatType>("short");
+  const [durationMode, setDurationMode] = useState<DurationMode>("longest");
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(DEFAULT_OVERLAY_SETTINGS);
 
@@ -253,6 +255,8 @@ const Index = () => {
                   onOverlaySettingsChange={setOverlaySettings}
                   videoFormat={videoFormat}
                   onVideoFormatChange={setVideoFormat}
+                  durationMode={durationMode}
+                  onDurationModeChange={setDurationMode}
                   onGenerate={handleGenerate}
                   onNext={handleEditorNext}
                   onBack={() => setCurrentStep("voiceover")}
