@@ -11,6 +11,7 @@ import OverlaySelector from "@/components/OverlaySelector";
 import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 import TemplateSelector from "@/components/TemplateSelector";
 import ScrubBar from "@/components/ScrubBar";
+import MiniTimeline from "@/components/MiniTimeline";
 
 interface SubtitleWord {
   text: string;
@@ -304,7 +305,7 @@ const EditorStep = ({
               )}
             </div>
 
-            {/* Draggable Scrub bar */}
+            {/* Draggable Scrub bar - without mini timeline here */}
             {audioUrl && onSeek && (
               <ScrubBar
                 progress={progress}
@@ -313,8 +314,7 @@ const EditorStep = ({
                 className="mb-3"
                 thumbnails={thumbnailSources}
                 showThumbnailPreview={thumbnailSources.length > 0}
-                showMiniTimeline={thumbnailSources.length > 1}
-                onReorderThumbnails={handleThumbnailReorder}
+                showMiniTimeline={false}
               />
             )}
 
@@ -382,6 +382,18 @@ const EditorStep = ({
                   onClipsChange={handleClipsChange}
                 />
               </div>
+
+              {/* Mini Timeline - Quick navigation */}
+              {thumbnailSources.length > 0 && onSeek && (
+                <MiniTimeline
+                  thumbnails={thumbnailSources}
+                  currentTime={currentTime}
+                  duration={audioDuration}
+                  onSeek={onSeek}
+                  onReorder={handleThumbnailReorder}
+                  className="mt-3"
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="template" className="mt-0">
