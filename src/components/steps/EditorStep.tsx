@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
@@ -13,6 +13,8 @@ import TemplateSelector from "@/components/TemplateSelector";
 import ScrubBar from "@/components/ScrubBar";
 import MiniTimeline from "@/components/MiniTimeline";
 import SubtitlePreview, { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
+import ExportDialog from "@/components/ExportDialog";
+import { useVideoExporter } from "@/hooks/useVideoExporter";
 
 interface SubtitleWord {
   text: string;
@@ -80,6 +82,31 @@ const EditorStep = ({
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyleSettings>(DEFAULT_SUBTITLE_STYLE);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+
+  // Video exporter hook
+  const {
+    exportVideo,
+    cancelExport,
+    downloadVideo,
+    resetExport,
+    exportProgress,
+    exportedVideoUrl,
+    isExporting,
+  } = useVideoExporter();
+
+  // Handle export start
+  const handleStartExport = useCallback((quality: "720p" | "1080p") => {
+    exportVideo({
+      mediaFiles,
+      editedClips,
+      subtitleWords,
+      audioUrl: audioUrl || null,
+      audioDuration,
+      subtitleStyle,
+      quality,
+    });
+  }, [exportVideo, mediaFiles, editedClips, subtitleWords, audioUrl, audioDuration, subtitleStyle]);
 
   // Toggle fullscreen mode
   const toggleFullscreen = useCallback(() => {
@@ -476,6 +503,19 @@ const EditorStep = ({
           <ChevronLeft className="w-5 h-5" />
           Kembali
         </Button>
+        
+        {/* Export Video Button */}
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => setIsExportDialogOpen(true)}
+          disabled={isGenerating || mediaFiles.length === 0}
+          className="sm:w-auto"
+        >
+          <Film className="w-5 h-5 mr-2" />
+          Export dengan Subtitle
+        </Button>
+
         <Button
           variant="news"
           size="lg"
@@ -500,6 +540,22 @@ const EditorStep = ({
           <ChevronRight className="w-5 h-5" />
         </Button>
       </div>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
+        exportProgress={exportProgress}
+        exportedVideoUrl={exportedVideoUrl}
+        isExporting={isExporting}
+        onStartExport={handleStartExport}
+        onCancel={cancelExport}
+        onDownload={downloadVideo}
+        onReset={resetExport}
+        hasSubtitles={subtitleWords.length > 0}
+        hasAudio={!!audioUrl}
+        hasMedia={mediaFiles.length > 0}
+      />
     </motion.div>
     </>
   );
