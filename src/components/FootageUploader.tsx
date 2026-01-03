@@ -313,29 +313,29 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                         <GripVertical className="w-5 h-5 text-white opacity-0 group-hover:opacity-70 transition-opacity drop-shadow-lg" />
                       </div>
                       
-                      {/* Type indicator and duration */}
-                      <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
-                        <div className="bg-black/60 rounded px-1 py-0.5">
-                          {media.type === "video" ? (
-                            <Film className="w-3 h-3 text-white" />
-                          ) : (
-                            <Image className="w-3 h-3 text-white" />
-                          )}
-                        </div>
-                        <div className="bg-black/60 rounded px-1 py-0.5 flex items-center gap-0.5">
-                          <Clock className="w-2.5 h-2.5 text-white/80" />
-                          <span className="text-[9px] text-white font-mono">
-                            {media.type === "video" 
-                              ? (media.duration ? formatDuration(media.duration) : "...") 
-                              : `${DEFAULT_IMAGE_DURATION}s`
-                            }
-                          </span>
-                        </div>
-                      </div>
-
                       {/* Index indicator */}
                       <div className="absolute top-1 left-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium">
                         {index + 1}
+                      </div>
+
+                      {/* Duration indicator - top right */}
+                      <div className="absolute top-1 right-1 bg-black/60 rounded px-1 py-0.5 flex items-center gap-0.5">
+                        <Clock className="w-2.5 h-2.5 text-white/80" />
+                        <span className="text-[9px] text-white font-mono">
+                          {media.type === "video" 
+                            ? (media.duration ? formatDuration(media.duration) : "...") 
+                            : `${DEFAULT_IMAGE_DURATION}s`
+                          }
+                        </span>
+                      </div>
+                      
+                      {/* Type indicator - bottom left */}
+                      <div className="absolute bottom-1.5 left-1 bg-black/60 rounded px-1 py-0.5">
+                        {media.type === "video" ? (
+                          <Film className="w-3 h-3 text-white" />
+                        ) : (
+                          <Image className="w-3 h-3 text-white" />
+                        )}
                       </div>
 
                       {/* Remove button */}
