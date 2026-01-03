@@ -546,14 +546,36 @@ const VideoPreview = ({
       transition={{ duration: 0.5, delay: 0.2 }}
       className="relative"
     >
-      <div className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-        Preview Video
-        {mediaFiles.length > 1 && (
-          <span className="text-xs text-muted-foreground">
-            ({mediaFiles.length} media)
-          </span>
-        )}
+      <div className="text-sm font-medium text-foreground mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          Preview Video
+          {mediaFiles.length > 1 && (
+            <span className="text-xs text-muted-foreground">
+              ({mediaFiles.length} media)
+            </span>
+          )}
+        </div>
+        <div className={cn(
+          "flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium",
+          "bg-primary/10 text-primary border border-primary/20"
+        )}>
+          {videoFormat === "short" ? (
+            <>
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="7" y="2" width="10" height="20" rx="2" />
+              </svg>
+              <span>9:16</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+              </svg>
+              <span>16:9</span>
+            </>
+          )}
+        </div>
       </div>
 
       <div 
