@@ -64,6 +64,9 @@ interface EditorStepProps {
   // Export quality
   exportQuality?: "720p" | "1080p";
   onExportQualityChange?: (quality: "720p" | "1080p") => void;
+  // Export format
+  exportFormat?: "webm" | "mp4";
+  onExportFormatChange?: (format: "webm" | "mp4") => void;
 }
 
 const SEEK_STEP = 5; // seconds
@@ -100,6 +103,8 @@ const EditorStep = ({
   onClipsUpdate,
   exportQuality = "720p",
   onExportQualityChange,
+  exportFormat = "mp4",
+  onExportFormatChange,
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -118,7 +123,7 @@ const EditorStep = ({
   } = useVideoExporter();
 
   // Handle export start
-  const handleStartExport = useCallback((quality: "720p" | "1080p") => {
+  const handleStartExport = useCallback((quality: "720p" | "1080p", format: "webm" | "mp4") => {
     exportVideo({
       mediaFiles,
       editedClips,
@@ -127,6 +132,7 @@ const EditorStep = ({
       audioDuration,
       subtitleStyle,
       quality,
+      format,
     });
   }, [exportVideo, mediaFiles, editedClips, subtitleWords, audioUrl, audioDuration, subtitleStyle]);
 
@@ -622,6 +628,23 @@ const EditorStep = ({
               <SelectContent>
                 <SelectItem value="720p">720p HD</SelectItem>
                 <SelectItem value="1080p">1080p Full HD</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Format Selector */}
+        {onExportFormatChange && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+            <Film className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground hidden sm:inline">Format:</span>
+            <Select value={exportFormat} onValueChange={(v) => onExportFormatChange(v as "webm" | "mp4")}>
+              <SelectTrigger className="w-20 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mp4">MP4</SelectItem>
+                <SelectItem value="webm">WebM</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -49,6 +49,7 @@ const Index = () => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyleSettings>(DEFAULT_SUBTITLE_STYLE);
   const [exportQuality, setExportQuality] = useState<"720p" | "1080p">("720p");
+  const [exportFormat, setExportFormat] = useState<"webm" | "mp4">("mp4");
 
   // Hooks
   const {
@@ -157,6 +158,7 @@ const Index = () => {
         audioDuration: duration,
         subtitleStyle: subtitleStyle,
         quality: exportQuality,
+        format: exportFormat,
       });
 
       if (!result) {
@@ -186,7 +188,7 @@ const Index = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, [newsText, uploadedMedia, editedClips, subtitleWords, audioUrl, duration, subtitleStyle, selectedTemplate, selectedVoice, saveVideo, markStepComplete, exportVideo, exportQuality]);
+  }, [newsText, uploadedMedia, editedClips, subtitleWords, audioUrl, duration, subtitleStyle, selectedTemplate, selectedVoice, saveVideo, markStepComplete, exportVideo, exportQuality, exportFormat]);
 
   // Download handler
   const handleDownload = useCallback((id: string, url?: string) => {
@@ -317,6 +319,8 @@ const Index = () => {
                   onClipsUpdate={setEditedClips}
                   exportQuality={exportQuality}
                   onExportQualityChange={setExportQuality}
+                  exportFormat={exportFormat}
+                  onExportFormatChange={setExportFormat}
                 />
               )}
 
@@ -355,6 +359,7 @@ const Index = () => {
                   <span>Status: {exportProgress.status === "preparing" ? "Mempersiapkan" : 
                     exportProgress.status === "rendering" ? "Merender" : 
                     exportProgress.status === "encoding" ? "Encoding" : 
+                    exportProgress.status === "converting" ? "Konversi MP4" :
                     exportProgress.status === "complete" ? "Selesai" : "Memulai"}</span>
                   {exportProgress.estimatedTimeRemaining !== undefined && exportProgress.estimatedTimeRemaining > 0 && (
                     <span className="font-medium">

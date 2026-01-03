@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/select";
 
 interface ExportProgress {
-  status: "idle" | "preparing" | "rendering" | "encoding" | "complete" | "error";
+  status: "idle" | "preparing" | "rendering" | "encoding" | "converting" | "complete" | "error";
   progress: number;
   message: string;
+  estimatedTimeRemaining?: number;
 }
 
 interface ExportDialogProps {
@@ -30,7 +31,7 @@ interface ExportDialogProps {
   exportProgress: ExportProgress;
   exportedVideoUrl: string | null;
   isExporting: boolean;
-  onStartExport: (quality: "720p" | "1080p") => void;
+  onStartExport: (quality: "720p" | "1080p", format: "webm" | "mp4") => void;
   onCancel: () => void;
   onDownload: () => void;
   onReset: () => void;
@@ -54,6 +55,7 @@ const ExportDialog = ({
   hasMedia,
 }: ExportDialogProps) => {
   const [quality, setQuality] = useState<"720p" | "1080p">("720p");
+  const [format, setFormat] = useState<"webm" | "mp4">("mp4");
 
   const handleClose = () => {
     if (isExporting) {
@@ -70,6 +72,7 @@ const ExportDialog = ({
       case "preparing":
       case "rendering":
       case "encoding":
+      case "converting":
         return <Loader2 className="w-8 h-8 text-primary animate-spin" />;
       case "complete":
         return <CheckCircle className="w-8 h-8 text-green-500" />;
@@ -129,6 +132,20 @@ const ExportDialog = ({
                   </Select>
                 </div>
 
+                {/* Format Selection */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Format Video</label>
+                  <Select value={format} onValueChange={(v) => setFormat(v as "webm" | "mp4")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mp4">MP4 (Kompatibel luas)</SelectItem>
+                      <SelectItem value="webm">WebM (Lebih cepat)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Checklist */}
                 <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
                   <p className="text-sm font-medium mb-2">Status:</p>
@@ -163,7 +180,7 @@ const ExportDialog = ({
                   <p className="text-xs text-muted-foreground">
                     <strong>Catatan:</strong> Proses render berjalan real-time. 
                     Video 30 detik membutuhkan sekitar 30 detik untuk di-render.
-                    Format output: WebM.
+                    {format === "mp4" && " Konversi ke MP4 memerlukan waktu tambahan."}
                   </p>
                 </div>
               </motion.div>
@@ -208,7 +225,7 @@ const ExportDialog = ({
               <Button variant="outline" onClick={handleClose}>
                 Batal
               </Button>
-              <Button onClick={() => onStartExport(quality)} disabled={!canExport}>
+              <Button onClick={() => onStartExport(quality, format)} disabled={!canExport}>
                 <Film className="w-4 h-4 mr-2" />
                 Mulai Export
               </Button>
