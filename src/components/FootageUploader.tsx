@@ -154,11 +154,17 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewMedia, goToPrevMedia, goToNextMedia]);
 
-  // Cleanup preview URLs on unmount
+  // Cleanup preview URLs on unmount - capture files in ref to avoid stale closure
+  const uploadedFilesRef = useRef<MediaFile[]>([]);
+  uploadedFilesRef.current = uploadedFiles;
+  
   useEffect(() => {
     return () => {
-      uploadedFiles.forEach((media) => {
-        URL.revokeObjectURL(media.previewUrl);
+      // Only revoke on actual unmount, not on re-renders
+      uploadedFilesRef.current.forEach((media) => {
+        if (media.previewUrl && media.previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(media.previewUrl);
+        }
       });
     };
   }, []);

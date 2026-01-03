@@ -219,22 +219,28 @@ const VideoPreview = ({
     
     if (hasEditedClips && editedClips[activeMediaIndex]) {
       const clip = editedClips[activeMediaIndex];
-      newMedia = { 
-        id: clip.id,
-        previewUrl: clip.previewUrl, 
-        type: clip.type,
-        transition: clip.transition || "none",
-        kenBurns: clip.kenBurns || "random"
-      };
+      // Validate previewUrl exists and is not empty
+      if (clip.previewUrl && clip.previewUrl.trim() !== "") {
+        newMedia = { 
+          id: clip.id,
+          previewUrl: clip.previewUrl, 
+          type: clip.type,
+          transition: clip.transition || "none",
+          kenBurns: clip.kenBurns || "random"
+        };
+      }
     } else if (mediaFiles[activeMediaIndex]) {
       const file = mediaFiles[activeMediaIndex];
-      newMedia = { 
-        id: file.id,
-        previewUrl: file.previewUrl,
-        type: file.type,
-        transition: "none" as TransitionType,
-        kenBurns: "random" as KenBurnsType
-      };
+      // Validate previewUrl exists and is not empty
+      if (file.previewUrl && file.previewUrl.trim() !== "") {
+        newMedia = { 
+          id: file.id,
+          previewUrl: file.previewUrl,
+          type: file.type,
+          transition: "none" as TransitionType,
+          kenBurns: "random" as KenBurnsType
+        };
+      }
     }
     
     // Update ref if media ID changed OR if kenBurns changed for same media
@@ -877,8 +883,9 @@ const VideoPreview = ({
                         transition={variants.transition}
                         className="absolute inset-0"
                       >
-                        {currentMedia.type === "video" ? (
+                        {currentMedia.type === "video" && currentMedia.previewUrl ? (
                           <video
+                            key={currentMedia.previewUrl}
                             src={currentMedia.previewUrl}
                             className="w-full h-full object-contain bg-black"
                             loop
@@ -886,7 +893,7 @@ const VideoPreview = ({
                             playsInline
                             autoPlay={isAudioPlaying}
                           />
-                        ) : (
+                        ) : currentMedia.type === "image" && currentMedia.previewUrl ? (
                           (() => {
                             const kenBurnsEffect = getKenBurnsEffect(currentMedia.id, currentMedia.kenBurns);
                             return kenBurnsEffect ? (
@@ -917,7 +924,7 @@ const VideoPreview = ({
                               />
                             );
                           })()
-                        )}
+                        ) : null}
                       </motion.div>
                     );
                   })()}
@@ -1210,7 +1217,7 @@ const VideoPreview = ({
                     transition={variants.transition}
                     className="absolute inset-0"
                   >
-                    {currentMedia.type === "video" ? (
+                    {currentMedia.type === "video" && currentMedia.previewUrl ? (
                       <>
                         {isVideoLoading && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
@@ -1219,6 +1226,7 @@ const VideoPreview = ({
                         )}
                         <video
                           ref={videoRef}
+                          key={currentMedia.previewUrl}
                           src={currentMedia.previewUrl}
                           className="absolute inset-0 w-full h-full object-cover"
                           loop
