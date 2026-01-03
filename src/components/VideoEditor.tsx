@@ -16,7 +16,8 @@ import {
   GripHorizontal,
   RotateCcw,
   Keyboard,
-  Info
+  Info,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "./FootageUploader";
@@ -28,17 +29,27 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MediaClip extends MediaFile {
   trimStart: number;
   trimEnd: number;
   clipDuration: number;
+  transition?: TransitionType;
 }
 
 interface LayerTiming {
   startTime: number;
   duration: number;
 }
+
+export type TransitionType = "none" | "fade" | "slide" | "zoom" | "blur";
 
 export interface EditedClip {
   id: string;
@@ -47,6 +58,7 @@ export interface EditedClip {
   startTime: number;
   endTime: number;
   effectiveDuration: number;
+  transition: TransitionType;
 }
 
 interface VideoEditorProps {
@@ -141,6 +153,7 @@ const VideoEditor = ({
         startTime,
         endTime,
         effectiveDuration,
+        transition: clip.transition || "none",
       };
     });
     
@@ -525,6 +538,38 @@ const VideoEditor = ({
           </Button>
         </div>
       </div>
+
+      {/* Transition Selector - show when clip is selected */}
+      {selectedClipIndex !== null && clips[selectedClipIndex] && (
+        <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg border border-border">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-medium text-foreground">Transisi Masuk:</span>
+          </div>
+          <Select
+            value={clips[selectedClipIndex].transition || "none"}
+            onValueChange={(value: TransitionType) => {
+              setClips(prev => prev.map((c, i) => 
+                i === selectedClipIndex ? { ...c, transition: value } : c
+              ));
+            }}
+          >
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border border-border shadow-lg z-50">
+              <SelectItem value="none">Tanpa Transisi</SelectItem>
+              <SelectItem value="fade">Fade In</SelectItem>
+              <SelectItem value="slide">Slide</SelectItem>
+              <SelectItem value="zoom">Zoom In</SelectItem>
+              <SelectItem value="blur">Blur In</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-[10px] text-muted-foreground">
+            Clip {selectedClipIndex + 1} dari {clips.length}
+          </span>
+        </div>
+      )}
 
       {/* Drag hint */}
       <p className="text-[10px] text-muted-foreground flex items-center gap-1">

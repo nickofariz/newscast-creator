@@ -20,6 +20,8 @@ interface MediaFile {
   duration?: number;
 }
 
+export type TransitionType = "none" | "fade" | "slide" | "zoom" | "blur";
+
 export interface EditedClip {
   id: string;
   previewUrl: string;
@@ -27,6 +29,7 @@ export interface EditedClip {
   startTime: number;
   endTime: number;
   effectiveDuration: number;
+  transition: TransitionType;
 }
 
 export type VideoFormatType = "short" | "tv";
@@ -118,11 +121,57 @@ const VideoPreview = ({
       return { 
         id: clip.id,
         previewUrl: clip.previewUrl, 
-        type: clip.type 
+        type: clip.type,
+        transition: clip.transition || "none"
       };
     }
-    return mediaFiles[currentMediaIndex] || null;
+    return mediaFiles[currentMediaIndex] ? { 
+      ...mediaFiles[currentMediaIndex], 
+      transition: "none" as TransitionType 
+    } : null;
   }, [hasEditedClips, editedClips, currentMediaIndex, mediaFiles]);
+
+  // Get transition animation variants based on transition type
+  const getTransitionVariants = (transition: TransitionType) => {
+    switch (transition) {
+      case "fade":
+        return {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+          transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] as const }
+        };
+      case "slide":
+        return {
+          initial: { opacity: 0, x: 50 },
+          animate: { opacity: 1, x: 0 },
+          exit: { opacity: 0, x: -50 },
+          transition: { duration: 0.35, ease: [0, 0, 0.2, 1] as const }
+        };
+      case "zoom":
+        return {
+          initial: { opacity: 0, scale: 1.15 },
+          animate: { opacity: 1, scale: 1 },
+          exit: { opacity: 0, scale: 0.9 },
+          transition: { duration: 0.4, ease: [0, 0, 0.2, 1] as const }
+        };
+      case "blur":
+        return {
+          initial: { opacity: 0, filter: "blur(10px)" },
+          animate: { opacity: 1, filter: "blur(0px)" },
+          exit: { opacity: 0, filter: "blur(10px)" },
+          transition: { duration: 0.35, ease: [0, 0, 0.2, 1] as const }
+        };
+      case "none":
+      default:
+        return {
+          initial: { opacity: 0 },
+          animate: { opacity: 1 },
+          exit: { opacity: 0 },
+          transition: { duration: 0.15 }
+        };
+    }
+  };
 
   // Calculate progress within current media segment
   const segmentProgress = useMemo(() => {
@@ -615,31 +664,36 @@ const VideoPreview = ({
         {/* Background - Media or Gradient */}
         <AnimatePresence mode="sync">
           {currentMedia ? (
-            <motion.div
-              key={`${currentMedia.id}-${currentMediaIndex}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="absolute inset-0"
-            >
-              {currentMedia.type === "video" ? (
-                <video
-                  ref={videoRef}
-                  src={currentMedia.previewUrl}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  loop
-                  muted
-                  playsInline
-                />
-              ) : (
-                <img
-                  src={currentMedia.previewUrl}
-                  alt="Background"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              )}
-            </motion.div>
+            (() => {
+              const variants = getTransitionVariants(currentMedia.transition);
+              return (
+                <motion.div
+                  key={`${currentMedia.id}-${currentMediaIndex}`}
+                  initial={variants.initial}
+                  animate={variants.animate}
+                  exit={variants.exit}
+                  transition={variants.transition}
+                  className="absolute inset-0 overflow-hidden"
+                >
+                  {currentMedia.type === "video" ? (
+                    <video
+                      ref={videoRef}
+                      src={currentMedia.previewUrl}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      loop
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={currentMedia.previewUrl}
+                      alt="Background"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  )}
+                </motion.div>
+              );
+            })()
           ) : (
             <motion.div
               key="placeholder"
