@@ -85,15 +85,25 @@ const VideoEditor = ({
   
   const timelineRef = useRef<HTMLDivElement>(null);
 
+  // Auto-fit clips to audio duration
   useEffect(() => {
+    if (mediaFiles.length === 0) {
+      setClips([]);
+      return;
+    }
+
+    // Calculate duration per clip based on audio duration
+    const targetDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_CLIP_DURATION;
+    const durationPerClip = targetDuration / mediaFiles.length;
+
     const newClips: MediaClip[] = mediaFiles.map((media) => ({
       ...media,
       trimStart: 0,
       trimEnd: 1,
-      clipDuration: DEFAULT_CLIP_DURATION,
+      clipDuration: durationPerClip,
     }));
     setClips(newClips);
-  }, [mediaFiles]);
+  }, [mediaFiles, audioDuration]);
 
   const mediaDuration = clips.reduce((acc, clip) => {
     const effectiveDuration = clip.clipDuration * (clip.trimEnd - clip.trimStart);
