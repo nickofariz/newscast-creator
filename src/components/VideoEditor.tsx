@@ -14,12 +14,20 @@ import {
   GripVertical,
   Clock,
   GripHorizontal,
-  RotateCcw
+  RotateCcw,
+  Keyboard,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "./FootageUploader";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AudioWaveform from "./AudioWaveform";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MediaClip extends MediaFile {
   trimStart: number;
@@ -778,23 +786,77 @@ const VideoEditor = ({
         </div>
       </div>
 
-      {/* Layer Legend */}
-      <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-blue-500" />
-          <span>Media</span>
+      {/* Layer Legend & Keyboard Shortcuts */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-muted-foreground">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <span>Media</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span>Audio (fixed)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+            <span>Text (drag)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-purple-500" />
+            <span>Image (drag)</span>
+          </div>
+        </div>
+
+        {/* Keyboard Shortcuts with Tooltip */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 cursor-help px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors">
+                <Keyboard className="w-3 h-3" />
+                <span>Shortcuts</span>
+                <Info className="w-2.5 h-2.5 opacity-60" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="p-3 max-w-xs">
+              <div className="space-y-2">
+                <p className="font-medium text-xs">Keyboard Shortcuts</p>
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Hapus clip</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Delete</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Reset trim</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">R</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Trim awal/akhir</span>
+                    <span className="text-[10px]">Drag tepi clip</span>
+                  </div>
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      {/* Shortcuts Info Bar */}
+      <div className="flex flex-wrap items-center gap-4 px-3 py-2 rounded-md bg-muted/30 border border-border/50 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Keyboard className="w-3 h-3 text-primary/70" />
+          <span className="font-medium">Shortcuts:</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-green-500" />
-          <span>Audio (fixed)</span>
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">Delete</kbd>
+          <span>Hapus clip</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-yellow-500" />
-          <span>Text (drag)</span>
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">R</kbd>
+          <span>Reset trim</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-purple-500" />
-          <span>Image (drag)</span>
+        <div className="flex items-center gap-1 ml-auto opacity-70">
+          <Info className="w-2.5 h-2.5" />
+          <span>Pilih clip terlebih dahulu</span>
         </div>
       </div>
     </div>
