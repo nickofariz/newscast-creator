@@ -1,8 +1,9 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
 import VideoPreview, { VideoFormatType } from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
@@ -15,6 +16,8 @@ import MiniTimeline from "@/components/MiniTimeline";
 import SubtitlePreview, { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
 import ExportDialog from "@/components/ExportDialog";
 import { useVideoExporter } from "@/hooks/useVideoExporter";
+
+export type DurationMode = "longest" | "media" | "audio";
 
 interface SubtitleWord {
   text: string;
@@ -39,6 +42,8 @@ interface EditorStepProps {
   onOverlaySettingsChange: (settings: OverlaySettings) => void;
   videoFormat?: VideoFormatType;
   onVideoFormatChange?: (format: VideoFormatType) => void;
+  durationMode?: DurationMode;
+  onDurationModeChange?: (mode: DurationMode) => void;
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -70,6 +75,8 @@ const EditorStep = ({
   onOverlaySettingsChange,
   videoFormat = "short",
   onVideoFormatChange,
+  durationMode = "longest",
+  onDurationModeChange,
   onGenerate,
   onNext,
   onBack,
@@ -273,6 +280,7 @@ const EditorStep = ({
                     overlaySettings={overlaySettings}
                     videoFormat={videoFormat}
                     subtitleStyle={subtitleStyle}
+                    durationMode={durationMode}
                     onPlay={onPlay}
                     onPause={onPause}
                     onSeek={onSeek}
@@ -293,6 +301,7 @@ const EditorStep = ({
                   isPlaying={isPlaying}
                   onSeek={onSeek}
                   onClipsChange={handleClipsChange}
+                  durationMode={durationMode}
                 />
               </div>
             </div>
@@ -349,6 +358,35 @@ const EditorStep = ({
               )}
             </div>
 
+            {/* Duration Mode Selector */}
+            {onDurationModeChange && (
+              <div className="mb-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Timer className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Mode Durasi</span>
+                </div>
+                <ToggleGroup
+                  type="single"
+                  value={durationMode}
+                  onValueChange={(value) => value && onDurationModeChange(value as DurationMode)}
+                  className="justify-start gap-1"
+                >
+                  <ToggleGroupItem value="longest" size="sm" className="text-[10px] px-2 py-1 h-6">
+                    <Maximize2 className="w-3 h-3 mr-1" />
+                    Terpanjang
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="media" size="sm" className="text-[10px] px-2 py-1 h-6">
+                    <Film className="w-3 h-3 mr-1" />
+                    Media
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="audio" size="sm" className="text-[10px] px-2 py-1 h-6">
+                    <Volume2 className="w-3 h-3 mr-1" />
+                    Audio
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            )}
+
             {/* Audio Player - now below header */}
             {audioUrl && onPlay && onPause && (
               <div className="flex items-center justify-between mb-3 px-2 py-1.5 bg-muted/50 rounded-lg">
@@ -388,6 +426,7 @@ const EditorStep = ({
               overlaySettings={overlaySettings}
               videoFormat={videoFormat}
               subtitleStyle={subtitleStyle}
+              durationMode={durationMode}
               onPlay={onPlay}
               onPause={onPause}
               onSeek={onSeek}
@@ -443,6 +482,7 @@ const EditorStep = ({
                   isPlaying={isPlaying}
                   onSeek={onSeek}
                   onClipsChange={handleClipsChange}
+                  durationMode={durationMode}
                 />
               </div>
 

@@ -37,6 +37,7 @@ export interface EditedClip {
 }
 
 export type VideoFormatType = "short" | "tv";
+export type DurationMode = "longest" | "media" | "audio";
 
 interface VideoPreviewProps {
   newsText: string;
@@ -51,6 +52,7 @@ interface VideoPreviewProps {
   overlaySettings?: OverlaySettings;
   videoFormat?: VideoFormatType;
   subtitleStyle?: SubtitleStyleSettings;
+  durationMode?: DurationMode;
   onPlay?: () => void;
   onPause?: () => void;
   onSeek?: (time: number) => void;
@@ -71,6 +73,7 @@ const VideoPreview = ({
   overlaySettings,
   videoFormat = "short",
   subtitleStyle = DEFAULT_SUBTITLE_STYLE,
+  durationMode = "longest",
   onPlay,
   onPause,
   onSeek,
@@ -226,13 +229,25 @@ const VideoPreview = ({
     return Math.min(100, Math.max(0, progress));
   }, [currentTime, audioDuration, editedClips, activeMediaIndex, hasEditedClips, mediaFiles.length]);
 
-  // Calculate total duration for internal timer
-  const totalDuration = useMemo(() => {
+  // Calculate total duration based on duration mode
+  const mediaDuration = useMemo(() => {
     if (hasEditedClips && editedClips.length > 0) {
       return editedClips[editedClips.length - 1].endTime;
     }
-    return audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-  }, [hasEditedClips, editedClips, audioDuration, mediaFiles.length]);
+    return mediaFiles.length * DEFAULT_IMAGE_DURATION;
+  }, [hasEditedClips, editedClips, mediaFiles.length]);
+
+  const totalDuration = useMemo(() => {
+    switch (durationMode) {
+      case "media":
+        return mediaDuration;
+      case "audio":
+        return audioDuration > 0 ? audioDuration : mediaDuration;
+      case "longest":
+      default:
+        return Math.max(mediaDuration, audioDuration || 0);
+    }
+  }, [durationMode, mediaDuration, audioDuration]);
 
   // Internal timer for preview playback when audio is not playing
   useEffect(() => {
