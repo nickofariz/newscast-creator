@@ -656,6 +656,33 @@ const VideoEditor = ({
                 onClick={handleRulerClick}
               >
                 {renderTimeRuler()}
+                
+                {/* Duration Markers on Ruler */}
+                {/* Audio Duration Marker */}
+                {audioDuration > 0 && mediaDuration !== audioDuration && (
+                  <div
+                    className="absolute top-0 bottom-0 flex flex-col items-center z-20"
+                    style={{ left: `${audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
+                  >
+                    <div className="w-px h-full bg-orange-500" />
+                    <div className="absolute -top-0.5 -translate-x-1/2 bg-orange-500 text-white text-[6px] px-1 rounded-sm font-medium whitespace-nowrap">
+                      🔊 {formatTime(audioDuration)}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Media Duration Marker */}
+                {mediaDuration > 0 && mediaDuration !== audioDuration && (
+                  <div
+                    className="absolute top-0 bottom-0 flex flex-col items-center z-20"
+                    style={{ left: `${mediaDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
+                  >
+                    <div className="w-px h-full bg-blue-500" />
+                    <div className="absolute -top-0.5 -translate-x-1/2 bg-blue-500 text-white text-[6px] px-1 rounded-sm font-medium whitespace-nowrap">
+                      🎬 {formatTime(mediaDuration)}
+                    </div>
+                  </div>
+                )}
               </div>
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
@@ -668,6 +695,39 @@ const VideoEditor = ({
           onClick={handleTimelineClick}
           className="relative cursor-crosshair"
         >
+          {/* Duration Zone Indicators - Background shading */}
+          <div className="absolute inset-0 pointer-events-none z-0">
+            {/* Show area where only audio plays (media ended) */}
+            {mediaDuration > 0 && audioDuration > mediaDuration && (
+              <div
+                className="absolute top-0 bottom-0 bg-orange-500/5 border-l border-orange-500/30"
+                style={{ 
+                  left: `${80 + mediaDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px`,
+                  width: `${(audioDuration - mediaDuration) * TIMELINE_PIXELS_PER_SECOND * zoom}px`
+                }}
+              >
+                <div className="absolute top-1 left-1 text-[8px] text-orange-500/70 font-medium">
+                  Audio saja
+                </div>
+              </div>
+            )}
+            
+            {/* Show area where only media plays (audio ended) */}
+            {audioDuration > 0 && mediaDuration > audioDuration && (
+              <div
+                className="absolute top-0 bottom-0 bg-blue-500/5 border-l border-blue-500/30"
+                style={{ 
+                  left: `${80 + audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px`,
+                  width: `${(mediaDuration - audioDuration) * TIMELINE_PIXELS_PER_SECOND * zoom}px`
+                }}
+              >
+                <div className="absolute top-1 left-1 text-[8px] text-blue-500/70 font-medium">
+                  Media saja
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Layer 1: Media (Video/Photo) */}
           <LayerRow icon={Film} label="Media" color="text-blue-500" isEmpty={clips.length === 0}>
             <ScrollArea className="w-full h-full">
