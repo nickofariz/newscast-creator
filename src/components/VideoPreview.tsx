@@ -1080,11 +1080,11 @@ const VideoPreview = ({
           )}
         </AnimatePresence>
 
-        {/* Background - Media or Gradient */}
-        {currentMedia ? (
-          <div className="absolute inset-0 overflow-hidden">
-            <AnimatePresence mode="wait" initial={false}>
-              {(() => {
+        {/* Background - Media or Black Screen with Fade */}
+        <div className="absolute inset-0 overflow-hidden">
+          <AnimatePresence mode="wait" initial={false}>
+            {currentMedia ? (
+              (() => {
                 const variants = getTransitionVariants(currentMedia.transition || "none");
                 return (
                   <motion.div
@@ -1113,21 +1113,33 @@ const VideoPreview = ({
                     )}
                   </motion.div>
                 );
-              })()}
-            </AnimatePresence>
-          </div>
-        ) : (
-          <div className="absolute inset-0">
-            <div className="absolute inset-0 gradient-dark" />
-            <div 
-              className="absolute inset-0 opacity-5"
-              style={{
-                backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
-                backgroundSize: '20px 20px'
-              }}
-            />
-          </div>
-        )}
+              })()
+            ) : (
+              <motion.div
+                key="black-screen"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="absolute inset-0 bg-black"
+              />
+            )}
+          </AnimatePresence>
+          
+          {/* Fallback gradient when no media at all */}
+          {!currentMedia && mediaFiles.length === 0 && (
+            <div className="absolute inset-0">
+              <div className="absolute inset-0 gradient-dark" />
+              <div 
+                className="absolute inset-0 opacity-5"
+                style={{
+                  backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
+                  backgroundSize: '20px 20px'
+                }}
+              />
+            </div>
+          )}
+        </div>
         
         {/* Dark overlay for text readability */}
         {currentMedia && <div className="absolute inset-0 bg-black/40" />}
