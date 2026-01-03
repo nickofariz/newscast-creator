@@ -141,12 +141,12 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
 
   const seekTo = useCallback((time: number) => {
     const clampedTime = Math.max(0, Math.min(time, duration || Infinity));
-    // Update audio element first - this will trigger timeupdate event
+    // Update state FIRST for immediate UI response
+    setCurrentTime(clampedTime);
+    // Then update audio element
     if (audioRef.current) {
       audioRef.current.currentTime = clampedTime;
     }
-    // Also update state immediately for responsive UI (in case audio element is slow)
-    setCurrentTime(clampedTime);
   }, [duration]);
 
   return {
