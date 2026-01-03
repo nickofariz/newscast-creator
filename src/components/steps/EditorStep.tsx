@@ -1,9 +1,9 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import VideoEditor from "@/components/VideoEditor";
+import VideoEditor, { EditedClip } from "@/components/VideoEditor";
 import VideoPreview from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
 import { OverlaySettings } from "@/components/OverlaySelector";
@@ -65,11 +65,17 @@ const EditorStep = ({
   onPause,
   onSeek,
 }: EditorStepProps) => {
+  const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
+
+  const handleClipsChange = useCallback((clips: EditedClip[]) => {
+    setEditedClips(clips);
+  }, []);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -161,6 +167,7 @@ const EditorStep = ({
           template={selectedTemplate}
           isGenerating={isGenerating}
           mediaFiles={mediaFiles}
+          editedClips={editedClips}
           subtitleWords={subtitleWords}
           currentTime={currentTime}
           isAudioPlaying={isPlaying}
@@ -198,6 +205,7 @@ const EditorStep = ({
               currentTime={currentTime}
               isPlaying={isPlaying}
               onSeek={onSeek}
+              onClipsChange={handleClipsChange}
             />
           </div>
         </TabsContent>

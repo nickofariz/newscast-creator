@@ -31,6 +31,15 @@ interface LayerTiming {
   duration: number;
 }
 
+export interface EditedClip {
+  id: string;
+  previewUrl: string;
+  type: "video" | "image";
+  startTime: number;
+  endTime: number;
+  effectiveDuration: number;
+}
+
 interface VideoEditorProps {
   mediaFiles: MediaFile[];
   onMediaUpdate: (files: MediaFile[]) => void;
@@ -41,6 +50,7 @@ interface VideoEditorProps {
   currentTime: number;
   isPlaying: boolean;
   onSeek?: (time: number) => void;
+  onClipsChange?: (clips: EditedClip[]) => void;
 }
 
 const DEFAULT_CLIP_DURATION = 3;
@@ -56,7 +66,8 @@ const VideoEditor = ({
   overlayImage,
   currentTime,
   isPlaying,
-  onSeek
+  onSeek,
+  onClipsChange
 }: VideoEditorProps) => {
   const [clips, setClips] = useState<MediaClip[]>([]);
   const [selectedClipIndex, setSelectedClipIndex] = useState<number | null>(null);
@@ -90,6 +101,30 @@ const VideoEditor = ({
   }, 0);
 
   const totalDuration = Math.max(mediaDuration, audioDuration || 0, textTiming.startTime + textTiming.duration, imageTiming.startTime + imageTiming.duration);
+
+  // Calculate and expose edited clips data for VideoPreview
+  useEffect(() => {
+    if (!onClipsChange) return;
+    
+    let accumulatedTime = 0;
+    const editedClips: EditedClip[] = clips.map((clip) => {
+      const effectiveDuration = clip.clipDuration * (clip.trimEnd - clip.trimStart);
+      const startTime = accumulatedTime;
+      const endTime = accumulatedTime + effectiveDuration;
+      accumulatedTime = endTime;
+      
+      return {
+        id: clip.id,
+        previewUrl: clip.previewUrl,
+        type: clip.type,
+        startTime,
+        endTime,
+        effectiveDuration,
+      };
+    });
+    
+    onClipsChange(editedClips);
+  }, [clips, onClipsChange]);
 
   // Update layer timings when total duration changes
   useEffect(() => {
