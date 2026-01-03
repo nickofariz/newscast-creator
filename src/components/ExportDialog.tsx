@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, X, Loader2, CheckCircle, AlertCircle, Film } from "lucide-react";
+import { Download, X, Loader2, CheckCircle, AlertCircle, Film, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -25,6 +25,11 @@ interface ExportProgress {
   estimatedTimeRemaining?: number;
 }
 
+interface MediaPreview {
+  previewUrl: string;
+  type: "video" | "image";
+}
+
 interface ExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -38,6 +43,7 @@ interface ExportDialogProps {
   hasSubtitles: boolean;
   hasAudio: boolean;
   hasMedia: boolean;
+  mediaPreviews?: MediaPreview[];
 }
 
 const ExportDialog = ({
@@ -53,9 +59,66 @@ const ExportDialog = ({
   hasSubtitles,
   hasAudio,
   hasMedia,
+  mediaPreviews = [],
 }: ExportDialogProps) => {
   const [quality, setQuality] = useState<"720p" | "1080p">("720p");
   const [format, setFormat] = useState<"webm" | "mp4">("mp4");
+  const [thumbnails, setThumbnails] = useState<string[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Generate thumbnails from media previews
+  useEffect(() => {
+    if (!open || mediaPreviews.length === 0) {
+      setThumbnails([]);
+      return;
+    }
+
+    const generateThumbnails = async () => {
+      const thumbs: string[] = [];
+      const maxThumbs = Math.min(4, mediaPreviews.length);
+
+      for (let i = 0; i < maxThumbs; i++) {
+        const media = mediaPreviews[i];
+        
+        if (media.type === "image") {
+          thumbs.push(media.previewUrl);
+        } else if (media.type === "video") {
+          // Generate thumbnail from video
+          try {
+            const video = document.createElement("video");
+            video.src = media.previewUrl;
+            video.crossOrigin = "anonymous";
+            video.muted = true;
+            video.preload = "metadata";
+            
+            await new Promise<void>((resolve) => {
+              video.onloadeddata = () => {
+                video.currentTime = 0.1;
+              };
+              video.onseeked = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = 160;
+                canvas.height = 90;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                  thumbs.push(canvas.toDataURL("image/jpeg", 0.7));
+                }
+                resolve();
+              };
+              video.onerror = () => resolve();
+            });
+          } catch {
+            // Skip failed thumbnails
+          }
+        }
+      }
+      
+      setThumbnails(thumbs);
+    };
+
+    generateThumbnails();
+  }, [open, mediaPreviews]);
 
   const handleClose = () => {
     if (isExporting) {
@@ -145,6 +208,38 @@ const ExportDialog = ({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Thumbnail Preview */}
+                {thumbnails.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                      <label className="text-sm font-medium">Preview Media</label>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 p-3 bg-muted/30 rounded-lg">
+                      {thumbnails.map((thumb, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="aspect-video rounded-md overflow-hidden border border-border bg-black"
+                        >
+                          <img
+                            src={thumb}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </motion.div>
+                      ))}
+                      {mediaPreviews.length > 4 && (
+                        <div className="aspect-video rounded-md overflow-hidden border border-border bg-muted flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">+{mediaPreviews.length - 4}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Checklist */}
                 <div className="space-y-2 p-3 bg-muted/50 rounded-lg">

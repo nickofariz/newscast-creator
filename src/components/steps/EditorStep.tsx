@@ -701,6 +701,7 @@ const EditorStep = ({
         hasSubtitles={subtitleWords.length > 0}
         hasAudio={!!audioUrl}
         hasMedia={mediaFiles.length > 0}
+        mediaPreviews={mediaFiles.map(m => ({ previewUrl: m.previewUrl, type: m.type }))}
       />
     </motion.div>
     </>
