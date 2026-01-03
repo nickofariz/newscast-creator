@@ -293,10 +293,8 @@ const VideoPreview = ({
       const currentClip = editedClips[currentMediaIndex];
       if (currentClip) {
         const offsetInClip = time - currentClip.startTime;
-        // Reduce threshold for more responsive seeking
-        if (Math.abs(videoRef.current.currentTime - offsetInClip) > 0.1) {
-          videoRef.current.currentTime = Math.max(0, offsetInClip);
-        }
+        // Direct seek without threshold for immediate response
+        videoRef.current.currentTime = Math.max(0, offsetInClip);
       }
     }
   }, [currentTime, internalTime, audioDuration, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);

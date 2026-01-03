@@ -47,16 +47,22 @@ const ScrubBar = ({
     setHoverProgress(null);
   }, []);
 
-  // Handle drag globally
+  // Handle drag globally with requestAnimationFrame for smoother seeking
   useEffect(() => {
     if (!isDragging) return;
 
+    let rafId: number | null = null;
+
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      const time = calculateTimeFromPosition(e.clientX);
-      onSeek(time);
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const time = calculateTimeFromPosition(e.clientX);
+        onSeek(time);
+      });
     };
 
     const handleGlobalMouseUp = () => {
+      if (rafId) cancelAnimationFrame(rafId);
       setIsDragging(false);
     };
 
@@ -64,6 +70,7 @@ const ScrubBar = ({
     document.addEventListener('mouseup', handleGlobalMouseUp);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
