@@ -173,7 +173,8 @@ const VideoPreview = ({
   }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, freezeLastFrame]);
 
   const activeMediaIndex = useMemo(() => {
-    if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
+    // No media at all - return -1 to show placeholder
+    if (mediaFiles.length === 0 && editedClips.length === 0) return -1;
     
     // If media ended and not freezing, return -1 (will show black)
     if (isMediaEnded) return -1;
@@ -181,29 +182,34 @@ const VideoPreview = ({
     const time = currentTime;
     
     // Use edited clips if available - this is the primary logic
-    if (hasEditedClips) {
+    if (hasEditedClips && editedClips.length > 0) {
       for (let i = 0; i < editedClips.length; i++) {
         if (time >= editedClips[i].startTime && time < editedClips[i].endTime) {
           return i;
         }
       }
       // If time exceeds all clips, show last (freeze)
-      return editedClips.length > 0 ? editedClips.length - 1 : 0;
+      return editedClips.length - 1;
     }
     
-    // Fallback: distribute audio duration evenly
-    const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-    const durationPerMedia = totalDur / Math.max(1, mediaFiles.length);
-    
-    for (let i = 0; i < mediaFiles.length; i++) {
-      const start = i * durationPerMedia;
-      const end = (i + 1) * durationPerMedia;
-      if (time >= start && time < end) {
-        return i;
+    // Fallback: distribute audio duration evenly for mediaFiles
+    if (mediaFiles.length > 0) {
+      const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+      const durationPerMedia = totalDur / mediaFiles.length;
+      
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const start = i * durationPerMedia;
+        const end = (i + 1) * durationPerMedia;
+        if (time >= start && time < end) {
+          return i;
+        }
       }
+      
+      // Default to first media if time is 0 or before first clip
+      return 0;
     }
     
-    return Math.max(0, mediaFiles.length - 1);
+    return -1;
   }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, isMediaEnded]);
 
   // Get current media - use stable reference to prevent flickering
@@ -215,12 +221,11 @@ const VideoPreview = ({
       activeMediaIndex,
       isMediaEnded,
       hasEditedClips,
-      firstMediaFile: mediaFiles[0] ? { id: mediaFiles[0].id, previewUrl: mediaFiles[0].previewUrl?.substring(0, 50) } : null,
-      firstEditedClip: editedClips[0] ? { id: editedClips[0].id, previewUrl: editedClips[0].previewUrl?.substring(0, 50) } : null,
+      firstMediaFile: mediaFiles[0] ? { id: mediaFiles[0].id, previewUrl: mediaFiles[0].previewUrl?.substring(0, 50), type: mediaFiles[0].type } : null,
     });
     
-    // Show nothing (black screen) if media ended
-    if (isMediaEnded || activeMediaIndex === -1) {
+    // Show nothing (placeholder/black screen) if no valid index
+    if (activeMediaIndex === -1) {
       currentMediaRef.current = null;
       prevMediaIdRef.current = "";
       return null;
@@ -228,9 +233,9 @@ const VideoPreview = ({
     
     let newMedia: typeof currentMediaRef.current = null;
     
+    // Priority: editedClips first, then mediaFiles
     if (hasEditedClips && editedClips[activeMediaIndex]) {
       const clip = editedClips[activeMediaIndex];
-      // Always create media object if clip exists - previewUrl might be loading
       newMedia = { 
         id: clip.id,
         previewUrl: clip.previewUrl || "", 
@@ -240,7 +245,6 @@ const VideoPreview = ({
       };
     } else if (mediaFiles[activeMediaIndex]) {
       const file = mediaFiles[activeMediaIndex];
-      // Always create media object if file exists - previewUrl might be loading
       newMedia = { 
         id: file.id,
         previewUrl: file.previewUrl || "",
@@ -250,7 +254,7 @@ const VideoPreview = ({
       };
     }
     
-    console.log("VideoPreview - newMedia created:", newMedia ? { id: newMedia.id, previewUrl: newMedia.previewUrl?.substring(0, 50), type: newMedia.type } : null);
+    console.log("VideoPreview - newMedia result:", newMedia ? { id: newMedia.id, previewUrl: newMedia.previewUrl?.substring(0, 50), type: newMedia.type } : null);
     
     // Update ref if media ID changed OR if kenBurns changed for same media
     if (newMedia) {
@@ -263,6 +267,10 @@ const VideoPreview = ({
         prevMediaIdRef.current = newMedia.id;
         currentMediaRef.current = newMedia;
       }
+    } else {
+      // Reset refs when no media
+      currentMediaRef.current = null;
+      prevMediaIdRef.current = "";
     }
     
     return currentMediaRef.current;
