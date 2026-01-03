@@ -180,6 +180,7 @@ const Index = () => {
                   newsText={newsText}
                   template={selectedTemplate}
                   isGenerating={isGenerating}
+                  footageFile={uploadedFootage}
                 />
 
                 {/* Quick Actions */}
