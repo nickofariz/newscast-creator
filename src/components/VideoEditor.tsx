@@ -96,37 +96,6 @@ const VideoEditor = ({
   
   const timelineRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcuts for timeline editor
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle if a clip is selected and not typing in an input
-      if (selectedClipIndex === null) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      const selectedClip = clips[selectedClipIndex];
-      if (!selectedClip) return;
-
-      // Delete key - remove selected clip
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        handleDeleteClip(selectedClipIndex);
-      }
-
-      // R key - reset trim
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        if (selectedClip.trimStart > 0 || selectedClip.trimEnd < 1) {
-          setClips(prev => prev.map((c, i) => 
-            i === selectedClipIndex ? { ...c, trimStart: 0, trimEnd: 1 } : c
-          ));
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClipIndex, clips]);
-
   // Auto-fit clips to audio duration
   useEffect(() => {
     if (mediaFiles.length === 0) {
@@ -185,6 +154,100 @@ const VideoEditor = ({
       setImageTiming(prev => ({ ...prev, duration: Math.max(prev.duration, totalDuration) }));
     }
   }, [totalDuration]);
+
+  // Keyboard shortcuts for timeline editor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const selectedClip = selectedClipIndex !== null ? clips[selectedClipIndex] : null;
+
+      // Space - play/pause (handled by parent, but we prevent default)
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        // Play/pause is handled by parent component
+      }
+
+      // Escape - deselect clip
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedClipIndex(null);
+      }
+
+      // Left/Right arrow - move playhead
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : 0.1;
+        onSeek?.(Math.max(0, currentTime - step));
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : 0.1;
+        onSeek?.(Math.min(totalDuration, currentTime + step));
+      }
+
+      // +/- or =/- for zoom
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        setZoom(prev => Math.min(2, prev + 0.25));
+      }
+      if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        setZoom(prev => Math.max(0.5, prev - 0.25));
+      }
+
+      // Home - go to start
+      if (e.key === 'Home') {
+        e.preventDefault();
+        onSeek?.(0);
+      }
+
+      // End - go to end
+      if (e.key === 'End') {
+        e.preventDefault();
+        onSeek?.(totalDuration);
+      }
+
+      // Shortcuts that require selected clip
+      if (selectedClipIndex !== null && selectedClip) {
+        // Delete key - remove selected clip
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          handleDeleteClip(selectedClipIndex);
+        }
+
+        // R key - reset trim
+        if (e.key === 'r' || e.key === 'R') {
+          e.preventDefault();
+          if (selectedClip.trimStart > 0 || selectedClip.trimEnd < 1) {
+            setClips(prev => prev.map((c, i) => 
+              i === selectedClipIndex ? { ...c, trimStart: 0, trimEnd: 1 } : c
+            ));
+          }
+        }
+
+        // [ key - select previous clip
+        if (e.key === '[') {
+          e.preventDefault();
+          if (selectedClipIndex > 0) {
+            setSelectedClipIndex(selectedClipIndex - 1);
+          }
+        }
+
+        // ] key - select next clip
+        if (e.key === ']') {
+          e.preventDefault();
+          if (selectedClipIndex < clips.length - 1) {
+            setSelectedClipIndex(selectedClipIndex + 1);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedClipIndex, clips, currentTime, totalDuration, onSeek]);
 
   // Note: currentTime and isPlaying now come from props (controlled by parent)
 
@@ -817,21 +880,61 @@ const VideoEditor = ({
                 <Info className="w-2.5 h-2.5 opacity-60" />
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="p-3 max-w-xs">
+            <TooltipContent side="top" className="p-3 max-w-sm">
               <div className="space-y-2">
                 <p className="font-medium text-xs">Keyboard Shortcuts</p>
-                <div className="space-y-1.5 text-[11px]">
-                  <div className="flex items-center justify-between gap-4">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Hapus clip</span>
                     <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Delete</kbd>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Reset trim</span>
                     <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">R</kbd>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Trim awal/akhir</span>
-                    <span className="text-[10px]">Drag tepi clip</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Mundur 0.1s</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">←</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Maju 0.1s</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">→</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Mundur 1s</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Shift+←</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Maju 1s</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Shift+→</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Zoom in</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">+</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Zoom out</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">-</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Ke awal</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Home</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Ke akhir</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">End</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Clip sebelum</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">[</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Clip berikut</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">]</kbd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Batal pilih</span>
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Esc</kbd>
                   </div>
                 </div>
               </div>
@@ -841,22 +944,34 @@ const VideoEditor = ({
       </div>
 
       {/* Shortcuts Info Bar */}
-      <div className="flex flex-wrap items-center gap-4 px-3 py-2 rounded-md bg-muted/30 border border-border/50 text-[10px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-md bg-muted/30 border border-border/50 text-[10px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <Keyboard className="w-3 h-3 text-primary/70" />
           <span className="font-medium">Shortcuts:</span>
         </div>
         <div className="flex items-center gap-1">
-          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">Delete</kbd>
-          <span>Hapus clip</span>
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">Del</kbd>
+          <span>Hapus</span>
         </div>
         <div className="flex items-center gap-1">
           <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">R</kbd>
-          <span>Reset trim</span>
+          <span>Reset</span>
         </div>
-        <div className="flex items-center gap-1 ml-auto opacity-70">
-          <Info className="w-2.5 h-2.5" />
-          <span>Pilih clip terlebih dahulu</span>
+        <div className="flex items-center gap-1">
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">←→</kbd>
+          <span>Seek</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">+-</kbd>
+          <span>Zoom</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">[]</kbd>
+          <span>Clip</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono">Esc</kbd>
+          <span>Batal</span>
         </div>
       </div>
     </div>
