@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Settings2, Palette } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor from "@/components/VideoEditor";
@@ -34,6 +34,10 @@ interface EditorStepProps {
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
+  // Audio controls
+  audioUrl?: string | null;
+  onPlay?: () => void;
+  onPause?: () => void;
 }
 
 const EditorStep = ({
@@ -52,7 +56,17 @@ const EditorStep = ({
   onGenerate,
   onNext,
   onBack,
+  audioUrl,
+  onPlay,
+  onPause,
 }: EditorStepProps) => {
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -60,11 +74,46 @@ const EditorStep = ({
       exit={{ opacity: 0, x: -20 }}
       className="space-y-4"
     >
-      {/* Live Preview - Always Visible */}
+      {/* Live Preview with Audio Controls */}
       <div className="glass-card rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-sm font-medium text-foreground">Preview</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm font-medium text-foreground">Preview</span>
+          </div>
+          
+          {/* Audio Player */}
+          {audioUrl && onPlay && onPause && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={isPlaying ? onPause : onPlay}
+                className="h-8 px-3"
+              >
+                {isPlaying ? (
+                  <Pause className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Volume2 className="w-3 h-3" />
+                <span className="font-mono">{formatTime(currentTime)} / {formatTime(audioDuration)}</span>
+              </div>
+              {/* Progress bar */}
+              <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-100"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+          
+          {!audioUrl && (
+            <span className="text-xs text-muted-foreground">Belum ada audio</span>
+          )}
         </div>
         <VideoPreview
           newsText={newsText}
