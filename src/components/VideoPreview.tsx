@@ -80,9 +80,8 @@ const VideoPreview = ({
   const activeMediaIndex = useMemo(() => {
     if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
     
-    // Always prefer external currentTime when audio exists (playing or not)
-    // This ensures seeking works correctly even when paused
-    const time = audioDuration > 0 ? currentTime : internalTime;
+    // Always use currentTime for seeking - this ensures immediate response
+    const time = currentTime;
     
     // Use edited clips if available - this is the primary logic
     if (hasEditedClips) {
@@ -108,7 +107,7 @@ const VideoPreview = ({
     }
     
     return Math.max(0, mediaFiles.length - 1);
-  }, [currentTime, internalTime, audioDuration, editedClips, mediaFiles.length, hasEditedClips]);
+  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
 
   // Update current media index when active index changes
   useEffect(() => {
@@ -176,8 +175,8 @@ const VideoPreview = ({
 
   // Calculate progress within current media segment
   const segmentProgress = useMemo(() => {
-    // Always prefer external currentTime when audio exists
-    const time = audioDuration > 0 ? currentTime : internalTime;
+    // Always use currentTime for immediate seek response
+    const time = currentTime;
     
     if (hasEditedClips && editedClips[currentMediaIndex]) {
       const clip = editedClips[currentMediaIndex];
@@ -191,7 +190,7 @@ const VideoPreview = ({
     const start = currentMediaIndex * durationPerMedia;
     const progress = ((time - start) / durationPerMedia) * 100;
     return Math.min(100, Math.max(0, progress));
-  }, [currentTime, internalTime, audioDuration, editedClips, currentMediaIndex, hasEditedClips, mediaFiles.length]);
+  }, [currentTime, audioDuration, editedClips, currentMediaIndex, hasEditedClips, mediaFiles.length]);
 
   // Calculate total duration for internal timer
   const totalDuration = useMemo(() => {
@@ -234,13 +233,10 @@ const VideoPreview = ({
     }
   }, [isAudioPlaying]);
 
-  // Sync internal time with external currentTime when audio exists
-  // This ensures seeking works regardless of play state
+  // Sync internal time with external currentTime - always sync for seeking to work
   useEffect(() => {
-    if (audioDuration > 0) {
-      setInternalTime(currentTime);
-    }
-  }, [currentTime, audioDuration]);
+    setInternalTime(currentTime);
+  }, [currentTime]);
 
   // Reset internal time when not playing
   useEffect(() => {
@@ -289,15 +285,14 @@ const VideoPreview = ({
   // Seek video to correct position within clip when time changes
   useEffect(() => {
     if (videoRef.current && currentMedia?.type === "video" && hasEditedClips) {
-      const time = audioDuration > 0 ? currentTime : internalTime;
       const currentClip = editedClips[currentMediaIndex];
       if (currentClip) {
-        const offsetInClip = time - currentClip.startTime;
+        const offsetInClip = currentTime - currentClip.startTime;
         // Direct seek without threshold for immediate response
         videoRef.current.currentTime = Math.max(0, offsetInClip);
       }
     }
-  }, [currentTime, internalTime, audioDuration, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);
+  }, [currentTime, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);
 
   // Extract first line as headline
   const lines = newsText.trim().split('\n').filter(line => line.trim());
@@ -316,7 +311,7 @@ const VideoPreview = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const displayTime = audioDuration > 0 ? currentTime : internalTime;
+  const displayTime = currentTime;
 
   // Size classes based on video format
   const isTV = videoFormat === "tv";
