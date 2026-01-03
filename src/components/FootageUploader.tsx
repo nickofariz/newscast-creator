@@ -128,6 +128,15 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
     }
   }, [handleZoomIn, handleZoomOut]);
 
+  const handleDoubleClick = useCallback(() => {
+    if (zoomLevel === 1) {
+      setZoomLevel(4);
+    } else {
+      setZoomLevel(1);
+      setPanPosition({ x: 0, y: 0 });
+    }
+  }, [zoomLevel]);
+
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -600,12 +609,13 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                 />
               ) : (
                 <div
-                  className={`overflow-hidden ${zoomLevel > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                  className={`overflow-hidden ${zoomLevel > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleMouseUp}
                   onWheel={handleWheel}
+                  onDoubleClick={handleDoubleClick}
                 >
                   <img
                     src={previewMedia.previewUrl}
