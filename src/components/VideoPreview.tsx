@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Volume2, Pause, Maximize2, X, VolumeX, SkipBack, SkipForward } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { OverlaySettings } from "./OverlaySelector";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "./SubtitlePreview";
 import { cn } from "@/lib/utils";
@@ -905,9 +906,14 @@ const VideoPreview = ({
     </AnimatePresence>
   );
 
+  // Render fullscreen using portal to escape any parent constraints
+  const fullscreenPortal = typeof document !== 'undefined' && isFullscreen
+    ? createPortal(renderFullscreenPreview(), document.body)
+    : null;
+
   return (
     <>
-      {renderFullscreenPreview()}
+      {fullscreenPortal}
       
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
