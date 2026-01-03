@@ -108,8 +108,32 @@ const VideoPreview = ({
   // Use refs to prevent unnecessary re-renders that cause flickering
   const prevMediaIdRef = useRef<string>("");
   
+  // Check if we're beyond media duration (should show black screen)
+  const isMediaEnded = useMemo(() => {
+    if (freezeLastFrame) return false; // Never show black if freeze is enabled
+    
+    const time = currentTime;
+    
+    if (hasEditedClips && editedClips.length > 0) {
+      const lastClipEnd = editedClips[editedClips.length - 1].endTime;
+      return time >= lastClipEnd;
+    }
+    
+    if (mediaFiles.length > 0) {
+      const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+      const durationPerMedia = totalDur / Math.max(1, mediaFiles.length);
+      const totalMediaDur = mediaFiles.length * durationPerMedia;
+      return time >= totalMediaDur;
+    }
+    
+    return false;
+  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, freezeLastFrame]);
+
   const activeMediaIndex = useMemo(() => {
     if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
+    
+    // If media ended and not freezing, return -1 (will show black)
+    if (isMediaEnded) return -1;
     
     const time = currentTime;
     
@@ -120,23 +144,8 @@ const VideoPreview = ({
           return i;
         }
       }
-      // If time exceeds all clips
-      if (freezeLastFrame) {
-        // Show last clip (freeze frame)
-        return editedClips.length > 0 ? editedClips.length - 1 : 0;
-      } else {
-        // Loop back to first clip
-        const totalMediaDuration = editedClips[editedClips.length - 1]?.endTime || 0;
-        if (totalMediaDuration > 0) {
-          const loopedTime = time % totalMediaDuration;
-          for (let i = 0; i < editedClips.length; i++) {
-            if (loopedTime >= editedClips[i].startTime && loopedTime < editedClips[i].endTime) {
-              return i;
-            }
-          }
-        }
-        return 0;
-      }
+      // If time exceeds all clips, show last (freeze)
+      return editedClips.length > 0 ? editedClips.length - 1 : 0;
     }
     
     // Fallback: distribute audio duration evenly
@@ -151,28 +160,18 @@ const VideoPreview = ({
       }
     }
     
-    // Beyond media duration
-    if (freezeLastFrame) {
-      return Math.max(0, mediaFiles.length - 1);
-    } else {
-      // Loop
-      const totalMediaDur = mediaFiles.length * durationPerMedia;
-      if (totalMediaDur > 0) {
-        const loopedTime = time % totalMediaDur;
-        for (let i = 0; i < mediaFiles.length; i++) {
-          const start = i * durationPerMedia;
-          const end = (i + 1) * durationPerMedia;
-          if (loopedTime >= start && loopedTime < end) {
-            return i;
-          }
-        }
-      }
-      return 0;
-    }
-  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, freezeLastFrame]);
+    return Math.max(0, mediaFiles.length - 1);
+  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, isMediaEnded]);
 
   // Get current media - use stable reference to prevent flickering
   const currentMedia = useMemo(() => {
+    // Show nothing (black screen) if media ended
+    if (isMediaEnded || activeMediaIndex === -1) {
+      currentMediaRef.current = null;
+      prevMediaIdRef.current = "";
+      return null;
+    }
+    
     let newMedia: typeof currentMediaRef.current = null;
     
     if (hasEditedClips && editedClips[activeMediaIndex]) {
@@ -200,7 +199,7 @@ const VideoPreview = ({
     }
     
     return currentMediaRef.current;
-  }, [hasEditedClips, editedClips, activeMediaIndex, mediaFiles]);
+  }, [hasEditedClips, editedClips, activeMediaIndex, mediaFiles, isMediaEnded]);
 
   // Get transition animation variants based on transition type
   const getTransitionVariants = (transition: TransitionType) => {

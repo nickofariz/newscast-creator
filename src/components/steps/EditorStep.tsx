@@ -390,18 +390,18 @@ const EditorStep = ({
                   </ToggleGroupItem>
                 </ToggleGroup>
                 
-                {/* Freeze Last Frame Toggle */}
+                {/* Show Black Screen Toggle */}
                 {onFreezeLastFrameChange && (
                   <label className="flex items-center gap-2 mt-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={freezeLastFrame}
-                      onChange={(e) => onFreezeLastFrameChange(e.target.checked)}
+                      checked={!freezeLastFrame}
+                      onChange={(e) => onFreezeLastFrameChange(!e.target.checked)}
                       className="w-3 h-3 rounded border-border accent-primary"
                     />
                     <div className="flex items-center gap-1">
                       <ImageIcon className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground">Freeze frame terakhir</span>
+                      <span className="text-[10px] text-muted-foreground">Layar hitam jika media habis</span>
                     </div>
                   </label>
                 )}
