@@ -234,6 +234,9 @@ const Index = () => {
                   template={selectedTemplate}
                   isGenerating={isGenerating}
                   footageFile={uploadedFootage}
+                  subtitleWords={subtitleWords}
+                  currentTime={currentTime}
+                  isAudioPlaying={isPlaying}
                 />
 
                 {/* Quick Actions */}

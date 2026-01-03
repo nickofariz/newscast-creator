@@ -1,20 +1,64 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Volume2, Pause } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
+
+interface SubtitleWord {
+  text: string;
+  start: number;
+  end: number;
+}
 
 interface VideoPreviewProps {
   newsText: string;
   template: TemplateType;
   isGenerating: boolean;
   footageFile?: File | null;
+  subtitleWords?: SubtitleWord[];
+  currentTime?: number;
+  isAudioPlaying?: boolean;
 }
 
-const VideoPreview = ({ newsText, template, isGenerating, footageFile }: VideoPreviewProps) => {
+const VideoPreview = ({ 
+  newsText, 
+  template, 
+  isGenerating, 
+  footageFile,
+  subtitleWords = [],
+  currentTime = 0,
+  isAudioPlaying = false,
+}: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [footageUrl, setFootageUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Get active subtitle text based on current time
+  const activeSubtitle = useMemo(() => {
+    if (!subtitleWords.length || !isAudioPlaying) return null;
+    
+    // Find words that are currently being spoken (within a 2 second window for context)
+    const activeWords = subtitleWords.filter(
+      (word) => currentTime >= word.start - 0.1 && currentTime <= word.end + 0.5
+    );
+    
+    if (activeWords.length === 0) return null;
+    
+    // Get surrounding words for better readability (show ~5 words at a time)
+    const currentIndex = subtitleWords.findIndex(
+      (word) => currentTime >= word.start && currentTime <= word.end
+    );
+    
+    if (currentIndex === -1) return activeWords.map(w => w.text).join(" ");
+    
+    const startIdx = Math.max(0, currentIndex - 2);
+    const endIdx = Math.min(subtitleWords.length, currentIndex + 3);
+    
+    return subtitleWords.slice(startIdx, endIdx).map((w, i) => {
+      const isActive = currentTime >= w.start && currentTime <= w.end;
+      return { text: w.text, isActive };
+    });
+  }, [subtitleWords, currentTime, isAudioPlaying]);
 
   // Handle footage file changes
   useEffect(() => {
@@ -192,6 +236,39 @@ const VideoPreview = ({ newsText, template, isGenerating, footageFile }: VideoPr
             )}
           </motion.button>
         </div>
+
+        {/* Subtitle overlay */}
+        <AnimatePresence>
+          {activeSubtitle && isAudioPlaying && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute bottom-16 left-2 right-2 z-10"
+            >
+              <div className="bg-black/80 backdrop-blur-sm px-3 py-2 rounded-lg text-center">
+                <p className="text-xs font-medium leading-relaxed">
+                  {Array.isArray(activeSubtitle) ? (
+                    activeSubtitle.map((word, i) => (
+                      <span
+                        key={i}
+                        className={`${
+                          word.isActive 
+                            ? "text-primary font-bold" 
+                            : "text-white/90"
+                        } transition-colors duration-150`}
+                      >
+                        {word.text}{" "}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-white">{activeSubtitle}</span>
+                  )}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bottom controls */}
         <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-muted-foreground">
