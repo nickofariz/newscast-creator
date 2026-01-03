@@ -941,6 +941,54 @@ const VideoEditor = ({
         </div>
       </div>
 
+      {/* Seek Bar */}
+      {onSeek && (
+        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 border border-border/50">
+          <div className="flex-1 relative">
+            <div 
+              className="h-2 bg-muted rounded-full cursor-pointer relative overflow-hidden"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percentage = x / rect.width;
+                const newTime = percentage * totalDuration;
+                onSeek(Math.max(0, Math.min(totalDuration, newTime)));
+              }}
+            >
+              <div 
+                className="absolute inset-y-0 left-0 bg-primary rounded-full transition-all"
+                style={{ width: `${(currentTime / totalDuration) * 100}%` }}
+              />
+            </div>
+            {/* Draggable thumb */}
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-grab shadow-md hover:scale-110 transition-transform"
+              style={{ left: `calc(${(currentTime / totalDuration) * 100}% - 6px)` }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const handleMove = (moveEvent: MouseEvent) => {
+                  const container = e.currentTarget.parentElement;
+                  if (!container) return;
+                  const rect = container.getBoundingClientRect();
+                  const x = moveEvent.clientX - rect.left;
+                  const percentage = Math.max(0, Math.min(1, x / rect.width));
+                  onSeek(percentage * totalDuration);
+                };
+                const handleUp = () => {
+                  document.removeEventListener('mousemove', handleMove);
+                  document.removeEventListener('mouseup', handleUp);
+                };
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('mouseup', handleUp);
+              }}
+            />
+          </div>
+          <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
+            {formatTime(currentTime)} / {formatTime(totalDuration)}
+          </span>
+        </div>
+      )}
+
       {/* Layer Legend & Keyboard Shortcuts */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] text-muted-foreground">
         <div className="flex flex-wrap gap-3">
