@@ -694,14 +694,15 @@ const VideoPreview = ({
           </motion.div>
 
           {/* Fullscreen video container - TRULY FULL SIZE */}
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center z-10">
             <div 
-              className={cn(
-                "relative overflow-hidden",
-                videoFormat === "short" 
-                  ? "h-screen w-auto aspect-[9/16]" 
-                  : "w-screen h-auto aspect-video"
-              )}
+              className="relative"
+              style={{
+                height: videoFormat === "short" ? "100vh" : "auto",
+                width: videoFormat === "short" ? "calc(100vh * 9 / 16)" : "100vw",
+                maxWidth: videoFormat === "short" ? "100vw" : undefined,
+                aspectRatio: videoFormat === "short" ? "9/16" : "16/9",
+              }}
             >
             {/* Media content */}
             <AnimatePresence mode="sync">
