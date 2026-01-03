@@ -20,11 +20,21 @@ interface MediaFile {
   duration?: number;
 }
 
+export interface EditedClip {
+  id: string;
+  previewUrl: string;
+  type: "video" | "image";
+  startTime: number;
+  endTime: number;
+  effectiveDuration: number;
+}
+
 interface VideoPreviewProps {
   newsText: string;
   template: TemplateType;
   isGenerating: boolean;
   mediaFiles?: MediaFile[];
+  editedClips?: EditedClip[];
   subtitleWords?: SubtitleWord[];
   currentTime?: number;
   isAudioPlaying?: boolean;
@@ -39,6 +49,7 @@ const VideoPreview = ({
   template, 
   isGenerating, 
   mediaFiles = [],
+  editedClips = [],
   subtitleWords = [],
   currentTime = 0,
   isAudioPlaying = false,
@@ -51,63 +62,90 @@ const VideoPreview = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Calculate duration for each media segment based on total audio duration
-  const mediaDurations = useMemo(() => {
-    if (mediaFiles.length === 0) return [];
-    
-    // If audio is playing, distribute audio duration across media
-    const totalDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-    const durationPerMedia = totalDuration / mediaFiles.length;
-    
-    return mediaFiles.map((_, index) => ({
-      start: index * durationPerMedia,
-      end: (index + 1) * durationPerMedia,
-      duration: durationPerMedia,
-    }));
-  }, [mediaFiles.length, audioDuration]);
+  // Use edited clips if available, otherwise fallback to calculated durations
+  const hasEditedClips = editedClips.length > 0;
 
-  // Determine which media should be shown based on current time
+  // Determine which media should be shown based on current time and edited clips
   const activeMediaIndex = useMemo(() => {
     if (mediaFiles.length === 0) return 0;
     
     const time = isAudioPlaying ? currentTime : internalTime;
     
-    for (let i = 0; i < mediaDurations.length; i++) {
-      if (time >= mediaDurations[i].start && time < mediaDurations[i].end) {
+    // Use edited clips if available
+    if (hasEditedClips) {
+      for (let i = 0; i < editedClips.length; i++) {
+        if (time >= editedClips[i].startTime && time < editedClips[i].endTime) {
+          return i;
+        }
+      }
+      // If time exceeds all clips, show last
+      return editedClips.length > 0 ? editedClips.length - 1 : 0;
+    }
+    
+    // Fallback: distribute audio duration evenly
+    const totalDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+    const durationPerMedia = totalDuration / mediaFiles.length;
+    
+    for (let i = 0; i < mediaFiles.length; i++) {
+      const start = i * durationPerMedia;
+      const end = (i + 1) * durationPerMedia;
+      if (time >= start && time < end) {
         return i;
       }
     }
     
-    // If time exceeds all durations, loop back or show last
     return mediaFiles.length - 1;
-  }, [currentTime, internalTime, mediaDurations, mediaFiles.length, isAudioPlaying]);
+  }, [currentTime, internalTime, editedClips, mediaFiles.length, isAudioPlaying, hasEditedClips, audioDuration]);
 
   // Update current media index when active index changes
   useEffect(() => {
     setCurrentMediaIndex(activeMediaIndex);
   }, [activeMediaIndex]);
 
-  const currentMedia = mediaFiles[currentMediaIndex];
+  // Get current media - use editedClips source if available
+  const currentMedia = useMemo(() => {
+    if (hasEditedClips && editedClips[currentMediaIndex]) {
+      const clip = editedClips[currentMediaIndex];
+      return { 
+        id: clip.id,
+        previewUrl: clip.previewUrl, 
+        type: clip.type 
+      };
+    }
+    return mediaFiles[currentMediaIndex] || null;
+  }, [hasEditedClips, editedClips, currentMediaIndex, mediaFiles]);
 
   // Calculate progress within current media segment
   const segmentProgress = useMemo(() => {
-    if (mediaDurations.length === 0 || !mediaDurations[currentMediaIndex]) return 0;
-    
     const time = isAudioPlaying ? currentTime : internalTime;
-    const segment = mediaDurations[currentMediaIndex];
-    const progress = ((time - segment.start) / segment.duration) * 100;
+    
+    if (hasEditedClips && editedClips[currentMediaIndex]) {
+      const clip = editedClips[currentMediaIndex];
+      const progress = ((time - clip.startTime) / clip.effectiveDuration) * 100;
+      return Math.min(100, Math.max(0, progress));
+    }
+    
+    // Fallback calculation
+    const totalDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+    const durationPerMedia = totalDuration / mediaFiles.length;
+    const start = currentMediaIndex * durationPerMedia;
+    const progress = ((time - start) / durationPerMedia) * 100;
     return Math.min(100, Math.max(0, progress));
-  }, [currentTime, internalTime, mediaDurations, currentMediaIndex, isAudioPlaying]);
+  }, [currentTime, internalTime, editedClips, currentMediaIndex, isAudioPlaying, hasEditedClips, audioDuration, mediaFiles.length]);
+
+  // Calculate total duration for internal timer
+  const totalDuration = useMemo(() => {
+    if (hasEditedClips && editedClips.length > 0) {
+      return editedClips[editedClips.length - 1].endTime;
+    }
+    return audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+  }, [hasEditedClips, editedClips, audioDuration, mediaFiles.length]);
 
   // Internal timer for preview playback when audio is not playing
   useEffect(() => {
-    if (isPlaying && !isAudioPlaying && mediaFiles.length > 0) {
+    if (isPlaying && !isAudioPlaying && (mediaFiles.length > 0 || editedClips.length > 0)) {
       timerRef.current = setInterval(() => {
         setInternalTime((prev) => {
-          const totalDuration = mediaDurations.length > 0 
-            ? mediaDurations[mediaDurations.length - 1].end 
-            : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-          
           const newTime = prev + 0.1;
           if (newTime >= totalDuration) {
             return 0; // Loop
@@ -127,7 +165,7 @@ const VideoPreview = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [isPlaying, isAudioPlaying, mediaFiles.length, mediaDurations]);
+  }, [isPlaying, isAudioPlaying, mediaFiles.length, editedClips.length, totalDuration]);
 
   // Sync with audio playback
   useEffect(() => {
