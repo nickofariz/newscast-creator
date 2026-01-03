@@ -70,6 +70,7 @@ const VideoEditor = ({
     originalValue: number;
     originalStart?: number;
   } | null>(null);
+  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -147,10 +148,49 @@ const VideoEditor = ({
     };
   }, [isDragging, zoom]);
 
-  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current || isDragging) return;
-    const rect = timelineRef.current.getBoundingClientRect();
+  // Handle playhead drag
+  useEffect(() => {
+    if (!isDraggingPlayhead) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!timelineRef.current) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left - 80; // 80 = label width
+      const newTime = Math.max(0, Math.min(totalDuration, x / (TIMELINE_PIXELS_PER_SECOND * zoom)));
+      onSeek?.(newTime);
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingPlayhead(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingPlayhead, totalDuration, zoom, onSeek]);
+
+  const handlePlayheadMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDraggingPlayhead(true);
+  };
+
+  const handleRulerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDraggingPlayhead || isDragging) return;
+    const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
+    const clickedTime = Math.max(0, Math.min(totalDuration, x / (TIMELINE_PIXELS_PER_SECOND * zoom)));
+    onSeek?.(clickedTime);
+  };
+
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current || isDragging || isDraggingPlayhead) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left - 80; // 80 = label width
     const clickedTime = Math.max(0, Math.min(totalDuration, x / (TIMELINE_PIXELS_PER_SECOND * zoom)));
     onSeek?.(clickedTime);
   };
@@ -332,8 +372,9 @@ const VideoEditor = ({
           <div className="flex-1 overflow-hidden">
             <ScrollArea className="w-full">
               <div 
-                className="h-5 relative"
+                className="h-5 relative cursor-pointer"
                 style={{ width: `${getTimelineWidth()}px` }}
+                onClick={handleRulerClick}
               >
                 {renderTimeRuler()}
               </div>
@@ -576,12 +617,13 @@ const VideoEditor = ({
             )}
           </LayerRow>
 
-          {/* Playhead */}
+          {/* Playhead - Draggable */}
           <div
-            className="absolute top-0 bottom-0 w-0.5 bg-primary z-20 pointer-events-none"
+            className="absolute top-0 bottom-0 w-1 bg-primary z-20 cursor-ew-resize hover:w-1.5 transition-all group/playhead"
             style={{ left: `${80 + currentTime * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
+            onMouseDown={handlePlayheadMouseDown}
           >
-            <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-primary" />
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-grab group-hover/playhead:scale-110 transition-transform shadow-md" />
           </div>
         </div>
       </div>
