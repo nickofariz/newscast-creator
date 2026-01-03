@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ThumbnailSource {
@@ -33,6 +34,7 @@ const ScrubBar = ({
   const [isDragging, setIsDragging] = useState(false);
   const [hoverProgress, setHoverProgress] = useState<number | null>(null);
   const [hoverTime, setHoverTime] = useState<number>(0);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   const calculateTimeFromPosition = useCallback((clientX: number) => {
     if (!barRef.current || duration <= 0) return 0;
@@ -79,6 +81,7 @@ const ScrubBar = ({
 
   const handleMouseLeave = useCallback(() => {
     setHoverProgress(null);
+    setIsZoomed(false);
   }, []);
 
   // Handle drag globally with throttling to reduce seek spam
@@ -140,35 +143,81 @@ const ScrubBar = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 5, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-full mb-2 pointer-events-none z-50"
+            className="absolute bottom-full mb-2 pointer-events-auto z-50"
             style={{ 
               left: `${hoverProgress}%`,
               transform: 'translateX(-50%)'
             }}
           >
             <div className="flex flex-col items-center">
-              {/* Thumbnail image */}
+              {/* Thumbnail container with zoom capability */}
               {hoveredThumbnail ? (
-                <div className="relative rounded-lg overflow-hidden shadow-lg border border-border/50 bg-card">
+                <motion.div 
+                  className="relative rounded-lg overflow-hidden shadow-lg border border-border/50 bg-card cursor-zoom-in"
+                  animate={{
+                    width: isZoomed ? 160 : 80,
+                    height: isZoomed ? 112 : 56
+                  }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  onMouseEnter={() => setIsZoomed(true)}
+                  onMouseLeave={() => setIsZoomed(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsZoomed(!isZoomed);
+                  }}
+                >
                   {hoveredThumbnail.type === "video" ? (
                     <video
                       src={hoveredThumbnail.previewUrl}
-                      className="w-20 h-14 object-cover"
+                      className="w-full h-full object-cover"
                       muted
                       playsInline
                     />
                   ) : (
-                    <img
+                    <motion.img
                       src={hoveredThumbnail.previewUrl}
                       alt="Preview"
-                      className="w-20 h-14 object-cover"
+                      className="w-full h-full object-cover"
+                      animate={{
+                        scale: isZoomed ? 1 : 1
+                      }}
                     />
                   )}
+                  
                   {/* Clip number badge */}
-                  <div className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-black/60 rounded text-[8px] text-white font-medium">
+                  <motion.div 
+                    className="absolute top-0.5 left-0.5 px-1 py-0.5 bg-black/60 rounded font-medium text-white"
+                    animate={{
+                      fontSize: isZoomed ? "10px" : "8px"
+                    }}
+                  >
                     #{thumbnails.indexOf(hoveredThumbnail) + 1}
-                  </div>
-                </div>
+                  </motion.div>
+                  
+                  {/* Zoom indicator */}
+                  <motion.div
+                    className="absolute bottom-0.5 right-0.5 p-0.5 bg-black/60 rounded"
+                    animate={{
+                      opacity: isZoomed ? 0 : 0.8
+                    }}
+                  >
+                    <ZoomIn className="w-3 h-3 text-white" />
+                  </motion.div>
+                  
+                  {/* Zoomed label */}
+                  <AnimatePresence>
+                    {isZoomed && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute bottom-0.5 right-0.5 px-1 py-0.5 bg-primary/80 rounded text-[8px] text-primary-foreground font-medium"
+                      >
+                        2x
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
               ) : (
                 <div className="w-20 h-14 bg-muted rounded-lg flex items-center justify-center border border-border/50">
                   <span className="text-[10px] text-muted-foreground">No preview</span>
@@ -176,11 +225,19 @@ const ScrubBar = ({
               )}
               
               {/* Time badge */}
-              <div className="mt-1 px-2 py-0.5 bg-primary rounded-full shadow-md">
-                <span className="text-[10px] font-mono font-medium text-primary-foreground">
+              <motion.div 
+                className="mt-1 px-2 py-0.5 bg-primary rounded-full shadow-md"
+                animate={{
+                  scale: isZoomed ? 1.1 : 1
+                }}
+              >
+                <span className={cn(
+                  "font-mono font-medium text-primary-foreground transition-all",
+                  isZoomed ? "text-xs" : "text-[10px]"
+                )}>
                   {formatTime(hoverTime)}
                 </span>
-              </div>
+              </motion.div>
               
               {/* Arrow pointer */}
               <div className="w-2 h-2 bg-primary rotate-45 -mt-1" />
