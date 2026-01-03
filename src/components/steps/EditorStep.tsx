@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { ChevronRight, ChevronLeft, Film, Sparkles, Layers } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Settings2, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor from "@/components/VideoEditor";
 import VideoPreview from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
@@ -57,124 +58,107 @@ const EditorStep = ({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="space-y-6"
+      className="space-y-4"
     >
-      {/* Section Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Film className="w-5 h-5 text-primary" />
+      {/* Live Preview - Always Visible */}
+      <div className="glass-card rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-sm font-medium text-foreground">Preview</span>
         </div>
-        <div>
-          <h2 className="font-display font-semibold text-lg text-foreground">
-            Video Editor
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Atur template, overlay, timeline, dan merge video
-          </p>
-        </div>
+        <VideoPreview
+          newsText={newsText}
+          template={selectedTemplate}
+          isGenerating={isGenerating}
+          mediaFiles={mediaFiles}
+          subtitleWords={subtitleWords}
+          currentTime={currentTime}
+          isAudioPlaying={isPlaying}
+          audioDuration={audioDuration}
+          overlaySettings={overlaySettings}
+        />
       </div>
 
-      {/* Preview and Editor Grid */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Preview */}
-        <div className="glass-card rounded-xl p-5">
-          <h3 className="font-medium text-foreground text-sm mb-4 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            Live Preview
-          </h3>
-          <VideoPreview
-            newsText={newsText}
-            template={selectedTemplate}
-            isGenerating={isGenerating}
-            mediaFiles={mediaFiles}
-            subtitleWords={subtitleWords}
-            currentTime={currentTime}
-            isAudioPlaying={isPlaying}
-            audioDuration={audioDuration}
-            overlaySettings={overlaySettings}
-          />
-        </div>
+      {/* Tabbed Controls */}
+      <Tabs defaultValue="timeline" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="timeline" className="flex items-center gap-2">
+            <Play className="w-4 h-4" />
+            <span className="hidden sm:inline">Timeline</span>
+          </TabsTrigger>
+          <TabsTrigger value="template" className="flex items-center gap-2">
+            <Palette className="w-4 h-4" />
+            <span className="hidden sm:inline">Template</span>
+          </TabsTrigger>
+          <TabsTrigger value="overlay" className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Overlay</span>
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Timeline Editor */}
-        <div className="glass-card rounded-xl p-5">
-          <h3 className="font-medium text-foreground text-sm mb-4">Timeline Editor</h3>
-          <VideoEditor
-            mediaFiles={mediaFiles}
-            onMediaUpdate={onMediaUpdate}
-            audioDuration={audioDuration}
-          />
-        </div>
-      </div>
-
-      {/* Template Selection */}
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-            <Layers className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <div>
-            <h3 className="font-medium text-foreground text-sm">Template Video</h3>
-            <p className="text-xs text-muted-foreground">Pilih layout untuk video Anda</p>
-          </div>
-        </div>
-        <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
-      </div>
-
-      {/* Overlay & Watermark Settings */}
-      <div className="glass-card rounded-xl p-5">
-        <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
-        
-        {/* Template Manager */}
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Template Overlay</p>
-              <p className="text-xs text-muted-foreground">Simpan atau muat pengaturan overlay</p>
-            </div>
-            <OverlayTemplateManager
-              currentSettings={overlaySettings}
-              onLoadTemplate={onOverlaySettingsChange}
+        <TabsContent value="timeline" className="mt-0">
+          <div className="glass-card rounded-xl p-4">
+            <VideoEditor
+              mediaFiles={mediaFiles}
+              onMediaUpdate={onMediaUpdate}
+              audioDuration={audioDuration}
             />
           </div>
-        </div>
-      </div>
+        </TabsContent>
 
-      {/* Generate Button */}
-      <div className="glass-card rounded-xl p-5">
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-4">
-            Siap untuk generate video final?
-          </p>
-          <Button
-            variant="news"
-            size="xl"
-            onClick={onGenerate}
-            disabled={isGenerating}
-            className="w-full max-w-md"
-          >
-            {isGenerating ? (
-              <>
-                <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                Memproses Video...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                Generate & Simpan Video
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+        <TabsContent value="template" className="mt-0">
+          <div className="glass-card rounded-xl p-4">
+            <p className="text-sm text-muted-foreground mb-4">Pilih layout untuk video Anda</p>
+            <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
+          </div>
+        </TabsContent>
 
-      {/* Navigation Buttons */}
-      <div className="pt-4 flex gap-3">
-        <Button variant="glass" size="lg" onClick={onBack} className="flex-shrink-0">
+        <TabsContent value="overlay" className="mt-0">
+          <div className="glass-card rounded-xl p-4 space-y-4">
+            <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Template Overlay</p>
+                  <p className="text-xs text-muted-foreground">Simpan atau muat pengaturan</p>
+                </div>
+                <OverlayTemplateManager
+                  currentSettings={overlaySettings}
+                  onLoadTemplate={onOverlaySettingsChange}
+                />
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Generate & Navigation */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+        <Button variant="glass" size="lg" onClick={onBack} className="sm:w-auto">
           <ChevronLeft className="w-5 h-5" />
           Kembali
         </Button>
-        <Button variant="news" size="lg" className="flex-1" onClick={onNext}>
-          Lanjut ke Download
+        <Button
+          variant="news"
+          size="lg"
+          onClick={onGenerate}
+          disabled={isGenerating}
+          className="flex-1"
+        >
+          {isGenerating ? (
+            <>
+              <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              Memproses...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5" />
+              Generate Video
+            </>
+          )}
+        </Button>
+        <Button variant="glass" size="lg" onClick={onNext} className="sm:w-auto">
+          Lanjut
           <ChevronRight className="w-5 h-5" />
         </Button>
       </div>
