@@ -67,11 +67,12 @@ const VideoPreview = ({
 
   // Determine which media should be shown based on current time and edited clips
   const activeMediaIndex = useMemo(() => {
-    if (mediaFiles.length === 0) return 0;
+    if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
     
-    const time = isAudioPlaying ? currentTime : internalTime;
+    // ALWAYS prioritize currentTime from props when audio is playing
+    const time = currentTime;
     
-    // Use edited clips if available
+    // Use edited clips if available - this is the primary logic
     if (hasEditedClips) {
       for (let i = 0; i < editedClips.length; i++) {
         if (time >= editedClips[i].startTime && time < editedClips[i].endTime) {
@@ -84,7 +85,7 @@ const VideoPreview = ({
     
     // Fallback: distribute audio duration evenly
     const totalDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-    const durationPerMedia = totalDuration / mediaFiles.length;
+    const durationPerMedia = totalDuration / Math.max(1, mediaFiles.length);
     
     for (let i = 0; i < mediaFiles.length; i++) {
       const start = i * durationPerMedia;
@@ -94,8 +95,8 @@ const VideoPreview = ({
       }
     }
     
-    return mediaFiles.length - 1;
-  }, [currentTime, internalTime, editedClips, mediaFiles.length, isAudioPlaying, hasEditedClips, audioDuration]);
+    return Math.max(0, mediaFiles.length - 1);
+  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
 
   // Update current media index when active index changes
   useEffect(() => {
@@ -117,7 +118,7 @@ const VideoPreview = ({
 
   // Calculate progress within current media segment
   const segmentProgress = useMemo(() => {
-    const time = isAudioPlaying ? currentTime : internalTime;
+    const time = currentTime;
     
     if (hasEditedClips && editedClips[currentMediaIndex]) {
       const clip = editedClips[currentMediaIndex];
@@ -127,11 +128,11 @@ const VideoPreview = ({
     
     // Fallback calculation
     const totalDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-    const durationPerMedia = totalDuration / mediaFiles.length;
+    const durationPerMedia = totalDuration / Math.max(1, mediaFiles.length);
     const start = currentMediaIndex * durationPerMedia;
     const progress = ((time - start) / durationPerMedia) * 100;
     return Math.min(100, Math.max(0, progress));
-  }, [currentTime, internalTime, editedClips, currentMediaIndex, isAudioPlaying, hasEditedClips, audioDuration, mediaFiles.length]);
+  }, [currentTime, editedClips, currentMediaIndex, hasEditedClips, audioDuration, mediaFiles.length]);
 
   // Calculate total duration for internal timer
   const totalDuration = useMemo(() => {
@@ -207,7 +208,7 @@ const VideoPreview = ({
     });
   }, [subtitleWords, currentTime, isAudioPlaying]);
 
-  // Handle play/pause for video elements
+  // Handle play/pause and seeking for video elements
   useEffect(() => {
     if (videoRef.current && currentMedia?.type === "video") {
       if (isPlaying || isAudioPlaying) {
@@ -217,6 +218,20 @@ const VideoPreview = ({
       }
     }
   }, [isPlaying, isAudioPlaying, currentMedia]);
+
+  // Seek video to correct position within clip when time changes
+  useEffect(() => {
+    if (videoRef.current && currentMedia?.type === "video" && hasEditedClips) {
+      const currentClip = editedClips[currentMediaIndex];
+      if (currentClip) {
+        const offsetInClip = currentTime - currentClip.startTime;
+        // Only seek if there's a significant difference to avoid stuttering
+        if (Math.abs(videoRef.current.currentTime - offsetInClip) > 0.3) {
+          videoRef.current.currentTime = Math.max(0, offsetInClip);
+        }
+      }
+    }
+  }, [currentTime, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);
 
   // Extract first line as headline
   const lines = newsText.trim().split('\n').filter(line => line.trim());
@@ -235,7 +250,7 @@ const VideoPreview = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const displayTime = isAudioPlaying ? currentTime : internalTime;
+  const displayTime = currentTime;
 
   const renderTemplate = () => {
     switch (template) {
@@ -534,14 +549,14 @@ const VideoPreview = ({
 
       <div className="video-frame relative mx-auto max-w-[200px] shadow-card">
         {/* Background - Media or Gradient */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="sync">
           {currentMedia ? (
             <motion.div
-              key={currentMedia.id}
+              key={`${currentMedia.id}-${currentMediaIndex}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.15 }}
               className="absolute inset-0"
             >
               {currentMedia.type === "video" ? (
