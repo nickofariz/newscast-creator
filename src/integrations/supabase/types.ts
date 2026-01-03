@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      videos: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          duration: number | null
+          id: string
+          status: string | null
+          subtitle_url: string | null
+          template: string | null
+          title: string
+          video_url: string
+          voice: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          status?: string | null
+          subtitle_url?: string | null
+          template?: string | null
+          title: string
+          video_url: string
+          voice?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          status?: string | null
+          subtitle_url?: string | null
+          template?: string | null
+          title?: string
+          video_url?: string
+          voice?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

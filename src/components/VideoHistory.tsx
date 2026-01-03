@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Clock, Trash2, Play } from "lucide-react";
+import { Download, Clock, Trash2, Play, Cloud } from "lucide-react";
 import { Button } from "./ui/button";
 
 export interface VideoItem {
@@ -8,11 +8,13 @@ export interface VideoItem {
   createdAt: Date;
   duration: number;
   status: "completed" | "processing" | "failed";
+  videoUrl?: string;
+  audioUrl?: string;
 }
 
 interface VideoHistoryProps {
   videos: VideoItem[];
-  onDownload: (id: string) => void;
+  onDownload: (id: string, url?: string) => void;
   onDelete: (id: string) => void;
 }
 
@@ -74,7 +76,7 @@ const VideoHistory = ({ videos, onDownload, onDelete }: VideoHistoryProps) => {
                 </div>
 
                 {/* Status */}
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-2">
                   {video.status === "completed" && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-xs">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -93,6 +95,12 @@ const VideoHistory = ({ videos, onDownload, onDelete }: VideoHistoryProps) => {
                       Gagal
                     </span>
                   )}
+                  {video.videoUrl && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+                      <Cloud className="w-3 h-3" />
+                      Cloud
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -102,7 +110,7 @@ const VideoHistory = ({ videos, onDownload, onDelete }: VideoHistoryProps) => {
                   <Button
                     variant="glass"
                     size="icon"
-                    onClick={() => onDownload(video.id)}
+                    onClick={() => onDownload(video.id, video.videoUrl || video.audioUrl)}
                   >
                     <Download className="w-4 h-4" />
                   </Button>
