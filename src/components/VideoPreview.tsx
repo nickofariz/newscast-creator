@@ -76,7 +76,6 @@ const VideoPreview = ({
   onSeek,
 }: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [internalTime, setInternalTime] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [volume, setVolume] = useState(100);
@@ -88,13 +87,21 @@ const VideoPreview = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
   const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Store stable reference to current media to prevent flickering
+  const currentMediaRef = useRef<{
+    id: string;
+    previewUrl: string;
+    type: "video" | "image";
+    transition: TransitionType;
+  } | null>(null);
 
   // Use edited clips if available, otherwise fallback to calculated durations
   const hasEditedClips = editedClips.length > 0;
 
   // Determine which media should be shown based on current time and edited clips
-  // Use a ref to track previous index and prevent unnecessary re-renders
-  const prevMediaIndexRef = useRef<number>(0);
+  // Use refs to prevent unnecessary re-renders that cause flickering
+  const prevMediaIdRef = useRef<string>("");
   
   const activeMediaIndex = useMemo(() => {
     if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
@@ -127,30 +134,36 @@ const VideoPreview = ({
     return Math.max(0, mediaFiles.length - 1);
   }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
 
-  // Only update current media index when it actually changes to prevent flickering
-  useEffect(() => {
-    if (activeMediaIndex !== prevMediaIndexRef.current) {
-      prevMediaIndexRef.current = activeMediaIndex;
-      setCurrentMediaIndex(activeMediaIndex);
-    }
-  }, [activeMediaIndex]);
-
-  // Get current media - use editedClips source if available
+  // Get current media - use stable reference to prevent flickering
   const currentMedia = useMemo(() => {
-    if (hasEditedClips && editedClips[currentMediaIndex]) {
-      const clip = editedClips[currentMediaIndex];
-      return { 
+    let newMedia: typeof currentMediaRef.current = null;
+    
+    if (hasEditedClips && editedClips[activeMediaIndex]) {
+      const clip = editedClips[activeMediaIndex];
+      newMedia = { 
         id: clip.id,
         previewUrl: clip.previewUrl, 
         type: clip.type,
         transition: clip.transition || "none"
       };
+    } else if (mediaFiles[activeMediaIndex]) {
+      const file = mediaFiles[activeMediaIndex];
+      newMedia = { 
+        id: file.id,
+        previewUrl: file.previewUrl,
+        type: file.type,
+        transition: "none" as TransitionType
+      };
     }
-    return mediaFiles[currentMediaIndex] ? { 
-      ...mediaFiles[currentMediaIndex], 
-      transition: "none" as TransitionType 
-    } : null;
-  }, [hasEditedClips, editedClips, currentMediaIndex, mediaFiles]);
+    
+    // Only update ref if media ID actually changed
+    if (newMedia && newMedia.id !== prevMediaIdRef.current) {
+      prevMediaIdRef.current = newMedia.id;
+      currentMediaRef.current = newMedia;
+    }
+    
+    return currentMediaRef.current;
+  }, [hasEditedClips, editedClips, activeMediaIndex, mediaFiles]);
 
   // Get transition animation variants based on transition type
   const getTransitionVariants = (transition: TransitionType) => {
@@ -199,8 +212,8 @@ const VideoPreview = ({
     // Always use currentTime for immediate seek response
     const time = currentTime;
     
-    if (hasEditedClips && editedClips[currentMediaIndex]) {
-      const clip = editedClips[currentMediaIndex];
+    if (hasEditedClips && editedClips[activeMediaIndex]) {
+      const clip = editedClips[activeMediaIndex];
       const progress = ((time - clip.startTime) / clip.effectiveDuration) * 100;
       return Math.min(100, Math.max(0, progress));
     }
@@ -208,10 +221,10 @@ const VideoPreview = ({
     // Fallback calculation
     const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
     const durationPerMedia = totalDur / Math.max(1, mediaFiles.length);
-    const start = currentMediaIndex * durationPerMedia;
+    const start = activeMediaIndex * durationPerMedia;
     const progress = ((time - start) / durationPerMedia) * 100;
     return Math.min(100, Math.max(0, progress));
-  }, [currentTime, audioDuration, editedClips, currentMediaIndex, hasEditedClips, mediaFiles.length]);
+  }, [currentTime, audioDuration, editedClips, activeMediaIndex, hasEditedClips, mediaFiles.length]);
 
   // Calculate total duration for internal timer
   const totalDuration = useMemo(() => {
@@ -288,7 +301,7 @@ const VideoPreview = ({
   useEffect(() => {
     if (!isPlaying && !isAudioPlaying && currentTime === 0) {
       setInternalTime(0);
-      setCurrentMediaIndex(0);
+      prevMediaIdRef.current = "";
     }
   }, [isPlaying, isAudioPlaying, currentTime]);
 
@@ -359,14 +372,14 @@ const VideoPreview = ({
   // Seek video to correct position within clip when time changes
   useEffect(() => {
     if (videoRef.current && currentMedia?.type === "video" && hasEditedClips) {
-      const currentClip = editedClips[currentMediaIndex];
+      const currentClip = editedClips[activeMediaIndex];
       if (currentClip) {
         const offsetInClip = currentTime - currentClip.startTime;
         // Direct seek without threshold for immediate response
         videoRef.current.currentTime = Math.max(0, offsetInClip);
       }
     }
-  }, [currentTime, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);
+  }, [currentTime, activeMediaIndex, editedClips, hasEditedClips, currentMedia]);
 
   // We no longer show newsText as headline/subtitle - only auto-generated subtitles are shown
   const showTextOverlay = false; // Disabled - only show auto subtitle
@@ -693,7 +706,7 @@ const VideoPreview = ({
                 {mediaFiles.length > 1 && (
                   <div className="px-3 py-1.5 bg-white/10 rounded-full">
                     <span className="text-white/80 text-xs">
-                      Media {currentMediaIndex + 1} / {mediaFiles.length}
+                      Media {activeMediaIndex + 1} / {mediaFiles.length}
                     </span>
                   </div>
                 )}
@@ -1080,22 +1093,22 @@ const VideoPreview = ({
                   key={index}
                   className={cn(
                     "flex-1 h-1 rounded-full overflow-hidden bg-white/30 transition-all duration-150",
-                    isSeeking && index === currentMediaIndex && "h-1.5 ring-1 ring-primary shadow-sm"
+                    isSeeking && index === activeMediaIndex && "h-1.5 ring-1 ring-primary shadow-sm"
                   )}
                   animate={{
-                    scale: isSeeking && index === currentMediaIndex ? 1.05 : 1
+                    scale: isSeeking && index === activeMediaIndex ? 1.05 : 1
                   }}
                 >
                   <motion.div
                     className={cn(
                       "h-full",
-                      isSeeking && index === currentMediaIndex ? "bg-primary" : "bg-white"
+                      isSeeking && index === activeMediaIndex ? "bg-primary" : "bg-white"
                     )}
                     initial={{ width: 0 }}
                     animate={{
-                      width: index < currentMediaIndex 
+                      width: index < activeMediaIndex 
                         ? "100%" 
-                        : index === currentMediaIndex 
+                        : index === activeMediaIndex 
                         ? `${segmentProgress}%` 
                         : "0%"
                     }}
