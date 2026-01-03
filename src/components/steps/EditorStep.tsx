@@ -123,10 +123,10 @@ const EditorStep = ({
       className="space-y-4"
     >
       {/* Full Width Editor Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Left: Preview Panel */}
-        <div className="xl:col-span-1">
-          <div className="glass-card rounded-xl p-4 sticky top-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {/* Left: Preview Panel - Compact */}
+        <div className="lg:col-span-1">
+          <div className="glass-card rounded-xl p-3 lg:sticky lg:top-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -187,27 +187,27 @@ const EditorStep = ({
           </div>
         </div>
 
-        {/* Right: Editor Controls */}
-        <div className="xl:col-span-2 space-y-4">
+        {/* Right: Editor Controls - Takes more space */}
+        <div className="lg:col-span-3 xl:col-span-4 space-y-3">
           {/* Tabbed Controls */}
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="timeline" className="flex items-center gap-2">
-                <Play className="w-4 h-4" />
+            <TabsList className="grid w-full grid-cols-3 mb-3">
+              <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-sm">
+                <Play className="w-3.5 h-3.5" />
                 <span>Timeline</span>
               </TabsTrigger>
-              <TabsTrigger value="template" className="flex items-center gap-2">
-                <Palette className="w-4 h-4" />
+              <TabsTrigger value="template" className="flex items-center gap-1.5 text-sm">
+                <Palette className="w-3.5 h-3.5" />
                 <span>Template</span>
               </TabsTrigger>
-              <TabsTrigger value="overlay" className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4" />
+              <TabsTrigger value="overlay" className="flex items-center gap-1.5 text-sm">
+                <Settings2 className="w-3.5 h-3.5" />
                 <span>Overlay</span>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="timeline" className="mt-0">
-              <div className="glass-card rounded-xl p-4">
+              <div className="glass-card rounded-xl p-3">
                 <VideoEditor
                   mediaFiles={mediaFiles}
                   onMediaUpdate={onMediaUpdate}
