@@ -171,8 +171,12 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
 
   const handleFiles = (fileList: FileList) => {
     const newFiles: MediaFile[] = [];
+    
+    console.log("FootageUploader - handleFiles called with", fileList.length, "files");
 
     Array.from(fileList).forEach((file) => {
+      console.log("FootageUploader - Processing file:", file.name, file.type, file.size);
+      
       const isVideo = file.type.startsWith("video/");
       const isImage = file.type.startsWith("image/");
 
@@ -189,6 +193,8 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
       }
 
       const previewUrl = URL.createObjectURL(file);
+      console.log("FootageUploader - Created blob URL:", previewUrl);
+      
       newFiles.push({
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         file,
@@ -199,6 +205,7 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
 
     if (newFiles.length > 0) {
       const updated = [...uploadedFiles, ...newFiles];
+      console.log("FootageUploader - Calling onUpload with", updated.length, "files");
       onUpload(updated);
       toast.success(`${newFiles.length} media berhasil diupload!`);
     }
@@ -384,6 +391,8 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                           muted
                           loop
                           playsInline
+                          preload="metadata"
+                          onError={(e) => console.error("Video thumbnail error:", e, media.previewUrl)}
                         />
                       ) : (
                         <img
