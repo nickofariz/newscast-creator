@@ -693,18 +693,9 @@ const VideoPreview = ({
             </div>
           </motion.div>
 
-          {/* Fullscreen video container - TRULY FULL SIZE */}
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <div 
-              className="relative"
-              style={{
-                height: videoFormat === "short" ? "100vh" : "auto",
-                width: videoFormat === "short" ? "calc(100vh * 9 / 16)" : "100vw",
-                maxWidth: videoFormat === "short" ? "100vw" : undefined,
-                aspectRatio: videoFormat === "short" ? "9/16" : "16/9",
-              }}
-            >
-            {/* Media content */}
+          {/* Fullscreen video container - FULL SCREEN */}
+          <div className="absolute inset-0 z-10">
+            {/* Media content - fills entire screen */}
             <AnimatePresence mode="sync">
               {currentMedia ? (
                 (() => {
@@ -716,12 +707,12 @@ const VideoPreview = ({
                       animate={variants.animate}
                       exit={variants.exit}
                       transition={variants.transition}
-                      className="absolute inset-0 overflow-hidden rounded-lg"
+                      className="absolute inset-0"
                     >
                       {currentMedia.type === "video" ? (
                         <video
                           src={currentMedia.previewUrl}
-                          className="absolute inset-0 w-full h-full object-cover"
+                          className="w-full h-full object-contain bg-black"
                           loop
                           muted
                           playsInline
@@ -731,19 +722,19 @@ const VideoPreview = ({
                         <img
                           src={currentMedia.previewUrl}
                           alt="Background"
-                          className="absolute inset-0 w-full h-full object-cover"
+                          className="w-full h-full object-contain bg-black"
                         />
                       )}
                     </motion.div>
                   );
                 })()
               ) : (
-                <div className="absolute inset-0 gradient-dark rounded-lg" />
+                <div className="absolute inset-0 gradient-dark" />
               )}
             </AnimatePresence>
 
             {/* Dark overlay */}
-            {currentMedia && <div className="absolute inset-0 bg-black/30 rounded-lg pointer-events-none" />}
+            {currentMedia && <div className="absolute inset-0 bg-black/20 pointer-events-none" />}
 
             {/* Overlays */}
             {renderOverlays()}
@@ -801,7 +792,6 @@ const VideoPreview = ({
                 </motion.div>
               )}
             </AnimatePresence>
-            </div>
           </div>
 
           {/* Bottom controls bar */}
