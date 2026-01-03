@@ -173,8 +173,22 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
     const newFiles: MediaFile[] = [];
 
     Array.from(fileList).forEach((file) => {
-      const isVideo = file.type.startsWith("video/");
-      const isImage = file.type.startsWith("image/");
+      // Check by MIME type first
+      let isVideo = file.type.startsWith("video/");
+      let isImage = file.type.startsWith("image/");
+      
+      // Fallback: check by extension if MIME type is missing
+      if (!isVideo && !isImage) {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        const videoExts = ['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v', '3gp'];
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif'];
+        
+        if (ext && videoExts.includes(ext)) {
+          isVideo = true;
+        } else if (ext && imageExts.includes(ext)) {
+          isImage = true;
+        }
+      }
 
       if (!isVideo && !isImage) {
         toast.error(`${file.name}: Hanya file video atau gambar yang diperbolehkan`);
@@ -188,13 +202,17 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
         return;
       }
 
-      const previewUrl = URL.createObjectURL(file);
-      newFiles.push({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        file,
-        type: isVideo ? "video" : "image",
-        previewUrl,
-      });
+      try {
+        const previewUrl = URL.createObjectURL(file);
+        newFiles.push({
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          file,
+          type: isVideo ? "video" : "image",
+          previewUrl,
+        });
+      } catch (err) {
+        toast.error(`${file.name}: Gagal membuat preview`);
+      }
     });
 
     if (newFiles.length > 0) {
@@ -377,10 +395,20 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                         }
                       }}
                     >
+                      {/* Fallback background - always visible behind media */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                        {media.type === "video" ? (
+                          <Film className="w-6 h-6 text-muted-foreground" />
+                        ) : (
+                          <Image className="w-6 h-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      
+                      {/* Actual media on top */}
                       {media.type === "video" && media.previewUrl ? (
                         <video
                           src={media.previewUrl}
-                          className="w-full h-full object-cover pointer-events-none"
+                          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                           muted
                           loop
                           playsInline
@@ -393,22 +421,13 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                         <img
                           src={media.previewUrl}
                           alt={media.file.name}
-                          className="w-full h-full object-cover pointer-events-none"
+                          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                           draggable={false}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                           }}
                         />
                       ) : null}
-                      
-                      {/* Fallback icon when media fails to load */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-muted -z-10">
-                        {media.type === "video" ? (
-                          <Film className="w-6 h-6 text-muted-foreground" />
-                        ) : (
-                          <Image className="w-6 h-6 text-muted-foreground" />
-                        )}
-                      </div>
                       
                       {/* Video progress bar */}
                       {media.type === "video" && (

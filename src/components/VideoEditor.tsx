@@ -785,23 +785,31 @@ const VideoEditor = ({
                         >
                           {/* Thumbnail */}
                           <div className="absolute inset-0">
+                            {/* Fallback background */}
+                            <div className="absolute inset-0 bg-muted flex items-center justify-center">
+                              {clip.type === "video" ? (
+                                <Film className="w-3 h-3 text-muted-foreground" />
+                              ) : (
+                                <Image className="w-3 h-3 text-muted-foreground" />
+                              )}
+                            </div>
+                            
+                            {/* Actual media */}
                             {clip.type === "video" && clip.previewUrl ? (
                               <video
                                 src={clip.previewUrl}
-                                className="w-full h-full object-cover"
+                                className="absolute inset-0 w-full h-full object-cover"
                                 muted
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             ) : clip.type === "image" && clip.previewUrl ? (
                               <img
                                 src={clip.previewUrl}
                                 alt={clip.file.name}
-                                className="w-full h-full object-cover"
+                                className="absolute inset-0 w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
-                            ) : (
-                              <div className="w-full h-full bg-muted flex items-center justify-center">
-                                <span className="text-[8px] text-muted-foreground">...</span>
-                              </div>
-                            )}
+                            ) : null}
                             <div className="absolute inset-0 bg-black/20" />
                           </div>
 
