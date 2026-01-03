@@ -8,7 +8,7 @@ import VoiceSelector from "@/components/VoiceSelector";
 import TemplateSelector from "@/components/TemplateSelector";
 import VideoPreview from "@/components/VideoPreview";
 import VideoHistory, { VideoItem } from "@/components/VideoHistory";
-import FootageUploader from "@/components/FootageUploader";
+import FootageUploader, { MediaFile } from "@/components/FootageUploader";
 import AudioPreview from "@/components/AudioPreview";
 import SubtitlePreview from "@/components/SubtitlePreview";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
@@ -25,7 +25,7 @@ const Index = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [uploadedFootage, setUploadedFootage] = useState<File | null>(null);
+  const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
   
   const {
     generateSpeech,
@@ -166,7 +166,7 @@ const Index = () => {
                   onDownloadSRT={downloadSRT}
                 />
                 <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
-                <FootageUploader onUpload={setUploadedFootage} uploadedFile={uploadedFootage} />
+                <FootageUploader onUpload={setUploadedMedia} uploadedFiles={uploadedMedia} />
 
                 {/* Generate Button */}
                 <motion.div
@@ -233,7 +233,7 @@ const Index = () => {
                   newsText={newsText}
                   template={selectedTemplate}
                   isGenerating={isGenerating}
-                  footageFile={uploadedFootage}
+                  mediaFiles={uploadedMedia}
                   subtitleWords={subtitleWords}
                   currentTime={currentTime}
                   isAudioPlaying={isPlaying}
