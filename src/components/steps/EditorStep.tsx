@@ -301,6 +301,7 @@ const EditorStep = ({
                 className="mb-3"
                 thumbnails={thumbnailSources}
                 showThumbnailPreview={thumbnailSources.length > 0}
+                showMiniTimeline={thumbnailSources.length > 1}
               />
             )}
 
