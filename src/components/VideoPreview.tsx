@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play, Volume2, Pause } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { OverlaySettings } from "./OverlaySelector";
+import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "./SubtitlePreview";
 import { cn } from "@/lib/utils";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
@@ -46,6 +47,7 @@ interface VideoPreviewProps {
   audioDuration?: number;
   overlaySettings?: OverlaySettings;
   videoFormat?: VideoFormatType;
+  subtitleStyle?: SubtitleStyleSettings;
   onPlay?: () => void;
   onPause?: () => void;
 }
@@ -64,6 +66,7 @@ const VideoPreview = ({
   audioDuration = 0,
   overlaySettings,
   videoFormat = "short",
+  subtitleStyle = DEFAULT_SUBTITLE_STYLE,
   onPlay,
   onPause,
 }: VideoPreviewProps) => {
@@ -770,15 +773,30 @@ const VideoPreview = ({
 
         {/* Karaoke-style Subtitle overlay */}
         <AnimatePresence>
-          {karaokeSubtitle && karaokeSubtitle.length > 0 && (isAudioPlaying || subtitleWords.length > 0) && (
+          {subtitleStyle.enabled && karaokeSubtitle && karaokeSubtitle.length > 0 && (isAudioPlaying || subtitleWords.length > 0) && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: subtitleStyle.position === "top" ? -10 : 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute bottom-16 left-2 right-2 z-10"
+              exit={{ opacity: 0, y: subtitleStyle.position === "top" ? -10 : 10 }}
+              className={cn(
+                "absolute left-2 right-2 z-10",
+                subtitleStyle.position === "top" && "top-8",
+                subtitleStyle.position === "center" && "top-1/2 -translate-y-1/2",
+                subtitleStyle.position === "bottom" && "bottom-16"
+              )}
             >
-              <div className="bg-black/85 backdrop-blur-md px-4 py-3 rounded-xl text-center shadow-lg">
-                <p className="text-sm font-medium leading-relaxed flex flex-wrap justify-center gap-x-1.5 gap-y-1">
+              <div 
+                className="backdrop-blur-md px-4 py-3 rounded-xl text-center shadow-lg"
+                style={{ 
+                  backgroundColor: `${subtitleStyle.backgroundColor}${Math.round(subtitleStyle.backgroundOpacity * 2.55).toString(16).padStart(2, '0')}`
+                }}
+              >
+                <p className={cn(
+                  "font-medium leading-relaxed flex flex-wrap justify-center gap-x-1.5 gap-y-1",
+                  subtitleStyle.fontSize === "small" && "text-xs",
+                  subtitleStyle.fontSize === "medium" && "text-sm",
+                  subtitleStyle.fontSize === "large" && "text-base"
+                )}>
                   {karaokeSubtitle.map((word, i) => (
                     <motion.span
                       key={word.index}
@@ -796,15 +814,16 @@ const VideoPreview = ({
                     >
                       {/* Background text (unfilled) */}
                       <span 
-                        className={`
-                          relative z-10 transition-all duration-100
-                          ${word.isActive 
-                            ? "text-primary font-bold drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]" 
-                            : word.isPast 
-                              ? "text-white/80" 
-                              : "text-white/50"
-                          }
-                        `}
+                        className={cn(
+                          "relative z-10 transition-all duration-100",
+                          word.isActive && "font-bold",
+                          !word.isActive && word.isPast && "text-white/80",
+                          !word.isActive && !word.isPast && "text-white/50"
+                        )}
+                        style={word.isActive ? { 
+                          color: subtitleStyle.highlightColor,
+                          textShadow: `0 0 8px ${subtitleStyle.highlightColor}80`
+                        } : undefined}
                       >
                         {word.text}
                       </span>
@@ -817,7 +836,13 @@ const VideoPreview = ({
                           animate={{ width: `${word.progress * 100}%` }}
                           transition={{ duration: 0.05, ease: "linear" }}
                         >
-                          <span className="text-primary font-bold whitespace-nowrap drop-shadow-[0_0_12px_hsl(var(--primary))]">
+                          <span 
+                            className="font-bold whitespace-nowrap"
+                            style={{ 
+                              color: subtitleStyle.highlightColor,
+                              textShadow: `0 0 12px ${subtitleStyle.highlightColor}`
+                            }}
+                          >
                             {word.text}
                           </span>
                         </motion.span>
