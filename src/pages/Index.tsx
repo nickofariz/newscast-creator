@@ -251,6 +251,7 @@ const Index = () => {
                   isGenerating={isGenerating}
                   overlaySettings={overlaySettings}
                   onOverlaySettingsChange={setOverlaySettings}
+                  videoFormat={videoFormat}
                   onGenerate={handleGenerate}
                   onNext={handleEditorNext}
                   onBack={() => setCurrentStep("voiceover")}
