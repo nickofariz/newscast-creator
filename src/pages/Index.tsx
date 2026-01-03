@@ -17,6 +17,7 @@ import { useVideoStorage } from "@/hooks/useVideoStorage";
 import { toast } from "sonner";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
+export type VideoFormatType = "short" | "tv";
 
 const Index = () => {
   // Step navigation
@@ -25,6 +26,7 @@ const Index = () => {
 
   // Media state
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
+  const [videoFormat, setVideoFormat] = useState<VideoFormatType>("short");
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(DEFAULT_OVERLAY_SETTINGS);
 
@@ -206,6 +208,8 @@ const Index = () => {
                   key="media"
                   uploadedMedia={uploadedMedia}
                   onUploadMedia={setUploadedMedia}
+                  videoFormat={videoFormat}
+                  onVideoFormatChange={setVideoFormat}
                   onNext={handleMediaNext}
                 />
               )}
