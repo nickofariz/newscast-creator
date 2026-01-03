@@ -19,6 +19,7 @@ interface ScrubBarProps {
   height?: "sm" | "md";
   thumbnails?: ThumbnailSource[];
   showThumbnailPreview?: boolean;
+  showMiniTimeline?: boolean;
 }
 
 const ScrubBar = ({ 
@@ -28,13 +29,27 @@ const ScrubBar = ({
   className,
   height = "md",
   thumbnails = [],
-  showThumbnailPreview = true
+  showThumbnailPreview = true,
+  showMiniTimeline = false
 }: ScrubBarProps) => {
   const barRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverProgress, setHoverProgress] = useState<number | null>(null);
   const [hoverTime, setHoverTime] = useState<number>(0);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [activeThumbIndex, setActiveThumbIndex] = useState<number | null>(null);
+
+  // Find current thumbnail index based on progress
+  const currentThumbIndex = useMemo(() => {
+    if (!thumbnails.length || duration <= 0) return 0;
+    const currentTime = (progress / 100) * duration;
+    for (let i = 0; i < thumbnails.length; i++) {
+      if (currentTime >= thumbnails[i].startTime && currentTime < thumbnails[i].endTime) {
+        return i;
+      }
+    }
+    return thumbnails.length - 1;
+  }, [thumbnails, progress, duration]);
 
   const calculateTimeFromPosition = useCallback((clientX: number) => {
     if (!barRef.current || duration <= 0) return 0;
@@ -274,6 +289,115 @@ const ScrubBar = ({
         )}
         style={{ left: `calc(${progress}% - ${height === "sm" ? "5px" : "6px"})` }} 
       />
+
+      {/* Mini Timeline with all thumbnails */}
+      {showMiniTimeline && thumbnails.length > 0 && (
+        <div className="absolute top-full mt-2 left-0 right-0">
+          <div className="flex gap-1 justify-center">
+            {thumbnails.map((thumb, index) => {
+              const isActive = index === currentThumbIndex;
+              const isHovered = index === activeThumbIndex;
+              const thumbProgress = duration > 0 
+                ? ((thumb.endTime - thumb.startTime) / duration) * 100 
+                : 100 / thumbnails.length;
+              
+              return (
+                <motion.div
+                  key={thumb.id}
+                  className={cn(
+                    "relative cursor-pointer overflow-hidden rounded transition-all",
+                    "border-2",
+                    isActive ? "border-primary shadow-md" : "border-transparent",
+                    isHovered && !isActive && "border-primary/50"
+                  )}
+                  style={{ 
+                    flex: `${thumbProgress} 1 0%`,
+                    minWidth: '32px',
+                    maxWidth: '80px'
+                  }}
+                  animate={{
+                    scale: isHovered ? 1.05 : 1,
+                    y: isHovered ? -2 : 0
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  onMouseEnter={() => setActiveThumbIndex(index)}
+                  onMouseLeave={() => setActiveThumbIndex(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Seek to the start of this clip
+                    onSeek(thumb.startTime);
+                  }}
+                >
+                  {/* Thumbnail image */}
+                  <div className="aspect-video relative bg-muted">
+                    {thumb.type === "video" ? (
+                      <video
+                        src={thumb.previewUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        src={thumb.previewUrl}
+                        alt={`Clip ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                    
+                    {/* Progress overlay for active clip */}
+                    {isActive && (
+                      <motion.div
+                        className="absolute inset-0 bg-primary/20"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <motion.div
+                          className="absolute bottom-0 left-0 h-0.5 bg-primary"
+                          style={{
+                            width: `${
+                              duration > 0 && (thumb.endTime - thumb.startTime) > 0
+                                ? (((progress / 100) * duration - thumb.startTime) / (thumb.endTime - thumb.startTime)) * 100
+                                : 0
+                            }%`
+                          }}
+                        />
+                      </motion.div>
+                    )}
+                    
+                    {/* Clip number */}
+                    <div className={cn(
+                      "absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[8px] font-medium",
+                      isActive ? "bg-primary text-primary-foreground" : "bg-black/60 text-white"
+                    )}>
+                      {index + 1}
+                    </div>
+                    
+                    {/* Duration badge on hover */}
+                    <AnimatePresence>
+                      {isHovered && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 5 }}
+                          className="absolute bottom-0.5 right-0.5 px-1 py-0.5 bg-black/70 rounded text-[7px] text-white font-mono"
+                        >
+                          {formatTime(thumb.startTime)}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+          
+          {/* Timeline hint */}
+          <p className="text-center text-[9px] text-muted-foreground mt-1">
+            Klik thumbnail untuk navigasi cepat
+          </p>
+        </div>
+      )}
     </div>
   );
 };
