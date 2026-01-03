@@ -82,11 +82,13 @@ const VideoPreview = ({
     
     // Always use currentTime for seeking - this ensures immediate response
     const time = currentTime;
+    console.log("VideoPreview activeMediaIndex - currentTime:", time, "editedClips:", editedClips.length);
     
     // Use edited clips if available - this is the primary logic
     if (hasEditedClips) {
       for (let i = 0; i < editedClips.length; i++) {
         if (time >= editedClips[i].startTime && time < editedClips[i].endTime) {
+          console.log("VideoPreview - found clip index:", i, "for time:", time);
           return i;
         }
       }
