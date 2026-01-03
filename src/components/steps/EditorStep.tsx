@@ -114,6 +114,7 @@ const EditorStep = ({
   }, [handleKeyDown]);
 
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
+  
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -121,122 +122,134 @@ const EditorStep = ({
       exit={{ opacity: 0, x: -20 }}
       className="space-y-4"
     >
-      {/* Live Preview with Audio Controls */}
-      <div className="glass-card rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-sm font-medium text-foreground">Preview</span>
-          </div>
-          
-          {/* Audio Player */}
-          {audioUrl && onPlay && onPause && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={isPlaying ? onPause : onPlay}
-                className="h-8 px-3"
-              >
-                {isPlaying ? (
-                  <Pause className="w-4 h-4" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
-              </Button>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Volume2 className="w-3 h-3" />
-                <span className="font-mono">{formatTime(currentTime)} / {formatTime(audioDuration)}</span>
+      {/* Full Width Editor Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {/* Left: Preview Panel */}
+        <div className="xl:col-span-1">
+          <div className="glass-card rounded-xl p-4 sticky top-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-medium text-foreground">Preview</span>
               </div>
-              {/* Progress bar */}
-              <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+              
+              {/* Audio Player */}
+              {audioUrl && onPlay && onPause && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={isPlaying ? onPause : onPlay}
+                    className="h-8 px-3"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-4 h-4" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Volume2 className="w-3 h-3" />
+                    <span className="font-mono text-[10px]">{formatTime(currentTime)}/{formatTime(audioDuration)}</span>
+                  </div>
+                </div>
+              )}
+              
+              {!audioUrl && (
+                <span className="text-xs text-muted-foreground">Belum ada audio</span>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {audioUrl && (
+              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mb-3">
                 <div 
                   className="h-full bg-primary transition-all duration-100"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-            </div>
-          )}
-          
-          {!audioUrl && (
-            <span className="text-xs text-muted-foreground">Belum ada audio</span>
-          )}
-        </div>
-        <VideoPreview
-          newsText={newsText}
-          template={selectedTemplate}
-          isGenerating={isGenerating}
-          mediaFiles={mediaFiles}
-          editedClips={editedClips}
-          subtitleWords={subtitleWords}
-          currentTime={currentTime}
-          isAudioPlaying={isPlaying}
-          audioDuration={audioDuration}
-          overlaySettings={overlaySettings}
-          onPlay={onPlay}
-          onPause={onPause}
-        />
-      </div>
+            )}
 
-      {/* Tabbed Controls */}
-      <Tabs defaultValue="timeline" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="timeline" className="flex items-center gap-2">
-            <Play className="w-4 h-4" />
-            <span className="hidden sm:inline">Timeline</span>
-          </TabsTrigger>
-          <TabsTrigger value="template" className="flex items-center gap-2">
-            <Palette className="w-4 h-4" />
-            <span className="hidden sm:inline">Template</span>
-          </TabsTrigger>
-          <TabsTrigger value="overlay" className="flex items-center gap-2">
-            <Settings2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Overlay</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="timeline" className="mt-0">
-          <div className="glass-card rounded-xl p-4">
-            <VideoEditor
+            <VideoPreview
+              newsText={newsText}
+              template={selectedTemplate}
+              isGenerating={isGenerating}
               mediaFiles={mediaFiles}
-              onMediaUpdate={onMediaUpdate}
-              audioDuration={audioDuration}
-              audioUrl={audioUrl}
-              overlayText={newsText}
-              overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
+              editedClips={editedClips}
+              subtitleWords={subtitleWords}
               currentTime={currentTime}
-              isPlaying={isPlaying}
-              onSeek={onSeek}
-              onClipsChange={handleClipsChange}
+              isAudioPlaying={isPlaying}
+              audioDuration={audioDuration}
+              overlaySettings={overlaySettings}
+              onPlay={onPlay}
+              onPause={onPause}
             />
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="template" className="mt-0">
-          <div className="glass-card rounded-xl p-4">
-            <p className="text-sm text-muted-foreground mb-4">Pilih layout untuk video Anda</p>
-            <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
-          </div>
-        </TabsContent>
+        {/* Right: Editor Controls */}
+        <div className="xl:col-span-2 space-y-4">
+          {/* Tabbed Controls */}
+          <Tabs defaultValue="timeline" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="timeline" className="flex items-center gap-2">
+                <Play className="w-4 h-4" />
+                <span>Timeline</span>
+              </TabsTrigger>
+              <TabsTrigger value="template" className="flex items-center gap-2">
+                <Palette className="w-4 h-4" />
+                <span>Template</span>
+              </TabsTrigger>
+              <TabsTrigger value="overlay" className="flex items-center gap-2">
+                <Settings2 className="w-4 h-4" />
+                <span>Overlay</span>
+              </TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="overlay" className="mt-0">
-          <div className="glass-card rounded-xl p-4 space-y-4">
-            <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
-            <div className="pt-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Template Overlay</p>
-                  <p className="text-xs text-muted-foreground">Simpan atau muat pengaturan</p>
-                </div>
-                <OverlayTemplateManager
-                  currentSettings={overlaySettings}
-                  onLoadTemplate={onOverlaySettingsChange}
+            <TabsContent value="timeline" className="mt-0">
+              <div className="glass-card rounded-xl p-4">
+                <VideoEditor
+                  mediaFiles={mediaFiles}
+                  onMediaUpdate={onMediaUpdate}
+                  audioDuration={audioDuration}
+                  audioUrl={audioUrl}
+                  overlayText={newsText}
+                  overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
+                  currentTime={currentTime}
+                  isPlaying={isPlaying}
+                  onSeek={onSeek}
+                  onClipsChange={handleClipsChange}
                 />
               </div>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
+
+            <TabsContent value="template" className="mt-0">
+              <div className="glass-card rounded-xl p-4">
+                <p className="text-sm text-muted-foreground mb-4">Pilih layout untuk video Anda</p>
+                <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="overlay" className="mt-0">
+              <div className="glass-card rounded-xl p-4 space-y-4">
+                <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
+                <div className="pt-4 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Template Overlay</p>
+                      <p className="text-xs text-muted-foreground">Simpan atau muat pengaturan</p>
+                    </div>
+                    <OverlayTemplateManager
+                      currentSettings={overlaySettings}
+                      onLoadTemplate={onOverlaySettingsChange}
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
 
       {/* Generate & Navigation */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
