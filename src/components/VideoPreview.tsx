@@ -324,10 +324,8 @@ const VideoPreview = ({
     }
   }, [currentTime, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);
 
-  // Extract first line as headline
-  const lines = newsText.trim().split('\n').filter(line => line.trim());
-  const headline = lines[0]?.substring(0, 50) || "Headline Berita";
-  const subtitle = lines[1]?.substring(0, 80) || "Subtitle akan muncul di sini...";
+  // We no longer show newsText as headline/subtitle - only auto-generated subtitles are shown
+  const showTextOverlay = false; // Disabled - only show auto subtitle
 
   // Calculate total video duration
   const totalVideoDuration = useMemo(() => {
@@ -361,87 +359,8 @@ const VideoPreview = ({
     inset: isTV ? "left-6 right-6" : "left-4 right-4",
   };
 
-  const renderTemplate = () => {
-    switch (template) {
-      case "headline-top":
-        return (
-          <>
-            <div className={cn("absolute", spacing.top, spacing.inset)}>
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn(textSizes.headline, "font-display font-bold text-foreground leading-tight")}
-              >
-                {headline}
-              </motion.div>
-            </div>
-            <div className={cn("absolute", spacing.bottom, spacing.inset)}>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn("bg-background/80 backdrop-blur-sm rounded-lg", spacing.padding)}
-              >
-                <p className={cn(textSizes.subtitle, "text-foreground font-medium leading-relaxed")}>
-                  {subtitle}
-                </p>
-              </motion.div>
-            </div>
-          </>
-        );
-
-      case "minimal":
-        return (
-          <div className={cn("absolute", spacing.bottom, spacing.inset)}>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={spacing.padding}
-            >
-              <p className={cn(textSizes.subtitle, "text-foreground font-bold leading-relaxed text-center drop-shadow-lg")}>
-                {subtitle}
-              </p>
-            </motion.div>
-          </div>
-        );
-
-      case "breaking":
-        return (
-          <>
-            <div className={cn("absolute left-4", spacing.topBreaking)}>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={cn("gradient-news rounded-sm", spacing.paddingSmall)}
-              >
-                <span className={cn(textSizes.breaking, "font-bold text-primary-foreground tracking-wider")}>
-                  BREAKING NEWS
-                </span>
-              </motion.div>
-            </div>
-            <div className={cn("absolute", spacing.topHeadline, spacing.inset)}>
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className={cn(textSizes.headline, "font-display font-bold text-foreground leading-tight")}
-              >
-                {headline}
-              </motion.div>
-            </div>
-            <div className={cn("absolute", spacing.bottom, spacing.inset)}>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn("bg-primary/20 border-l-2 border-primary rounded-r-lg", spacing.padding)}
-              >
-                <p className={cn(textSizes.subtitle, "text-foreground font-medium leading-relaxed")}>
-                  {subtitle}
-                </p>
-              </motion.div>
-            </div>
-          </>
-        );
-    }
-  };
+  // Template rendering disabled - only auto-generated subtitles are shown
+  const renderTemplate = () => null;
 
   // Render overlay elements
   const renderOverlays = () => {
@@ -522,45 +441,7 @@ const VideoPreview = ({
           </motion.div>
         )}
 
-        {/* Headline Box Overlay */}
-        {overlaySettings.headline?.enabled && (
-          <motion.div
-            initial={{ opacity: 0, y: overlaySettings.headline.position === "top" ? -20 : 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              "absolute left-0 right-0 z-25",
-              isTV ? "px-4" : "px-2",
-              overlaySettings.headline.position === "top" && (isTV ? "top-4" : "top-6"),
-              overlaySettings.headline.position === "center" && "top-1/2 -translate-y-1/2",
-              overlaySettings.headline.position === "bottom" && (isTV ? "bottom-8" : "bottom-10")
-            )}
-          >
-            <div
-              className={cn(
-                "rounded-lg",
-                isTV ? "px-4 py-3" : "px-3 py-2",
-                overlaySettings.headline.style === "transparent" && "bg-black/60 backdrop-blur-sm"
-              )}
-              style={{
-                backgroundColor: overlaySettings.headline.style === "solid" 
-                  ? overlaySettings.headline.color 
-                  : undefined,
-                background: overlaySettings.headline.style === "gradient"
-                  ? `linear-gradient(to top, ${overlaySettings.headline.color}, transparent)`
-                  : undefined,
-              }}
-            >
-              <p className={cn("text-white font-bold leading-tight drop-shadow-md", isTV ? "text-sm" : "text-[11px]")}>
-                {headline}
-              </p>
-              {overlaySettings.headline.showSubtitle && (
-                <p className={cn("text-white/90 font-medium leading-tight mt-0.5 drop-shadow-md", isTV ? "text-xs" : "text-[9px]")}>
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          </motion.div>
-        )}
+        {/* Headline Box Overlay - Disabled, only auto subtitle is shown */}
 
         {/* Credit Text */}
         {overlaySettings.credit?.enabled && (overlaySettings.credit.text || overlaySettings.credit.secondaryText) && (

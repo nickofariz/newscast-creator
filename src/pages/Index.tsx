@@ -259,6 +259,9 @@ const Index = () => {
                   onPlay={playAudio}
                   onPause={pauseAudio}
                   onSeek={seekTo}
+                  isGeneratingSubtitles={isGeneratingSubtitles}
+                  onGenerateSubtitles={handleGenerateSubtitles}
+                  onDownloadSRT={downloadSRT}
                 />
               )}
 

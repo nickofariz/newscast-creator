@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, Minimize2, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
@@ -12,6 +12,7 @@ import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 import TemplateSelector from "@/components/TemplateSelector";
 import ScrubBar from "@/components/ScrubBar";
 import MiniTimeline from "@/components/MiniTimeline";
+import SubtitlePreview from "@/components/SubtitlePreview";
 
 interface SubtitleWord {
   text: string;
@@ -43,6 +44,10 @@ interface EditorStepProps {
   onPlay?: () => void;
   onPause?: () => void;
   onSeek?: (time: number) => void;
+  // Subtitle generation
+  isGeneratingSubtitles?: boolean;
+  onGenerateSubtitles?: () => void;
+  onDownloadSRT?: () => void;
 }
 
 const SEEK_STEP = 5; // seconds
@@ -68,6 +73,9 @@ const EditorStep = ({
   onPlay,
   onPause,
   onSeek,
+  isGeneratingSubtitles = false,
+  onGenerateSubtitles,
+  onDownloadSRT,
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -327,10 +335,14 @@ const EditorStep = ({
         <div className="lg:col-span-3 xl:col-span-4 space-y-3">
           {/* Tabbed Controls */}
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-3">
+            <TabsList className="grid w-full grid-cols-4 mb-3">
               <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-sm">
                 <Play className="w-3.5 h-3.5" />
                 <span>Timeline</span>
+              </TabsTrigger>
+              <TabsTrigger value="subtitle" className="flex items-center gap-1.5 text-sm">
+                <Subtitles className="w-3.5 h-3.5" />
+                <span>Subtitle</span>
               </TabsTrigger>
               <TabsTrigger value="template" className="flex items-center gap-1.5 text-sm">
                 <Palette className="w-3.5 h-3.5" />
@@ -361,7 +373,7 @@ const EditorStep = ({
                   onMediaUpdate={onMediaUpdate}
                   audioDuration={audioDuration}
                   audioUrl={audioUrl}
-                  overlayText={newsText}
+                  overlayText=""
                   overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
                   currentTime={currentTime}
                   isPlaying={isPlaying}
@@ -381,6 +393,19 @@ const EditorStep = ({
                   className="mt-3"
                 />
               )}
+            </TabsContent>
+
+            <TabsContent value="subtitle" className="mt-0">
+              <div className="glass-card rounded-xl p-4">
+                <SubtitlePreview
+                  words={subtitleWords}
+                  isGenerating={isGeneratingSubtitles}
+                  currentTime={currentTime}
+                  onGenerate={onGenerateSubtitles || (() => {})}
+                  disabled={!audioUrl}
+                  onDownloadSRT={onDownloadSRT || (() => {})}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="template" className="mt-0">
