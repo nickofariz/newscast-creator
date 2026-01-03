@@ -225,20 +225,28 @@ const VideoPreview = ({
     };
   }, [isPlaying, isAudioPlaying, mediaFiles.length, editedClips.length, totalDuration]);
 
-  // Sync with audio playback
+  // Sync with audio playback - update internal time when audio is seeking
   useEffect(() => {
     if (isAudioPlaying) {
       setIsPlaying(true);
     }
   }, [isAudioPlaying]);
 
+  // Sync internal time with external currentTime when audio is active
+  useEffect(() => {
+    if (isAudioPlaying || audioDuration > 0) {
+      // When there's audio, always use the external currentTime
+      setInternalTime(currentTime);
+    }
+  }, [currentTime, isAudioPlaying, audioDuration]);
+
   // Reset internal time when not playing
   useEffect(() => {
-    if (!isPlaying && !isAudioPlaying) {
+    if (!isPlaying && !isAudioPlaying && currentTime === 0) {
       setInternalTime(0);
       setCurrentMediaIndex(0);
     }
-  }, [isPlaying, isAudioPlaying]);
+  }, [isPlaying, isAudioPlaying, currentTime]);
 
   // Get active subtitle text based on current time
   const activeSubtitle = useMemo(() => {
