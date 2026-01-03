@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Volume2, Pause, Maximize2, X, VolumeX, SkipBack, SkipForward } from "lucide-react";
+import { Play, Volume2, Pause, Maximize2, X, VolumeX, SkipBack, SkipForward, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { OverlaySettings } from "./OverlaySelector";
@@ -126,6 +126,7 @@ const VideoPreview = ({
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
@@ -488,11 +489,21 @@ const VideoPreview = ({
   // Handle play/pause and seeking for video elements
   useEffect(() => {
     if (videoRef.current && currentMedia?.type === "video") {
-      if (isPlaying || isAudioPlaying) {
-        videoRef.current.play();
-      } else {
-        videoRef.current.pause();
-      }
+      // Always try to play video when media changes to show first frame
+      const playVideo = async () => {
+        try {
+          if (isPlaying || isAudioPlaying) {
+            await videoRef.current?.play();
+          } else {
+            // Play briefly to show first frame, then pause
+            await videoRef.current?.play();
+            videoRef.current?.pause();
+          }
+        } catch (error) {
+          console.log("Video autoplay prevented:", error);
+        }
+      };
+      playVideo();
     }
   }, [isPlaying, isAudioPlaying, currentMedia]);
 
@@ -1200,14 +1211,29 @@ const VideoPreview = ({
                     className="absolute inset-0"
                   >
                     {currentMedia.type === "video" ? (
-                      <video
-                        ref={videoRef}
-                        src={currentMedia.previewUrl}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loop
-                        muted
-                        playsInline
-                      />
+                      <>
+                        {isVideoLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                          </div>
+                        )}
+                        <video
+                          ref={videoRef}
+                          src={currentMedia.previewUrl}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loop
+                          muted
+                          playsInline
+                          autoPlay
+                          onLoadStart={() => setIsVideoLoading(true)}
+                          onLoadedData={() => setIsVideoLoading(false)}
+                          onCanPlay={() => setIsVideoLoading(false)}
+                          onError={(e) => {
+                            console.error("Video load error:", e);
+                            setIsVideoLoading(false);
+                          }}
+                        />
+                      </>
                     ) : (
                       (() => {
                         const kenBurnsEffect = getKenBurnsEffect(currentMedia.id, currentMedia.kenBurns);

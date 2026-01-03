@@ -122,15 +122,24 @@ const VideoEditor = ({
       return;
     }
 
-    // Calculate duration per clip based on audio duration
-    const targetDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_CLIP_DURATION;
+    // Calculate duration per clip based on audio duration OR use actual media durations
+    let targetDuration: number;
+    if (audioDuration > 0) {
+      targetDuration = audioDuration;
+    } else {
+      // Use actual media durations if available, otherwise default
+      targetDuration = mediaFiles.reduce((acc, m) => acc + (m.duration || DEFAULT_CLIP_DURATION), 0);
+    }
     const durationPerClip = targetDuration / mediaFiles.length;
 
     const newClips: MediaClip[] = mediaFiles.map((media) => ({
       ...media,
       trimStart: 0,
       trimEnd: 1,
-      clipDuration: durationPerClip,
+      // For videos, use their actual duration if longer than calculated duration
+      clipDuration: media.type === "video" && media.duration && media.duration > durationPerClip 
+        ? media.duration 
+        : durationPerClip,
     }));
     setClips(newClips);
   }, [mediaFiles, audioDuration]);
