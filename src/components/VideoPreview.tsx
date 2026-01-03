@@ -506,22 +506,28 @@ const VideoPreview = ({
   // Handle play/pause and seeking for video elements
   useEffect(() => {
     // Only try to play if we have a valid video with a valid URL
-    if (videoRef.current && currentMedia?.type === "video" && currentMedia?.previewUrl) {
-      const playVideo = async () => {
-        try {
-          if (isPlaying || isAudioPlaying) {
-            await videoRef.current?.play();
-          } else {
-            // Play briefly to show first frame, then pause
-            await videoRef.current?.play();
-            videoRef.current?.pause();
-          }
-        } catch (error) {
-          console.log("Video autoplay prevented:", error);
-        }
-      };
-      playVideo();
+    const video = videoRef.current;
+    if (!video || !currentMedia?.type || currentMedia.type !== "video" || !currentMedia.previewUrl) {
+      return;
     }
+    
+    const playVideo = async () => {
+      try {
+        // Double check video has valid src before playing
+        if (!video.src || video.src === window.location.href) return;
+        
+        if (isPlaying || isAudioPlaying) {
+          await video.play();
+        } else {
+          // Play briefly to show first frame, then pause
+          await video.play();
+          video.pause();
+        }
+      } catch {
+        // Silently ignore autoplay errors
+      }
+    };
+    playVideo();
   }, [isPlaying, isAudioPlaying, currentMedia]);
 
   // Seek video to correct position within clip when time changes
@@ -900,7 +906,7 @@ const VideoPreview = ({
                           <div className="absolute inset-0 flex items-center justify-center bg-black">
                             <Loader2 className="w-8 h-8 animate-spin text-primary" />
                           </div>
-                        ) : currentMedia.type === "video" ? (
+                        ) : currentMedia.type === "video" && currentMedia.previewUrl ? (
                           <video
                             key={currentMedia.previewUrl}
                             src={currentMedia.previewUrl}
@@ -909,6 +915,7 @@ const VideoPreview = ({
                             muted
                             playsInline
                             autoPlay={isAudioPlaying}
+                            onError={(e) => e.stopPropagation()}
                           />
                         ) : currentMedia.type === "image" ? (
                           (() => {
@@ -1239,7 +1246,7 @@ const VideoPreview = ({
                       <div className="absolute inset-0 flex items-center justify-center bg-black/70">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
                       </div>
-                    ) : currentMedia.type === "video" ? (
+                    ) : currentMedia.type === "video" && currentMedia.previewUrl ? (
                       <>
                         {isVideoLoading && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
@@ -1259,7 +1266,7 @@ const VideoPreview = ({
                           onLoadedData={() => setIsVideoLoading(false)}
                           onCanPlay={() => setIsVideoLoading(false)}
                           onError={(e) => {
-                            console.error("Video load error:", e);
+                            e.stopPropagation();
                             setIsVideoLoading(false);
                           }}
                         />
