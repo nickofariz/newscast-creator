@@ -219,28 +219,24 @@ const VideoPreview = ({
     
     if (hasEditedClips && editedClips[activeMediaIndex]) {
       const clip = editedClips[activeMediaIndex];
-      // Validate previewUrl exists and is not empty
-      if (clip.previewUrl && clip.previewUrl.trim() !== "") {
-        newMedia = { 
-          id: clip.id,
-          previewUrl: clip.previewUrl, 
-          type: clip.type,
-          transition: clip.transition || "none",
-          kenBurns: clip.kenBurns || "random"
-        };
-      }
+      // Always create media object if clip exists - previewUrl might be loading
+      newMedia = { 
+        id: clip.id,
+        previewUrl: clip.previewUrl || "", 
+        type: clip.type,
+        transition: clip.transition || "none",
+        kenBurns: clip.kenBurns || "random"
+      };
     } else if (mediaFiles[activeMediaIndex]) {
       const file = mediaFiles[activeMediaIndex];
-      // Validate previewUrl exists and is not empty
-      if (file.previewUrl && file.previewUrl.trim() !== "") {
-        newMedia = { 
-          id: file.id,
-          previewUrl: file.previewUrl,
-          type: file.type,
-          transition: "none" as TransitionType,
-          kenBurns: "random" as KenBurnsType
-        };
-      }
+      // Always create media object if file exists - previewUrl might be loading
+      newMedia = { 
+        id: file.id,
+        previewUrl: file.previewUrl || "",
+        type: file.type,
+        transition: "none" as TransitionType,
+        kenBurns: "random" as KenBurnsType
+      };
     }
     
     // Update ref if media ID changed OR if kenBurns changed for same media
