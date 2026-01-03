@@ -237,6 +237,7 @@ const Index = () => {
                   subtitleWords={subtitleWords}
                   currentTime={currentTime}
                   isAudioPlaying={isPlaying}
+                  audioDuration={duration}
                 />
 
                 {/* Quick Actions */}
