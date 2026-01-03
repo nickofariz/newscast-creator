@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, forwardRef } from "react";
 import { motion, Reorder } from "framer-motion";
 import { 
   Film, 
@@ -435,17 +435,14 @@ const VideoEditor = ({
     return marks;
   };
 
-  // Resize handle component
-  const ResizeHandle = ({ 
-    side, 
-    onMouseDown,
-    color
-  }: { 
+  // Resize handle component with forwardRef
+  const ResizeHandle = forwardRef<HTMLDivElement, { 
     side: 'left' | 'right';
     onMouseDown: (e: React.MouseEvent) => void;
     color: string;
-  }) => (
+  }>(({ side, onMouseDown, color }, ref) => (
     <div
+      ref={ref}
       onMouseDown={onMouseDown}
       className={`absolute top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${
         side === 'left' ? 'left-0' : 'right-0'
@@ -453,7 +450,7 @@ const VideoEditor = ({
     >
       <div className="w-0.5 h-4 bg-current rounded-full" />
     </div>
-  );
+  ));
 
   // Layer component
   const LayerRow = ({ 
@@ -569,7 +566,7 @@ const VideoEditor = ({
               <SelectItem value="fade" className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <div className="w-3 h-3 bg-primary rounded-sm animate-pulse" />
+                    <div className="w-3 h-3 bg-primary rounded-sm animate-transition-fade" />
                   </div>
                   <span>Fade In</span>
                 </div>
@@ -577,11 +574,7 @@ const VideoEditor = ({
               <SelectItem value="slide" className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <motion.div 
-                      className="w-3 h-3 bg-blue-500 rounded-sm"
-                      animate={{ x: [6, 0] }}
-                      transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.5 }}
-                    />
+                    <div className="w-3 h-3 bg-blue-500 rounded-sm animate-transition-slide" />
                   </div>
                   <span>Slide</span>
                 </div>
@@ -589,11 +582,7 @@ const VideoEditor = ({
               <SelectItem value="zoom" className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <motion.div 
-                      className="w-3 h-3 bg-green-500 rounded-sm"
-                      animate={{ scale: [1.4, 1] }}
-                      transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.5 }}
-                    />
+                    <div className="w-3 h-3 bg-green-500 rounded-sm animate-transition-zoom" />
                   </div>
                   <span>Zoom In</span>
                 </div>
@@ -601,11 +590,7 @@ const VideoEditor = ({
               <SelectItem value="blur" className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <motion.div 
-                      className="w-3 h-3 bg-purple-500 rounded-sm"
-                      animate={{ filter: ["blur(3px)", "blur(0px)"] }}
-                      transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.5 }}
-                    />
+                    <div className="w-3 h-3 bg-purple-500 rounded-sm animate-transition-blur" />
                   </div>
                   <span>Blur In</span>
                 </div>

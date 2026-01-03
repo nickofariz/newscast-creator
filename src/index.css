@@ -200,4 +200,57 @@
       rgba(255, 255, 255, 0.1) 4px
     );
   }
+
+  /* Transition preview animations - CSS only, no re-renders */
+  .animate-transition-fade {
+    animation: transition-fade 1.5s ease-in-out infinite;
+  }
+
+  @keyframes transition-fade {
+    0%, 100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .animate-transition-slide {
+    animation: transition-slide 1.5s ease-in-out infinite;
+  }
+
+  @keyframes transition-slide {
+    0%, 100% {
+      transform: translateX(6px);
+    }
+    50% {
+      transform: translateX(0);
+    }
+  }
+
+  .animate-transition-zoom {
+    animation: transition-zoom 1.5s ease-in-out infinite;
+  }
+
+  @keyframes transition-zoom {
+    0%, 100% {
+      transform: scale(0.5);
+    }
+    50% {
+      transform: scale(1);
+    }
+  }
+
+  .animate-transition-blur {
+    animation: transition-blur 1.5s ease-in-out infinite;
+  }
+
+  @keyframes transition-blur {
+    0%, 100% {
+      filter: blur(3px);
+    }
+    50% {
+      filter: blur(0);
+    }
+  }
 }
