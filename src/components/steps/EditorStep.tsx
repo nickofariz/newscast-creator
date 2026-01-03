@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, Minimize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,17 @@ const EditorStep = ({
     setEditedClips(clips);
   }, []);
 
+  // Convert editedClips to thumbnail sources for ScrubBar
+  const thumbnailSources = useMemo(() => {
+    return editedClips.map(clip => ({
+      id: clip.id,
+      previewUrl: clip.previewUrl,
+      type: clip.type,
+      startTime: clip.startTime,
+      endTime: clip.endTime
+    }));
+  }, [editedClips]);
+
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ignore if user is typing in an input/textarea
@@ -173,6 +184,8 @@ const EditorStep = ({
                         onSeek={onSeek}
                         className="w-40"
                         height="sm"
+                        thumbnails={thumbnailSources}
+                        showThumbnailPreview={thumbnailSources.length > 0}
                       />
                     )}
                   </div>
@@ -286,6 +299,8 @@ const EditorStep = ({
                 duration={audioDuration}
                 onSeek={onSeek}
                 className="mb-3"
+                thumbnails={thumbnailSources}
+                showThumbnailPreview={thumbnailSources.length > 0}
               />
             )}
 
