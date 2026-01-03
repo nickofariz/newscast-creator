@@ -10,6 +10,7 @@ import { OverlaySettings } from "@/components/OverlaySelector";
 import OverlaySelector from "@/components/OverlaySelector";
 import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 import TemplateSelector from "@/components/TemplateSelector";
+import ScrubBar from "@/components/ScrubBar";
 
 interface SubtitleWord {
   text: string;
@@ -165,24 +166,15 @@ const EditorStep = ({
                     <span className="text-sm font-mono text-muted-foreground">
                       {formatTime(currentTime)} / {formatTime(audioDuration)}
                     </span>
-                    <div 
-                      className="w-40 h-2 bg-muted rounded-full overflow-hidden cursor-pointer group relative"
-                      onClick={(e) => {
-                        if (!onSeek || audioDuration <= 0) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const clickX = e.clientX - rect.left;
-                        const percentage = clickX / rect.width;
-                        const newTime = percentage * audioDuration;
-                        onSeek(Math.max(0, Math.min(audioDuration, newTime)));
-                      }}
-                    >
-                      <div className="h-full bg-primary transition-all group-hover:bg-primary/80" style={{ width: `${progress}%` }} />
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-primary rounded-full shadow-md pointer-events-none" 
-                          style={{ left: `calc(${progress}% - 5px)` }} 
-                        />
-                      </div>
-                    </div>
+                    {onSeek && (
+                      <ScrubBar
+                        progress={progress}
+                        duration={audioDuration}
+                        onSeek={onSeek}
+                        className="w-40"
+                        height="sm"
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -287,30 +279,14 @@ const EditorStep = ({
               )}
             </div>
 
-            {/* Clickable Progress bar */}
-            {audioUrl && (
-              <div 
-                className="w-full h-2 bg-muted rounded-full overflow-hidden mb-3 cursor-pointer group relative"
-                onClick={(e) => {
-                  if (!onSeek || audioDuration <= 0) return;
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const clickX = e.clientX - rect.left;
-                  const percentage = clickX / rect.width;
-                  const newTime = percentage * audioDuration;
-                  onSeek(Math.max(0, Math.min(audioDuration, newTime)));
-                }}
-              >
-                <div 
-                  className="h-full bg-primary transition-all duration-100 group-hover:bg-primary/80"
-                  style={{ width: `${progress}%` }}
-                />
-                {/* Hover indicator */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow-md pointer-events-none" 
-                    style={{ left: `calc(${progress}% - 6px)` }} 
-                  />
-                </div>
-              </div>
+            {/* Draggable Scrub bar */}
+            {audioUrl && onSeek && (
+              <ScrubBar
+                progress={progress}
+                duration={audioDuration}
+                onSeek={onSeek}
+                className="mb-3"
+              />
             )}
 
             <VideoPreview
