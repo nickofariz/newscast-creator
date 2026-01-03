@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Slider } from "@/components/ui/slider";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
 import VideoPreview, { VideoFormatType } from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
@@ -12,8 +13,6 @@ import { OverlaySettings } from "@/components/OverlaySelector";
 import OverlaySelector from "@/components/OverlaySelector";
 import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 import TemplateSelector from "@/components/TemplateSelector";
-import ScrubBar from "@/components/ScrubBar";
-import MiniTimeline from "@/components/MiniTimeline";
 import SubtitlePreview, { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
 import ExportDialog from "@/components/ExportDialog";
 import { useVideoExporter } from "@/hooks/useVideoExporter";
@@ -163,28 +162,13 @@ const EditorStep = ({
     onClipsUpdate?.(clips);
   }, [onClipsUpdate]);
 
-  // Convert editedClips to thumbnail sources for ScrubBar
-  const thumbnailSources = useMemo(() => {
-    return editedClips.map(clip => ({
-      id: clip.id,
-      previewUrl: clip.previewUrl,
-      type: clip.type,
-      startTime: clip.startTime,
-      endTime: clip.endTime
-    }));
-  }, [editedClips]);
-
-  // Handle reorder from mini timeline
-  const handleThumbnailReorder = useCallback((reorderedIds: string[]) => {
-    // Reorder mediaFiles based on the new order
-    const reorderedMedia = reorderedIds
-      .map(id => mediaFiles.find(m => m.id === id))
-      .filter((m): m is MediaFile => m !== undefined);
-    
-    if (reorderedMedia.length === mediaFiles.length) {
-      onMediaUpdate(reorderedMedia);
+  // Simple seek handler for slider
+  const handleSliderSeek = useCallback((values: number[]) => {
+    if (onSeek && audioDuration > 0) {
+      const time = (values[0] / 100) * audioDuration;
+      onSeek(time);
     }
-  }, [mediaFiles, onMediaUpdate]);
+  }, [onSeek, audioDuration]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -256,14 +240,12 @@ const EditorStep = ({
                       {formatTime(currentTime)} / {formatTime(audioDuration)}
                     </span>
                     {onSeek && (
-                      <ScrubBar
-                        progress={progress}
-                        duration={audioDuration}
-                        onSeek={onSeek}
+                      <Slider
+                        value={[progress]}
+                        onValueChange={handleSliderSeek}
+                        max={100}
+                        step={0.1}
                         className="w-40"
-                        height="sm"
-                        thumbnails={thumbnailSources}
-                        showThumbnailPreview={thumbnailSources.length > 0}
                       />
                     )}
                   </div>
@@ -523,18 +505,6 @@ const EditorStep = ({
                   durationMode={durationMode}
                 />
               </div>
-
-              {/* Mini Timeline - Quick navigation */}
-              {thumbnailSources.length > 0 && onSeek && (
-                <MiniTimeline
-                  thumbnails={thumbnailSources}
-                  currentTime={currentTime}
-                  duration={audioDuration}
-                  onSeek={onSeek}
-                  onReorder={handleThumbnailReorder}
-                  className="mt-3"
-                />
-              )}
             </TabsContent>
 
             <TabsContent value="subtitle" className="mt-0">
@@ -593,13 +563,11 @@ const EditorStep = ({
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </Button>
             <div className="flex-1">
-              <ScrubBar
-                progress={progress}
-                duration={audioDuration}
-                onSeek={onSeek}
-                thumbnails={thumbnailSources}
-                showThumbnailPreview={thumbnailSources.length > 0}
-                showMiniTimeline={false}
+              <Slider
+                value={[progress]}
+                onValueChange={handleSliderSeek}
+                max={100}
+                step={0.1}
               />
             </div>
             <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
