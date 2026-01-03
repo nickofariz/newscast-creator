@@ -236,10 +236,17 @@ const VideoPreview = ({
       };
     }
     
-    // Only update ref if media ID actually changed
-    if (newMedia && newMedia.id !== prevMediaIdRef.current) {
-      prevMediaIdRef.current = newMedia.id;
-      currentMediaRef.current = newMedia;
+    // Update ref if media ID changed OR if kenBurns changed for same media
+    if (newMedia) {
+      const idChanged = newMedia.id !== prevMediaIdRef.current;
+      const kenBurnsChanged = currentMediaRef.current && 
+        newMedia.id === currentMediaRef.current.id && 
+        newMedia.kenBurns !== currentMediaRef.current.kenBurns;
+      
+      if (idChanged || kenBurnsChanged) {
+        prevMediaIdRef.current = newMedia.id;
+        currentMediaRef.current = newMedia;
+      }
     }
     
     return currentMediaRef.current;
