@@ -32,6 +32,7 @@ const ScrubBar = ({
     e.preventDefault();
     setIsDragging(true);
     const time = calculateTimeFromPosition(e.clientX);
+    console.log("ScrubBar handleMouseDown - seeking to:", time);
     onSeek(time);
   }, [calculateTimeFromPosition, onSeek]);
 
