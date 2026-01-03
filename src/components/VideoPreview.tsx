@@ -276,30 +276,58 @@ const VideoPreview = ({
     }
   }, [isPlaying, isAudioPlaying, currentTime]);
 
-  // Get active subtitle text based on current time
-  const activeSubtitle = useMemo(() => {
-    if (!subtitleWords.length || !isAudioPlaying) return null;
+  // Get active subtitle words for karaoke-style display
+  const karaokeSubtitle = useMemo(() => {
+    if (!subtitleWords.length) return null;
     
-    const activeWords = subtitleWords.filter(
-      (word) => currentTime >= word.start - 0.1 && currentTime <= word.end + 0.5
-    );
-    
-    if (activeWords.length === 0) return null;
-    
+    // Find current word index
     const currentIndex = subtitleWords.findIndex(
       (word) => currentTime >= word.start && currentTime <= word.end
     );
     
-    if (currentIndex === -1) return activeWords.map(w => w.text).join(" ");
+    // Show words around the current position (context window)
+    const contextSize = 4;
+    let startIdx: number;
+    let endIdx: number;
     
-    const startIdx = Math.max(0, currentIndex - 2);
-    const endIdx = Math.min(subtitleWords.length, currentIndex + 3);
+    if (currentIndex === -1) {
+      // Find the closest upcoming word
+      const nextWordIndex = subtitleWords.findIndex((word) => word.start > currentTime);
+      if (nextWordIndex === -1) {
+        // All words have passed, show last few
+        startIdx = Math.max(0, subtitleWords.length - contextSize);
+        endIdx = subtitleWords.length;
+      } else if (nextWordIndex === 0) {
+        // Before first word, show first few
+        startIdx = 0;
+        endIdx = Math.min(subtitleWords.length, contextSize);
+      } else {
+        // Between words, show context around previous word
+        startIdx = Math.max(0, nextWordIndex - 2);
+        endIdx = Math.min(subtitleWords.length, nextWordIndex + contextSize - 2);
+      }
+    } else {
+      // Active word found, center context around it
+      startIdx = Math.max(0, currentIndex - 2);
+      endIdx = Math.min(subtitleWords.length, currentIndex + contextSize);
+    }
     
-    return subtitleWords.slice(startIdx, endIdx).map((w) => {
+    return subtitleWords.slice(startIdx, endIdx).map((w, idx) => {
       const isActive = currentTime >= w.start && currentTime <= w.end;
-      return { text: w.text, isActive };
+      const isPast = currentTime > w.end;
+      const progress = isActive 
+        ? Math.min(1, (currentTime - w.start) / (w.end - w.start))
+        : isPast ? 1 : 0;
+      
+      return { 
+        text: w.text, 
+        isActive, 
+        isPast,
+        progress,
+        index: startIdx + idx
+      };
     });
-  }, [subtitleWords, currentTime, isAudioPlaying]);
+  }, [subtitleWords, currentTime]);
 
   // Handle play/pause and seeking for video elements
   useEffect(() => {
@@ -740,33 +768,62 @@ const VideoPreview = ({
           </motion.button>
         </div>
 
-        {/* Subtitle overlay */}
+        {/* Karaoke-style Subtitle overlay */}
         <AnimatePresence>
-          {activeSubtitle && isAudioPlaying && (
+          {karaokeSubtitle && karaokeSubtitle.length > 0 && (isAudioPlaying || subtitleWords.length > 0) && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               className="absolute bottom-16 left-2 right-2 z-10"
             >
-              <div className="bg-black/80 backdrop-blur-sm px-3 py-2 rounded-lg text-center">
-                <p className="text-xs font-medium leading-relaxed">
-                  {Array.isArray(activeSubtitle) ? (
-                    activeSubtitle.map((word, i) => (
-                      <span
-                        key={i}
-                        className={`${
-                          word.isActive 
-                            ? "text-primary font-bold" 
-                            : "text-white/90"
-                        } transition-colors duration-150`}
+              <div className="bg-black/85 backdrop-blur-md px-4 py-3 rounded-xl text-center shadow-lg">
+                <p className="text-sm font-medium leading-relaxed flex flex-wrap justify-center gap-x-1.5 gap-y-1">
+                  {karaokeSubtitle.map((word, i) => (
+                    <motion.span
+                      key={word.index}
+                      initial={{ opacity: 0.6, scale: 0.95 }}
+                      animate={{ 
+                        opacity: word.isActive ? 1 : word.isPast ? 0.7 : 0.5,
+                        scale: word.isActive ? 1.1 : 1,
+                        y: word.isActive ? -2 : 0
+                      }}
+                      transition={{ 
+                        duration: 0.15, 
+                        ease: "easeOut" 
+                      }}
+                      className="relative inline-block"
+                    >
+                      {/* Background text (unfilled) */}
+                      <span 
+                        className={`
+                          relative z-10 transition-all duration-100
+                          ${word.isActive 
+                            ? "text-primary font-bold drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]" 
+                            : word.isPast 
+                              ? "text-white/80" 
+                              : "text-white/50"
+                          }
+                        `}
                       >
-                        {word.text}{" "}
+                        {word.text}
                       </span>
-                    ))
-                  ) : (
-                    <span className="text-white">{activeSubtitle}</span>
-                  )}
+                      
+                      {/* Karaoke fill effect for active word */}
+                      {word.isActive && (
+                        <motion.span
+                          className="absolute inset-0 overflow-hidden z-20 pointer-events-none"
+                          initial={{ width: "0%" }}
+                          animate={{ width: `${word.progress * 100}%` }}
+                          transition={{ duration: 0.05, ease: "linear" }}
+                        >
+                          <span className="text-primary font-bold whitespace-nowrap drop-shadow-[0_0_12px_hsl(var(--primary))]">
+                            {word.text}
+                          </span>
+                        </motion.span>
+                      )}
+                    </motion.span>
+                  ))}
                 </p>
               </div>
             </motion.div>
