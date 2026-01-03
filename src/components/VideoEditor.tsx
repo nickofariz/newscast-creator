@@ -88,6 +88,37 @@ const VideoEditor = ({
   
   const timelineRef = useRef<HTMLDivElement>(null);
 
+  // Keyboard shortcuts for timeline editor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if a clip is selected and not typing in an input
+      if (selectedClipIndex === null) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const selectedClip = clips[selectedClipIndex];
+      if (!selectedClip) return;
+
+      // Delete key - remove selected clip
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        handleDeleteClip(selectedClipIndex);
+      }
+
+      // R key - reset trim
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        if (selectedClip.trimStart > 0 || selectedClip.trimEnd < 1) {
+          setClips(prev => prev.map((c, i) => 
+            i === selectedClipIndex ? { ...c, trimStart: 0, trimEnd: 1 } : c
+          ));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedClipIndex, clips]);
+
   // Auto-fit clips to audio duration
   useEffect(() => {
     if (mediaFiles.length === 0) {
