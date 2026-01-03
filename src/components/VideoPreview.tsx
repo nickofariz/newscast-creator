@@ -715,31 +715,36 @@ const VideoPreview = ({
             {currentMedia ? (
               <div className="absolute inset-0">
                 <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={`fs-${currentMedia.id}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="absolute inset-0"
-                  >
-                    {currentMedia.type === "video" ? (
-                      <video
-                        src={currentMedia.previewUrl}
-                        className="w-full h-full object-contain bg-black"
-                        loop
-                        muted
-                        playsInline
-                        autoPlay={isAudioPlaying}
-                      />
-                    ) : (
-                      <img
-                        src={currentMedia.previewUrl}
-                        alt="Background"
-                        className="w-full h-full object-contain bg-black"
-                      />
-                    )}
-                  </motion.div>
+                  {(() => {
+                    const variants = getTransitionVariants(currentMedia.transition || "none");
+                    return (
+                      <motion.div
+                        key={`fs-${currentMedia.id}`}
+                        initial={variants.initial}
+                        animate={variants.animate}
+                        exit={variants.exit}
+                        transition={variants.transition}
+                        className="absolute inset-0"
+                      >
+                        {currentMedia.type === "video" ? (
+                          <video
+                            src={currentMedia.previewUrl}
+                            className="w-full h-full object-contain bg-black"
+                            loop
+                            muted
+                            playsInline
+                            autoPlay={isAudioPlaying}
+                          />
+                        ) : (
+                          <img
+                            src={currentMedia.previewUrl}
+                            alt="Background"
+                            className="w-full h-full object-contain bg-black"
+                          />
+                        )}
+                      </motion.div>
+                    );
+                  })()}
                 </AnimatePresence>
               </div>
             ) : (
@@ -1018,31 +1023,36 @@ const VideoPreview = ({
         {currentMedia ? (
           <div className="absolute inset-0 overflow-hidden">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={currentMedia.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="absolute inset-0"
-              >
-                {currentMedia.type === "video" ? (
-                  <video
-                    ref={videoRef}
-                    src={currentMedia.previewUrl}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    loop
-                    muted
-                    playsInline
-                  />
-                ) : (
-                  <img
-                    src={currentMedia.previewUrl}
-                    alt="Background"
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                )}
-              </motion.div>
+              {(() => {
+                const variants = getTransitionVariants(currentMedia.transition || "none");
+                return (
+                  <motion.div
+                    key={currentMedia.id}
+                    initial={variants.initial}
+                    animate={variants.animate}
+                    exit={variants.exit}
+                    transition={variants.transition}
+                    className="absolute inset-0"
+                  >
+                    {currentMedia.type === "video" ? (
+                      <video
+                        ref={videoRef}
+                        src={currentMedia.previewUrl}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loop
+                        muted
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        src={currentMedia.previewUrl}
+                        alt="Background"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    )}
+                  </motion.div>
+                );
+              })()}
             </AnimatePresence>
           </div>
         ) : (
