@@ -14,8 +14,8 @@ import {
   GripVertical,
   Volume2,
   Layers,
-  ChevronUp,
-  ChevronDown
+  ChevronDown,
+  SplitSquareHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -195,6 +195,79 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
     );
   };
 
+  const handleSplitClip = () => {
+    if (clips.length === 0 || totalDuration === 0) return;
+
+    // Find which clip the playhead is on
+    let accumulatedTime = 0;
+    let clipToSplitIndex = -1;
+    let splitPositionInClip = 0;
+
+    for (let i = 0; i < clips.length; i++) {
+      const clipEffectiveDuration = clips[i].clipDuration * (clips[i].trimEnd - clips[i].trimStart);
+      if (currentTime >= accumulatedTime && currentTime < accumulatedTime + clipEffectiveDuration) {
+        clipToSplitIndex = i;
+        // Calculate position within the clip (0-1 range within the trimmed portion)
+        const timeInClip = currentTime - accumulatedTime;
+        const trimmedDuration = clips[i].trimEnd - clips[i].trimStart;
+        splitPositionInClip = clips[i].trimStart + (timeInClip / clips[i].clipDuration);
+        break;
+      }
+      accumulatedTime += clipEffectiveDuration;
+    }
+
+    if (clipToSplitIndex === -1) return;
+
+    const originalClip = clips[clipToSplitIndex];
+    
+    // Don't split if too close to edges
+    if (splitPositionInClip <= originalClip.trimStart + 0.05 || 
+        splitPositionInClip >= originalClip.trimEnd - 0.05) {
+      return;
+    }
+
+    // Create two new clips from the split
+    const firstClip: MediaClip = {
+      ...originalClip,
+      id: originalClip.id + "-1",
+      trimEnd: splitPositionInClip,
+    };
+
+    const secondClip: MediaClip = {
+      ...originalClip,
+      id: originalClip.id + "-2",
+      trimStart: splitPositionInClip,
+    };
+
+    const newClips = [
+      ...clips.slice(0, clipToSplitIndex),
+      firstClip,
+      secondClip,
+      ...clips.slice(clipToSplitIndex + 1),
+    ];
+
+    setClips(newClips);
+    onMediaUpdate(newClips);
+    setSelectedClipIndex(clipToSplitIndex);
+  };
+
+  const canSplit = () => {
+    if (clips.length === 0 || totalDuration === 0) return false;
+    
+    let accumulatedTime = 0;
+    for (let i = 0; i < clips.length; i++) {
+      const clipEffectiveDuration = clips[i].clipDuration * (clips[i].trimEnd - clips[i].trimStart);
+      if (currentTime >= accumulatedTime && currentTime < accumulatedTime + clipEffectiveDuration) {
+        const timeInClip = currentTime - accumulatedTime;
+        const splitPosition = clips[i].trimStart + (timeInClip / clips[i].clipDuration);
+        // Can split if not too close to edges
+        return splitPosition > clips[i].trimStart + 0.05 && splitPosition < clips[i].trimEnd - 0.05;
+      }
+      accumulatedTime += clipEffectiveDuration;
+    }
+    return false;
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -328,6 +401,21 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
             
             <div className="h-6 w-px bg-border" />
             
+            {/* Split Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={handleSplitClip}
+              disabled={!canSplit()}
+              title="Split clip at playhead (posisikan playhead di tengah clip)"
+            >
+              <SplitSquareHorizontal className="w-3.5 h-3.5" />
+              Split
+            </Button>
+            
+            <div className="h-6 w-px bg-border" />
+            
             <Button
               variant="ghost"
               size="icon"
@@ -350,7 +438,7 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
           </div>
           
           <p className="text-[10px] text-muted-foreground">
-            Drag handles kiri/kanan pada clip untuk trim • Drag clip untuk reorder
+            Klik timeline untuk posisi playhead • Klik "Split" untuk memotong clip
           </p>
         </div>
       </div>
