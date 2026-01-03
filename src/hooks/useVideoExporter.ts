@@ -47,6 +47,7 @@ export const useVideoExporter = () => {
     message: "",
   });
   const [exportedVideoUrl, setExportedVideoUrl] = useState<string | null>(null);
+  const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -197,7 +198,7 @@ export const useVideoExporter = () => {
     });
   };
 
-  const exportVideo = useCallback(async (options: ExportOptions): Promise<string | null> => {
+  const exportVideo = useCallback(async (options: ExportOptions): Promise<{ url: string; blob: Blob } | null> => {
     const {
       mediaFiles,
       editedClips,
@@ -211,6 +212,7 @@ export const useVideoExporter = () => {
     abortRef.current = false;
     recordedChunksRef.current = [];
     setExportedVideoUrl(null);
+    setExportedBlob(null);
 
     try {
       setExportProgress({ status: "preparing", progress: 0, message: "Mempersiapkan canvas..." });
@@ -385,9 +387,10 @@ export const useVideoExporter = () => {
       const url = URL.createObjectURL(blob);
       
       setExportedVideoUrl(url);
+      setExportedBlob(blob);
       setExportProgress({ status: "complete", progress: 100, message: "Export selesai!" });
       
-      return url;
+      return { url, blob };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Export failed";
       setExportProgress({ status: "error", progress: 0, message });
@@ -419,6 +422,7 @@ export const useVideoExporter = () => {
       URL.revokeObjectURL(exportedVideoUrl);
     }
     setExportedVideoUrl(null);
+    setExportedBlob(null);
     setExportProgress({ status: "idle", progress: 0, message: "" });
     recordedChunksRef.current = [];
   }, [exportedVideoUrl]);
@@ -430,6 +434,7 @@ export const useVideoExporter = () => {
     resetExport,
     exportProgress,
     exportedVideoUrl,
+    exportedBlob,
     isExporting: exportProgress.status !== "idle" && exportProgress.status !== "complete" && exportProgress.status !== "error",
   };
 };

@@ -14,6 +14,9 @@ import { OverlaySettings, DEFAULT_OVERLAY_SETTINGS } from "@/components/OverlayS
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
 import { useVideoStorage } from "@/hooks/useVideoStorage";
+import { useVideoExporter } from "@/hooks/useVideoExporter";
+import { EditedClip } from "@/components/VideoEditor";
+import { DEFAULT_SUBTITLE_STYLE, SubtitleStyleSettings } from "@/components/SubtitlePreview";
 import { toast } from "sonner";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
@@ -40,6 +43,8 @@ const Index = () => {
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
+  const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyleSettings>(DEFAULT_SUBTITLE_STYLE);
 
   // Hooks
   const {
@@ -68,6 +73,12 @@ const Index = () => {
     saveVideo,
     deleteVideo: deleteStoredVideo,
   } = useVideoStorage();
+
+  const {
+    exportVideo,
+    exportProgress,
+    isExporting,
+  } = useVideoExporter();
 
   // Convert stored videos to VideoItem format
   const videos: VideoItem[] = storedVideos.map((v) => ({
@@ -116,7 +127,7 @@ const Index = () => {
     }
   }, [audioUrl, generateSubtitles]);
 
-  // Video generation
+  // Video generation - now renders video first, then saves
   const handleGenerate = useCallback(async () => {
     if (!newsText.trim()) {
       toast.error("Masukkan teks berita terlebih dahulu");
@@ -129,21 +140,48 @@ const Index = () => {
     }
 
     setIsGenerating(true);
-    toast.info("Menyimpan ke cloud...");
+    toast.info("Memulai render video...");
 
-    await saveVideo({
-      title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
-      audioUrl: audioUrl || undefined,
-      subtitleWords: subtitleWords,
-      duration: Math.round(duration) || Math.round((newsText.split(/\s+/).length / 150) * 60),
-      template: selectedTemplate,
-      voice: selectedVoice,
-    });
+    try {
+      // First, render the video using useVideoExporter
+      const result = await exportVideo({
+        mediaFiles: uploadedMedia,
+        editedClips: editedClips,
+        subtitleWords: subtitleWords,
+        audioUrl: audioUrl || null,
+        audioDuration: duration,
+        subtitleStyle: subtitleStyle,
+        quality: "720p",
+      });
 
-    setIsGenerating(false);
-    markStepComplete("editor");
-    setCurrentStep("export");
-  }, [newsText, audioUrl, subtitleWords, duration, selectedTemplate, selectedVoice, saveVideo, markStepComplete]);
+      if (!result) {
+        toast.error("Gagal render video");
+        setIsGenerating(false);
+        return;
+      }
+
+      toast.info("Menyimpan ke cloud...");
+
+      // Now save the rendered video blob to storage
+      await saveVideo({
+        title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
+        videoBlob: result.blob, // Pass the actual video blob
+        audioUrl: audioUrl || undefined,
+        subtitleWords: subtitleWords,
+        duration: Math.round(duration) || Math.round((newsText.split(/\s+/).length / 150) * 60),
+        template: selectedTemplate,
+        voice: selectedVoice,
+      });
+
+      markStepComplete("editor");
+      setCurrentStep("export");
+    } catch (error) {
+      console.error("Error generating video:", error);
+      toast.error("Gagal membuat video");
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [newsText, uploadedMedia, editedClips, subtitleWords, audioUrl, duration, subtitleStyle, selectedTemplate, selectedVoice, saveVideo, markStepComplete, exportVideo]);
 
   // Download handler
   const handleDownload = useCallback((id: string, url?: string) => {
@@ -164,6 +202,7 @@ const Index = () => {
     setCurrentStep("media");
     setCompletedSteps([]);
     setUploadedMedia([]);
+    setEditedClips([]);
     setNewsText("");
   }, []);
 
@@ -270,6 +309,7 @@ const Index = () => {
                   isGeneratingSubtitles={isGeneratingSubtitles}
                   onGenerateSubtitles={handleGenerateSubtitles}
                   onDownloadSRT={downloadSRT}
+                  onClipsUpdate={setEditedClips}
                 />
               )}
 
