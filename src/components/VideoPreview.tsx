@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Volume2, Pause, Maximize2, Minimize2, X } from "lucide-react";
+import { Play, Volume2, Pause, Maximize2, Minimize2, X, VolumeX, SkipBack, SkipForward } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { OverlaySettings } from "./OverlaySelector";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "./SubtitlePreview";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
@@ -51,6 +52,7 @@ interface VideoPreviewProps {
   subtitleStyle?: SubtitleStyleSettings;
   onPlay?: () => void;
   onPause?: () => void;
+  onSeek?: (time: number) => void;
 }
 
 const DEFAULT_IMAGE_DURATION = 3;
@@ -70,11 +72,16 @@ const VideoPreview = ({
   subtitleStyle = DEFAULT_SUBTITLE_STYLE,
   onPlay,
   onPause,
+  onSeek,
 }: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [internalTime, setInternalTime] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [volume, setVolume] = useState(100);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -563,16 +570,83 @@ const VideoPreview = ({
     );
   };
 
-  // Escape key to exit fullscreen
+  // Keyboard shortcuts for fullscreen
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isFullscreen) return;
+      
+      switch (e.key) {
+        case 'Escape':
+          setIsFullscreen(false);
+          break;
+        case ' ':
+          e.preventDefault();
+          if (isAudioPlaying) {
+            onPause?.();
+          } else {
+            onPlay?.();
+          }
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (onSeek) {
+            const newTime = Math.max(0, currentTime - 5);
+            onSeek(newTime);
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (onSeek) {
+            const newTime = Math.min(totalVideoDuration, currentTime + 5);
+            onSeek(newTime);
+          }
+          break;
+        case 'm':
+        case 'M':
+          setIsMuted(!isMuted);
+          break;
       }
     };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [isFullscreen]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen, isAudioPlaying, onPlay, onPause, onSeek, currentTime, totalVideoDuration, isMuted]);
+
+  // Handle mouse movement for auto-hide controls
+  const handleMouseMove = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isAudioPlaying) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, [isAudioPlaying]);
+
+  // Seek handlers
+  const handleSeekChange = useCallback((value: number[]) => {
+    if (onSeek && totalVideoDuration > 0) {
+      const newTime = (value[0] / 100) * totalVideoDuration;
+      onSeek(newTime);
+    }
+  }, [onSeek, totalVideoDuration]);
+
+  const handleSkipBack = useCallback(() => {
+    if (onSeek) {
+      const newTime = Math.max(0, currentTime - 10);
+      onSeek(newTime);
+    }
+  }, [onSeek, currentTime]);
+
+  const handleSkipForward = useCallback(() => {
+    if (onSeek) {
+      const newTime = Math.min(totalVideoDuration, currentTime + 10);
+      onSeek(newTime);
+    }
+  }, [onSeek, currentTime, totalVideoDuration]);
+
+  const progress = totalVideoDuration > 0 ? (currentTime / totalVideoDuration) * 100 : 0;
 
   // Fullscreen preview modal
   const renderFullscreenPreview = () => (
@@ -582,23 +656,48 @@ const VideoPreview = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
+          className="fixed inset-0 z-[100] bg-black flex items-center justify-center cursor-none"
+          onMouseMove={handleMouseMove}
+          onMouseEnter={() => setShowControls(true)}
         >
-          {/* Close button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsFullscreen(false)}
-            className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
+          {/* Top bar with close button */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: showControls ? 1 : 0, y: showControls ? 0 : -20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-0 left-0 right-0 z-50 p-4 bg-gradient-to-b from-black/80 to-transparent cursor-auto"
           >
-            <X className="w-6 h-6" />
-          </Button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 bg-black/60 rounded-full">
+                  <span className="text-white font-mono text-sm">
+                    {formatTime(currentTime)} / {formatTime(totalVideoDuration)}
+                  </span>
+                </div>
+                {mediaFiles.length > 1 && (
+                  <div className="px-3 py-1.5 bg-white/10 rounded-full">
+                    <span className="text-white/80 text-xs">
+                      Media {currentMediaIndex + 1} / {mediaFiles.length}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsFullscreen(false)}
+                className="text-white hover:bg-white/20"
+              >
+                <X className="w-6 h-6" />
+              </Button>
+            </div>
+          </motion.div>
 
           {/* Fullscreen video container */}
           <div 
             className={cn(
               "relative",
-              videoFormat === "short" ? "h-[90vh] aspect-[9/16]" : "w-[90vw] aspect-video"
+              videoFormat === "short" ? "h-[85vh] aspect-[9/16]" : "w-[90vw] aspect-video"
             )}
           >
             {/* Media content */}
@@ -640,7 +739,7 @@ const VideoPreview = ({
             </AnimatePresence>
 
             {/* Dark overlay */}
-            {currentMedia && <div className="absolute inset-0 bg-black/30 rounded-lg" />}
+            {currentMedia && <div className="absolute inset-0 bg-black/30 rounded-lg pointer-events-none" />}
 
             {/* Overlays */}
             {renderOverlays()}
@@ -648,9 +747,9 @@ const VideoPreview = ({
             {/* Karaoke Subtitle in fullscreen */}
             {karaokeSubtitle && karaokeSubtitle.length > 0 && (
               <div className={cn(
-                "absolute left-4 right-4 z-40 text-center",
+                "absolute left-4 right-4 z-40 text-center pointer-events-none",
                 subtitleStyle.position === "top" ? "top-[15%]" : 
-                subtitleStyle.position === "center" ? "top-1/2 -translate-y-1/2" : "bottom-[15%]"
+                subtitleStyle.position === "center" ? "top-1/2 -translate-y-1/2" : "bottom-[20%]"
               )}>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
@@ -678,42 +777,134 @@ const VideoPreview = ({
               </div>
             )}
 
-            {/* Play/Pause control */}
-            {(onPlay || onPause) && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  onClick={isAudioPlaying ? onPause : onPlay}
-                  className="rounded-full px-6"
+            {/* Center play button - shows when paused */}
+            <AnimatePresence>
+              {!isAudioPlaying && showControls && onPlay && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="absolute inset-0 flex items-center justify-center z-30 cursor-auto"
                 >
-                  {isAudioPlaying ? (
-                    <>
-                      <Pause className="w-5 h-5 mr-2" />
-                      Pause
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5 mr-2" />
-                      Play
-                    </>
-                  )}
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onPlay}
+                    className="w-20 h-20 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm"
+                  >
+                    <Play className="w-10 h-10 text-white fill-white" />
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Bottom controls bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: showControls ? 1 : 0, y: showControls ? 0 : 20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-black/80 to-transparent cursor-auto"
+          >
+            {/* Progress bar */}
+            {onSeek && (
+              <div className="mb-4 px-2">
+                <Slider
+                  value={[progress]}
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  onValueChange={handleSeekChange}
+                  className="w-full cursor-pointer [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:bg-white [&>span:first-child]:h-1.5 [&>span:first-child]:bg-white/30 [&>span:first-child>span]:bg-primary"
+                />
               </div>
             )}
 
-            {/* Time indicator */}
-            <div className="absolute top-4 left-4 z-40 px-3 py-1.5 bg-black/60 rounded-full">
-              <span className="text-white font-mono text-sm">
-                {formatTime(currentTime)} / {formatTime(totalVideoDuration)}
-              </span>
-            </div>
-          </div>
+            {/* Playback controls */}
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: Play controls */}
+              <div className="flex items-center gap-2">
+                {onSeek && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSkipBack}
+                    className="text-white hover:bg-white/20"
+                    title="10 detik mundur"
+                  >
+                    <SkipBack className="w-5 h-5" />
+                  </Button>
+                )}
+                
+                {(onPlay || onPause) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={isAudioPlaying ? onPause : onPlay}
+                    className="w-12 h-12 text-white hover:bg-white/20"
+                  >
+                    {isAudioPlaying ? (
+                      <Pause className="w-6 h-6" />
+                    ) : (
+                      <Play className="w-6 h-6 fill-white" />
+                    )}
+                  </Button>
+                )}
 
-          {/* Keyboard hint */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs">
-            Tekan <kbd className="px-1.5 py-0.5 bg-white/20 rounded text-[10px]">Esc</kbd> untuk keluar
-          </div>
+                {onSeek && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSkipForward}
+                    className="text-white hover:bg-white/20"
+                    title="10 detik maju"
+                  >
+                    <SkipForward className="w-5 h-5" />
+                  </Button>
+                )}
+
+                <span className="text-white/80 text-sm font-mono ml-2">
+                  {formatTime(currentTime)} / {formatTime(totalVideoDuration)}
+                </span>
+              </div>
+
+              {/* Right: Volume control */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="text-white hover:bg-white/20"
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="w-5 h-5" />
+                  ) : (
+                    <Volume2 className="w-5 h-5" />
+                  )}
+                </Button>
+                <div className="w-24">
+                  <Slider
+                    value={[isMuted ? 0 : volume]}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onValueChange={(value) => {
+                      setVolume(value[0]);
+                      if (value[0] > 0) setIsMuted(false);
+                    }}
+                    className="cursor-pointer [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-white [&>span:first-child]:h-1 [&>span:first-child]:bg-white/30 [&>span:first-child>span]:bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Keyboard hints */}
+            <div className="flex items-center justify-center gap-4 mt-3 text-white/40 text-xs">
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px]">Space</kbd> Play/Pause</span>
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px]">←</kbd><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] ml-0.5">→</kbd> Seek</span>
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px]">Esc</kbd> Keluar</span>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
