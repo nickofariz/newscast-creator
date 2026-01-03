@@ -305,19 +305,6 @@ const EditorStep = ({
               )}
             </div>
 
-            {/* Draggable Scrub bar - without mini timeline here */}
-            {audioUrl && onSeek && (
-              <ScrubBar
-                progress={progress}
-                duration={audioDuration}
-                onSeek={onSeek}
-                className="mb-3"
-                thumbnails={thumbnailSources}
-                showThumbnailPreview={thumbnailSources.length > 0}
-                showMiniTimeline={false}
-              />
-            )}
-
             <VideoPreview
               newsText={newsText}
               template={selectedTemplate}
@@ -423,6 +410,35 @@ const EditorStep = ({
           </Tabs>
         </div>
       </div>
+
+      {/* Seek Bar - Bottom of Editor */}
+      {audioUrl && onSeek && (
+        <div className="glass-card rounded-xl p-3">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={isPlaying ? onPause : onPlay}
+              className="h-8 w-8 p-0 flex-shrink-0"
+            >
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            </Button>
+            <div className="flex-1">
+              <ScrubBar
+                progress={progress}
+                duration={audioDuration}
+                onSeek={onSeek}
+                thumbnails={thumbnailSources}
+                showThumbnailPreview={thumbnailSources.length > 0}
+                showMiniTimeline={false}
+              />
+            </div>
+            <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
+              {formatTime(currentTime)} / {formatTime(audioDuration)}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Generate & Navigation */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
