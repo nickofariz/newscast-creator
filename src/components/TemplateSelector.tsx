@@ -1,27 +1,35 @@
 import { motion } from "framer-motion";
 import { Layout, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
+type VideoFormatType = "short" | "tv";
 
 interface TemplateSelectorProps {
   selected: TemplateType;
   onChange: (template: TemplateType) => void;
+  videoFormat?: VideoFormatType;
 }
 
-const TemplateSelector = ({ selected, onChange }: TemplateSelectorProps) => {
+const TemplateSelector = ({ selected, onChange, videoFormat = "short" }: TemplateSelectorProps) => {
+  const isTV = videoFormat === "tv";
+  
   const templates = [
     {
       id: "headline-top" as TemplateType,
       name: "Headline Top",
-      description: "Judul di atas, subtitle di bawah",
+      description: isTV ? "Judul di atas layar lebar" : "Judul di atas, subtitle di bawah",
       preview: (
-        <div className="w-full h-full bg-news-darker rounded-md flex flex-col p-2">
-          <div className="h-3 w-16 bg-primary rounded-sm mb-1" />
-          <div className="h-2 w-12 bg-primary/50 rounded-sm" />
+        <div className={cn(
+          "w-full h-full bg-news-darker rounded-md flex flex-col p-2",
+          isTV ? "aspect-video" : "aspect-[9/16]"
+        )}>
+          <div className={cn("bg-primary rounded-sm mb-1", isTV ? "h-2 w-20" : "h-3 w-16")} />
+          <div className={cn("bg-primary/50 rounded-sm", isTV ? "h-1.5 w-16" : "h-2 w-12")} />
           <div className="flex-1" />
           <div className="space-y-1">
-            <div className="h-1.5 w-full bg-foreground/80 rounded-sm" />
-            <div className="h-1.5 w-3/4 bg-foreground/60 rounded-sm" />
+            <div className={cn("w-full bg-foreground/80 rounded-sm", isTV ? "h-1" : "h-1.5")} />
+            <div className={cn("bg-foreground/60 rounded-sm", isTV ? "h-1 w-4/5" : "h-1.5 w-3/4")} />
           </div>
         </div>
       ),
@@ -29,13 +37,16 @@ const TemplateSelector = ({ selected, onChange }: TemplateSelectorProps) => {
     {
       id: "minimal" as TemplateType,
       name: "Minimal",
-      description: "Hanya subtitle, clean look",
+      description: isTV ? "Clean look untuk TV" : "Hanya subtitle, clean look",
       preview: (
-        <div className="w-full h-full bg-news-darker rounded-md flex flex-col p-2">
+        <div className={cn(
+          "w-full h-full bg-news-darker rounded-md flex flex-col p-2",
+          isTV ? "aspect-video" : "aspect-[9/16]"
+        )}>
           <div className="flex-1" />
           <div className="space-y-1">
-            <div className="h-1.5 w-full bg-foreground/80 rounded-sm" />
-            <div className="h-1.5 w-2/3 bg-foreground/60 rounded-sm" />
+            <div className={cn("w-full bg-foreground/80 rounded-sm", isTV ? "h-1" : "h-1.5")} />
+            <div className={cn("bg-foreground/60 rounded-sm", isTV ? "h-1 w-3/4" : "h-1.5 w-2/3")} />
           </div>
         </div>
       ),
@@ -43,16 +54,22 @@ const TemplateSelector = ({ selected, onChange }: TemplateSelectorProps) => {
     {
       id: "breaking" as TemplateType,
       name: "Breaking News",
-      description: "Style berita breaking",
+      description: isTV ? "Style breaking untuk TV" : "Style berita breaking",
       preview: (
-        <div className="w-full h-full bg-news-darker rounded-md flex flex-col p-2">
-          <div className="h-2.5 w-14 gradient-news rounded-sm mb-1 flex items-center justify-center">
+        <div className={cn(
+          "w-full h-full bg-news-darker rounded-md flex flex-col p-2",
+          isTV ? "aspect-video" : "aspect-[9/16]"
+        )}>
+          <div className={cn(
+            "gradient-news rounded-sm mb-1 flex items-center justify-center",
+            isTV ? "h-2 w-20" : "h-2.5 w-14"
+          )}>
             <span className="text-[4px] text-primary-foreground font-bold">BREAKING</span>
           </div>
-          <div className="h-2 w-16 bg-foreground/80 rounded-sm" />
+          <div className={cn("bg-foreground/80 rounded-sm", isTV ? "h-1.5 w-24" : "h-2 w-16")} />
           <div className="flex-1" />
-          <div className="p-1 bg-primary/20 rounded-sm">
-            <div className="h-1.5 w-full bg-foreground/80 rounded-sm" />
+          <div className={cn("p-1 bg-primary/20 rounded-sm", isTV ? "mx-2" : "")}>
+            <div className={cn("w-full bg-foreground/80 rounded-sm", isTV ? "h-1" : "h-1.5")} />
           </div>
         </div>
       ),
@@ -69,6 +86,9 @@ const TemplateSelector = ({ selected, onChange }: TemplateSelectorProps) => {
       <label className="flex items-center gap-2 text-sm font-medium text-foreground">
         <Layout className="w-4 h-4 text-primary" />
         Template Video
+        <span className="text-xs text-muted-foreground">
+          ({isTV ? "16:9 Landscape" : "9:16 Portrait"})
+        </span>
       </label>
 
       <div className="grid grid-cols-3 gap-3">
@@ -81,17 +101,24 @@ const TemplateSelector = ({ selected, onChange }: TemplateSelectorProps) => {
               onClick={() => onChange(template.id)}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              className={`relative p-3 rounded-xl border-2 transition-all duration-300 ${
+              className={cn(
+                "relative p-3 rounded-xl border-2 transition-all duration-300",
                 isSelected
                   ? "border-primary bg-primary/10 shadow-glow"
                   : "border-border bg-card hover:border-primary/50"
-              }`}
+              )}
             >
-              <div className="aspect-[9/16] w-full mb-2">
+              <div className={cn(
+                "w-full mb-2",
+                isTV ? "aspect-video" : "aspect-[9/16]"
+              )}>
                 {template.preview}
               </div>
               <div className="text-center">
-                <p className={`text-xs font-semibold ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
+                <p className={cn(
+                  "text-xs font-semibold",
+                  isSelected ? "text-foreground" : "text-muted-foreground"
+                )}>
                   {template.name}
                 </p>
               </div>
