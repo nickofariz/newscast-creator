@@ -12,7 +12,7 @@ import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 import TemplateSelector from "@/components/TemplateSelector";
 import ScrubBar from "@/components/ScrubBar";
 import MiniTimeline from "@/components/MiniTimeline";
-import SubtitlePreview from "@/components/SubtitlePreview";
+import SubtitlePreview, { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
 
 interface SubtitleWord {
   text: string;
@@ -79,6 +79,7 @@ const EditorStep = ({
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyleSettings>(DEFAULT_SUBTITLE_STYLE);
 
   // Toggle fullscreen mode
   const toggleFullscreen = useCallback(() => {
@@ -242,6 +243,7 @@ const EditorStep = ({
                     audioDuration={audioDuration}
                     overlaySettings={overlaySettings}
                     videoFormat={videoFormat}
+                    subtitleStyle={subtitleStyle}
                     onPlay={onPlay}
                     onPause={onPause}
                   />
@@ -325,6 +327,7 @@ const EditorStep = ({
               audioDuration={audioDuration}
               overlaySettings={overlaySettings}
               videoFormat={videoFormat}
+              subtitleStyle={subtitleStyle}
               onPlay={onPlay}
               onPause={onPause}
             />
@@ -404,6 +407,8 @@ const EditorStep = ({
                   onGenerate={onGenerateSubtitles || (() => {})}
                   disabled={!audioUrl}
                   onDownloadSRT={onDownloadSRT || (() => {})}
+                  styleSettings={subtitleStyle}
+                  onStyleChange={setSubtitleStyle}
                 />
               </div>
             </TabsContent>
