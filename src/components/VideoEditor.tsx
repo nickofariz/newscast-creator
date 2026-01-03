@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "./FootageUploader";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import AudioWaveform from "./AudioWaveform";
 
 interface MediaClip extends MediaFile {
   trimStart: number;
@@ -482,19 +483,30 @@ const VideoEditor = ({
                   style={{ width: `${getTimelineWidth()}px` }}
                 >
                   <div 
-                    className="h-[30px] rounded bg-green-500/20 border border-green-500/40 flex items-center px-2 group relative"
+                    className="h-[30px] rounded bg-green-500/20 border border-green-500/40 flex items-center px-1.5 group relative overflow-hidden"
                     style={{ width: `${audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
                   >
-                    <div className="flex-1 h-4 flex items-center gap-px overflow-hidden">
-                      {Array.from({ length: Math.min(50, Math.floor(audioDuration * 5)) }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-0.5 bg-green-500/60 rounded-full flex-shrink-0"
-                          style={{ height: `${30 + Math.random() * 70}%` }}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-[8px] text-green-600 ml-1 bg-green-500/20 px-1 rounded">{formatTime(audioDuration)}</span>
+                    {audioUrl ? (
+                      <AudioWaveform
+                        audioUrl={audioUrl}
+                        width={Math.max(50, audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom - 40)}
+                        height={24}
+                        barWidth={2}
+                        barGap={1}
+                        barColor="rgb(34 197 94 / 0.7)"
+                      />
+                    ) : (
+                      <div className="flex-1 h-4 flex items-center gap-px overflow-hidden">
+                        {Array.from({ length: Math.min(50, Math.floor(audioDuration * 5)) }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-0.5 bg-green-500/60 rounded-full flex-shrink-0"
+                            style={{ height: `${30 + Math.random() * 70}%` }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <span className="text-[8px] text-green-600 ml-1 bg-green-500/20 px-1 rounded flex-shrink-0">{formatTime(audioDuration)}</span>
                   </div>
                 </div>
                 <ScrollBar orientation="horizontal" />
