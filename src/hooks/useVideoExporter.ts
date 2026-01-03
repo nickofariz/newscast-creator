@@ -44,6 +44,42 @@ interface ExportProgress {
   estimatedTimeRemaining?: number; // in seconds
 }
 
+// Helper function outside hook to avoid dependency issues
+const getActiveSubtitle = (
+  subtitleWords: SubtitleWord[],
+  currentTime: number
+): { text: string; isActive: boolean }[] => {
+  const contextSize = 4;
+  const currentIndex = subtitleWords.findIndex(
+    (word) => currentTime >= word.start && currentTime <= word.end
+  );
+
+  let startIdx: number;
+  let endIdx: number;
+
+  if (currentIndex === -1) {
+    const nextWordIndex = subtitleWords.findIndex((word) => word.start > currentTime);
+    if (nextWordIndex === -1) {
+      startIdx = Math.max(0, subtitleWords.length - contextSize);
+      endIdx = subtitleWords.length;
+    } else if (nextWordIndex === 0) {
+      startIdx = 0;
+      endIdx = Math.min(subtitleWords.length, contextSize);
+    } else {
+      startIdx = Math.max(0, nextWordIndex - 2);
+      endIdx = Math.min(subtitleWords.length, nextWordIndex + contextSize - 2);
+    }
+  } else {
+    startIdx = Math.max(0, currentIndex - 2);
+    endIdx = Math.min(subtitleWords.length, currentIndex + contextSize);
+  }
+
+  return subtitleWords.slice(startIdx, endIdx).map((w) => {
+    const isActive = currentTime >= w.start && currentTime <= w.end;
+    return { text: w.text, isActive };
+  });
+};
+
 export const useVideoExporter = () => {
   const [exportProgress, setExportProgress] = useState<ExportProgress>({
     status: "idle",
@@ -97,42 +133,6 @@ export const useVideoExporter = () => {
     }
   }, []);
 
-  const getActiveSubtitle = useCallback((
-    subtitleWords: SubtitleWord[],
-    currentTime: number,
-    subtitleStyle: SubtitleStyleSettings
-  ): { text: string; isActive: boolean }[] => {
-    const contextSize = 4;
-    const currentIndex = subtitleWords.findIndex(
-      (word) => currentTime >= word.start && currentTime <= word.end
-    );
-
-    let startIdx: number;
-    let endIdx: number;
-
-    if (currentIndex === -1) {
-      const nextWordIndex = subtitleWords.findIndex((word) => word.start > currentTime);
-      if (nextWordIndex === -1) {
-        startIdx = Math.max(0, subtitleWords.length - contextSize);
-        endIdx = subtitleWords.length;
-      } else if (nextWordIndex === 0) {
-        startIdx = 0;
-        endIdx = Math.min(subtitleWords.length, contextSize);
-      } else {
-        startIdx = Math.max(0, nextWordIndex - 2);
-        endIdx = Math.min(subtitleWords.length, nextWordIndex + contextSize - 2);
-      }
-    } else {
-      startIdx = Math.max(0, currentIndex - 2);
-      endIdx = Math.min(subtitleWords.length, currentIndex + contextSize);
-    }
-
-    return subtitleWords.slice(startIdx, endIdx).map((w) => {
-      const isActive = currentTime >= w.start && currentTime <= w.end;
-      return { text: w.text, isActive };
-    });
-  }, []);
-
   const drawFrame = useCallback((
     ctx: CanvasRenderingContext2D,
     mediaElement: HTMLVideoElement | HTMLImageElement,
@@ -160,7 +160,7 @@ export const useVideoExporter = () => {
 
     // Draw subtitles
     if (subtitleWords.length > 0) {
-      const activeWords = getActiveSubtitle(subtitleWords, currentTime, subtitleStyle);
+      const activeWords = getActiveSubtitle(subtitleWords, currentTime);
       
       if (activeWords.length > 0) {
         // Map fontSize setting to pixel value
@@ -219,7 +219,7 @@ export const useVideoExporter = () => {
         });
       }
     }
-  }, [getActiveSubtitle]);
+  }, []);
 
   const loadMedia = (src: string, type: "video" | "image"): Promise<HTMLVideoElement | HTMLImageElement> => {
     return new Promise((resolve, reject) => {
