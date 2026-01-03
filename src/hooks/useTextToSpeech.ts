@@ -75,6 +75,7 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
       audioRef.current = audio;
 
       audio.addEventListener("loadedmetadata", () => {
+        console.log("Audio loadedmetadata - duration:", audio.duration);
         setDuration(audio.duration);
       });
 
