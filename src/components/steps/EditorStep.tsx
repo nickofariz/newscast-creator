@@ -58,6 +58,8 @@ interface EditorStepProps {
   isGeneratingSubtitles?: boolean;
   onGenerateSubtitles?: () => void;
   onDownloadSRT?: () => void;
+  // Expose edited clips to parent
+  onClipsUpdate?: (clips: EditedClip[]) => void;
 }
 
 const SEEK_STEP = 5; // seconds
@@ -91,6 +93,7 @@ const EditorStep = ({
   isGeneratingSubtitles = false,
   onGenerateSubtitles,
   onDownloadSRT,
+  onClipsUpdate,
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -145,7 +148,8 @@ const EditorStep = ({
 
   const handleClipsChange = useCallback((clips: EditedClip[]) => {
     setEditedClips(clips);
-  }, []);
+    onClipsUpdate?.(clips);
+  }, [onClipsUpdate]);
 
   // Convert editedClips to thumbnail sources for ScrubBar
   const thumbnailSources = useMemo(() => {
