@@ -48,16 +48,22 @@ const ScrubBar = ({
     setHoverProgress(null);
   }, []);
 
-  // Handle drag globally with requestAnimationFrame for smoother seeking
+  // Handle drag globally with throttling to reduce seek spam
   useEffect(() => {
     if (!isDragging) return;
 
     let rafId: number | null = null;
+    let lastSeekTime = 0;
+    const THROTTLE_MS = 50; // Throttle to max 20 seeks per second
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
+      const now = Date.now();
+      if (now - lastSeekTime < THROTTLE_MS) return;
+      
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         const time = calculateTimeFromPosition(e.clientX);
+        lastSeekTime = Date.now();
         onSeek(time);
       });
     };
