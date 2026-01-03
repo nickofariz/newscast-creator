@@ -200,8 +200,6 @@ const Index = () => {
                   key="media"
                   uploadedMedia={uploadedMedia}
                   onUploadMedia={setUploadedMedia}
-                  selectedTemplate={selectedTemplate}
-                  onSelectTemplate={setSelectedTemplate}
                   onNext={handleMediaNext}
                 />
               )}
@@ -240,6 +238,7 @@ const Index = () => {
                   audioDuration={duration}
                   newsText={newsText}
                   selectedTemplate={selectedTemplate}
+                  onSelectTemplate={setSelectedTemplate}
                   subtitleWords={subtitleWords}
                   currentTime={currentTime}
                   isPlaying={isPlaying}

@@ -7,6 +7,7 @@ import { MediaFile } from "@/components/FootageUploader";
 import { OverlaySettings } from "@/components/OverlaySelector";
 import OverlaySelector from "@/components/OverlaySelector";
 import OverlayTemplateManager from "@/components/OverlayTemplateManager";
+import TemplateSelector from "@/components/TemplateSelector";
 
 interface SubtitleWord {
   text: string;
@@ -22,6 +23,7 @@ interface EditorStepProps {
   audioDuration: number;
   newsText: string;
   selectedTemplate: TemplateType;
+  onSelectTemplate: (template: TemplateType) => void;
   subtitleWords: SubtitleWord[];
   currentTime: number;
   isPlaying: boolean;
@@ -39,6 +41,7 @@ const EditorStep = ({
   audioDuration,
   newsText,
   selectedTemplate,
+  onSelectTemplate,
   subtitleWords,
   currentTime,
   isPlaying,
@@ -66,7 +69,7 @@ const EditorStep = ({
             Video Editor
           </h2>
           <p className="text-sm text-muted-foreground">
-            Atur timeline, overlay, dan merge video dengan voice over
+            Atur template, overlay, timeline, dan merge video
           </p>
         </div>
       </div>
@@ -101,6 +104,20 @@ const EditorStep = ({
             audioDuration={audioDuration}
           />
         </div>
+      </div>
+
+      {/* Template Selection */}
+      <div className="glass-card rounded-xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
+            <Layers className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div>
+            <h3 className="font-medium text-foreground text-sm">Template Video</h3>
+            <p className="text-xs text-muted-foreground">Pilih layout untuk video Anda</p>
+          </div>
+        </div>
+        <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
       </div>
 
       {/* Overlay & Watermark Settings */}
