@@ -48,6 +48,7 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyleSettings>(DEFAULT_SUBTITLE_STYLE);
+  const [exportQuality, setExportQuality] = useState<"720p" | "1080p">("720p");
 
   // Hooks
   const {
@@ -155,7 +156,7 @@ const Index = () => {
         audioUrl: audioUrl || null,
         audioDuration: duration,
         subtitleStyle: subtitleStyle,
-        quality: "720p",
+        quality: exportQuality,
       });
 
       if (!result) {
@@ -185,7 +186,7 @@ const Index = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, [newsText, uploadedMedia, editedClips, subtitleWords, audioUrl, duration, subtitleStyle, selectedTemplate, selectedVoice, saveVideo, markStepComplete, exportVideo]);
+  }, [newsText, uploadedMedia, editedClips, subtitleWords, audioUrl, duration, subtitleStyle, selectedTemplate, selectedVoice, saveVideo, markStepComplete, exportVideo, exportQuality]);
 
   // Download handler
   const handleDownload = useCallback((id: string, url?: string) => {
@@ -314,6 +315,8 @@ const Index = () => {
                   onGenerateSubtitles={handleGenerateSubtitles}
                   onDownloadSRT={downloadSRT}
                   onClipsUpdate={setEditedClips}
+                  exportQuality={exportQuality}
+                  onExportQualityChange={setExportQuality}
                 />
               )}
 
