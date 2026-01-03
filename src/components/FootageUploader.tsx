@@ -385,6 +385,9 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                           loop
                           playsInline
                           preload="metadata"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       ) : media.type === "image" && media.previewUrl ? (
                         <img
@@ -392,12 +395,20 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                           alt={media.file.name}
                           className="w-full h-full object-cover pointer-events-none"
                           draggable={false}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
-                      ) : (
-                        <div className="w-full h-full bg-muted flex items-center justify-center">
-                          <span className="text-[8px] text-muted-foreground">Loading...</span>
-                        </div>
-                      )}
+                      ) : null}
+                      
+                      {/* Fallback icon when media fails to load */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted -z-10">
+                        {media.type === "video" ? (
+                          <Film className="w-6 h-6 text-muted-foreground" />
+                        ) : (
+                          <Image className="w-6 h-6 text-muted-foreground" />
+                        )}
+                      </div>
                       
                       {/* Video progress bar */}
                       {media.type === "video" && (
