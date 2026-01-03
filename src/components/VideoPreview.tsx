@@ -70,8 +70,11 @@ const VideoPreview = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [internalTime, setInternalTime] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSeekTimeRef = useRef<number>(0);
+  const seekTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use edited clips if available, otherwise fallback to calculated durations
   const hasEditedClips = editedClips.length > 0;
@@ -235,10 +238,35 @@ const VideoPreview = ({
     }
   }, [isAudioPlaying]);
 
-  // Sync internal time with external currentTime - always sync for seeking to work
+  // Sync internal time with external currentTime and detect seeking
   useEffect(() => {
+    const now = Date.now();
+    const timeDiff = Math.abs(currentTime - internalTime);
+    
+    // Detect seek: large time jump OR rapid updates when not playing
+    if (timeDiff > 0.5 || (!isAudioPlaying && now - lastSeekTimeRef.current < 200 && timeDiff > 0.05)) {
+      setIsSeeking(true);
+      lastSeekTimeRef.current = now;
+      
+      // Clear existing timeout
+      if (seekTimeoutRef.current) {
+        clearTimeout(seekTimeoutRef.current);
+      }
+      
+      // Reset seeking state after a short delay
+      seekTimeoutRef.current = setTimeout(() => {
+        setIsSeeking(false);
+      }, 300);
+    }
+    
     setInternalTime(currentTime);
-  }, [currentTime]);
+    
+    return () => {
+      if (seekTimeoutRef.current) {
+        clearTimeout(seekTimeoutRef.current);
+      }
+    };
+  }, [currentTime, internalTime, isAudioPlaying]);
 
   // Reset internal time when not playing
   useEffect(() => {
@@ -666,6 +694,36 @@ const VideoPreview = ({
           videoFormat === "short" ? "max-w-[200px] aspect-[9/16]" : "max-w-[320px] aspect-video"
         )}
       >
+        {/* Seeking indicator overlay */}
+        <AnimatePresence>
+          {isSeeking && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0 z-50 pointer-events-none"
+            >
+              {/* Pulsing border */}
+              <div className="absolute inset-0 border-2 border-primary animate-pulse rounded-lg" />
+              
+              {/* Time indicator badge */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  className="px-3 py-1.5 bg-primary/90 backdrop-blur-sm rounded-full shadow-lg"
+                >
+                  <span className="text-primary-foreground font-mono text-sm font-medium">
+                    {formatTime(currentTime)}
+                  </span>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Background - Media or Gradient */}
         <AnimatePresence mode="sync">
           {currentMedia ? (
@@ -678,7 +736,10 @@ const VideoPreview = ({
                   animate={variants.animate}
                   exit={variants.exit}
                   transition={variants.transition}
-                  className="absolute inset-0 overflow-hidden"
+                  className={cn(
+                    "absolute inset-0 overflow-hidden",
+                    isSeeking && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                  )}
                 >
                   {currentMedia.type === "video" ? (
                     <video
@@ -693,7 +754,10 @@ const VideoPreview = ({
                     <img
                       src={currentMedia.previewUrl}
                       alt="Background"
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className={cn(
+                        "absolute inset-0 w-full h-full object-cover transition-transform duration-150",
+                        isSeeking && "scale-[1.02]"
+                      )}
                     />
                   )}
                 </motion.div>
@@ -724,12 +788,21 @@ const VideoPreview = ({
           <div className="absolute top-2 left-2 right-2 z-20">
             <div className="flex gap-1">
               {mediaFiles.map((_, index) => (
-                <div
+                <motion.div
                   key={index}
-                  className="flex-1 h-1 rounded-full overflow-hidden bg-white/30"
+                  className={cn(
+                    "flex-1 h-1 rounded-full overflow-hidden bg-white/30 transition-all duration-150",
+                    isSeeking && index === currentMediaIndex && "h-1.5 ring-1 ring-primary shadow-sm"
+                  )}
+                  animate={{
+                    scale: isSeeking && index === currentMediaIndex ? 1.05 : 1
+                  }}
                 >
                   <motion.div
-                    className="h-full bg-white"
+                    className={cn(
+                      "h-full",
+                      isSeeking && index === currentMediaIndex ? "bg-primary" : "bg-white"
+                    )}
                     initial={{ width: 0 }}
                     animate={{
                       width: index < currentMediaIndex 
@@ -740,7 +813,7 @@ const VideoPreview = ({
                     }}
                     transition={{ duration: 0.1 }}
                   />
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
