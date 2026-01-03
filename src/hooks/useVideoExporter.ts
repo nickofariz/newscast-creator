@@ -38,6 +38,7 @@ interface ExportProgress {
   status: "idle" | "preparing" | "rendering" | "encoding" | "complete" | "error";
   progress: number; // 0-100
   message: string;
+  estimatedTimeRemaining?: number; // in seconds
 }
 
 export const useVideoExporter = () => {
@@ -322,6 +323,7 @@ export const useVideoExporter = () => {
       const frameInterval = 1000 / fps;
       let currentTime = 0;
       const startRenderTime = Date.now();
+      let lastProgressUpdate = Date.now();
 
       while (currentTime < totalDuration) {
         if (abortRef.current) {
@@ -348,13 +350,23 @@ export const useVideoExporter = () => {
         // Draw frame
         drawFrame(ctx, mediaElement, subtitleWords, currentTime, subtitleStyle, canvasWidth, canvasHeight);
 
-        // Update progress
-        const progress = 20 + (currentTime / totalDuration) * 70;
-        setExportProgress({
-          status: "rendering",
-          progress: Math.min(90, progress),
-          message: `Rendering ${Math.floor(currentTime)}s / ${Math.floor(totalDuration)}s`,
-        });
+        // Update progress with ETA (throttle to every 500ms)
+        const now = Date.now();
+        if (now - lastProgressUpdate > 500 || currentTime >= totalDuration - 0.1) {
+          lastProgressUpdate = now;
+          const elapsed = (now - startRenderTime) / 1000; // seconds
+          const progressRatio = currentTime / totalDuration;
+          const estimatedTotal = progressRatio > 0 ? elapsed / progressRatio : 0;
+          const estimatedRemaining = Math.max(0, estimatedTotal - elapsed);
+          
+          const progress = 20 + (currentTime / totalDuration) * 70;
+          setExportProgress({
+            status: "rendering",
+            progress: Math.min(90, progress),
+            message: `Rendering ${Math.floor(currentTime)}s / ${Math.floor(totalDuration)}s`,
+            estimatedTimeRemaining: Math.round(estimatedRemaining),
+          });
+        }
 
         currentTime += 1 / fps;
         
