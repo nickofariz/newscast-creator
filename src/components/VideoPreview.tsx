@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Volume2, Pause } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { OverlaySettings } from "./OverlaySelector";
+import { cn } from "@/lib/utils";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
@@ -15,7 +17,7 @@ interface MediaFile {
   file: File;
   type: "video" | "image";
   previewUrl: string;
-  duration?: number; // Duration in seconds for this media segment
+  duration?: number;
 }
 
 interface VideoPreviewProps {
@@ -27,9 +29,10 @@ interface VideoPreviewProps {
   currentTime?: number;
   isAudioPlaying?: boolean;
   audioDuration?: number;
+  overlaySettings?: OverlaySettings;
 }
 
-const DEFAULT_IMAGE_DURATION = 3; // 3 seconds per image
+const DEFAULT_IMAGE_DURATION = 3;
 
 const VideoPreview = ({ 
   newsText, 
@@ -40,6 +43,7 @@ const VideoPreview = ({
   currentTime = 0,
   isAudioPlaying = false,
   audioDuration = 0,
+  overlaySettings,
 }: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -277,6 +281,93 @@ const VideoPreview = ({
     }
   };
 
+  // Render overlay elements
+  const renderOverlays = () => {
+    if (!overlaySettings) return null;
+
+    return (
+      <>
+        {/* Logo Overlay */}
+        {overlaySettings.logo.enabled && overlaySettings.logo.url && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={cn(
+              "absolute z-30 w-10 h-10",
+              overlaySettings.logo.position === "top-left" && "top-3 left-3",
+              overlaySettings.logo.position === "top-right" && "top-3 right-3",
+              overlaySettings.logo.position === "bottom-left" && "bottom-14 left-3",
+              overlaySettings.logo.position === "bottom-right" && "bottom-14 right-3"
+            )}
+          >
+            <img
+              src={overlaySettings.logo.url}
+              alt="Logo"
+              className="w-full h-full object-contain drop-shadow-lg"
+            />
+          </motion.div>
+        )}
+
+        {/* Breaking News Banner */}
+        {overlaySettings.breakingNews.enabled && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="absolute top-6 left-0 right-0 z-30"
+          >
+            <div
+              className={cn(
+                "mx-2 px-3 py-1.5 text-white text-[10px] font-bold text-center tracking-wider",
+                overlaySettings.breakingNews.style === "red" && "bg-red-600",
+                overlaySettings.breakingNews.style === "blue" && "bg-blue-600",
+                overlaySettings.breakingNews.style === "orange" && "bg-orange-500"
+              )}
+            >
+              <motion.span
+                animate={{ opacity: [1, 0.7, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              >
+                {overlaySettings.breakingNews.text}
+              </motion.span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Lower Third */}
+        {overlaySettings.lowerThird.enabled && (overlaySettings.lowerThird.title || overlaySettings.lowerThird.subtitle) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-20 left-2 right-2 z-30"
+          >
+            <div
+              className={cn(
+                "px-2 py-1.5 rounded",
+                overlaySettings.lowerThird.style === "modern" && "bg-gradient-to-r from-primary to-primary/80 text-white",
+                overlaySettings.lowerThird.style === "classic" && "bg-black/90 text-white border-l-2 border-primary",
+                overlaySettings.lowerThird.style === "minimal" && "bg-white/95 text-black"
+              )}
+            >
+              {overlaySettings.lowerThird.title && (
+                <p className="text-[10px] font-semibold leading-tight">
+                  {overlaySettings.lowerThird.title}
+                </p>
+              )}
+              {overlaySettings.lowerThird.subtitle && (
+                <p className={cn(
+                  "text-[8px] leading-tight",
+                  overlaySettings.lowerThird.style === "minimal" ? "text-black/70" : "text-white/80"
+                )}>
+                  {overlaySettings.lowerThird.subtitle}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </>
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -369,6 +460,9 @@ const VideoPreview = ({
             </div>
           </div>
         )}
+
+        {/* Overlay elements */}
+        {renderOverlays()}
 
         {/* Template content */}
         <AnimatePresence mode="wait">
