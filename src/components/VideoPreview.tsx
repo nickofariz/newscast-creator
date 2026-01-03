@@ -208,6 +208,17 @@ const VideoPreview = ({
 
   // Get current media - use stable reference to prevent flickering
   const currentMedia = useMemo(() => {
+    // Debug log
+    console.log("VideoPreview - currentMedia calculation:", {
+      mediaFilesLength: mediaFiles.length,
+      editedClipsLength: editedClips.length,
+      activeMediaIndex,
+      isMediaEnded,
+      hasEditedClips,
+      firstMediaFile: mediaFiles[0] ? { id: mediaFiles[0].id, previewUrl: mediaFiles[0].previewUrl?.substring(0, 50) } : null,
+      firstEditedClip: editedClips[0] ? { id: editedClips[0].id, previewUrl: editedClips[0].previewUrl?.substring(0, 50) } : null,
+    });
+    
     // Show nothing (black screen) if media ended
     if (isMediaEnded || activeMediaIndex === -1) {
       currentMediaRef.current = null;
@@ -238,6 +249,8 @@ const VideoPreview = ({
         kenBurns: "random" as KenBurnsType
       };
     }
+    
+    console.log("VideoPreview - newMedia created:", newMedia ? { id: newMedia.id, previewUrl: newMedia.previewUrl?.substring(0, 50), type: newMedia.type } : null);
     
     // Update ref if media ID changed OR if kenBurns changed for same media
     if (newMedia) {
@@ -879,7 +892,12 @@ const VideoPreview = ({
                         transition={variants.transition}
                         className="absolute inset-0"
                       >
-                        {currentMedia.type === "video" && currentMedia.previewUrl ? (
+                        {/* Show loading if no previewUrl yet */}
+                        {!currentMedia.previewUrl ? (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black">
+                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                          </div>
+                        ) : currentMedia.type === "video" ? (
                           <video
                             key={currentMedia.previewUrl}
                             src={currentMedia.previewUrl}
@@ -889,7 +907,7 @@ const VideoPreview = ({
                             playsInline
                             autoPlay={isAudioPlaying}
                           />
-                        ) : currentMedia.type === "image" && currentMedia.previewUrl ? (
+                        ) : currentMedia.type === "image" ? (
                           (() => {
                             const kenBurnsEffect = getKenBurnsEffect(currentMedia.id, currentMedia.kenBurns);
                             return kenBurnsEffect ? (
@@ -1213,7 +1231,12 @@ const VideoPreview = ({
                     transition={variants.transition}
                     className="absolute inset-0"
                   >
-                    {currentMedia.type === "video" && currentMedia.previewUrl ? (
+                    {/* Show loading if no previewUrl yet */}
+                    {!currentMedia.previewUrl ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      </div>
+                    ) : currentMedia.type === "video" ? (
                       <>
                         {isVideoLoading && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
