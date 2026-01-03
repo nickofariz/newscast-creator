@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 
 export interface VoiceSettingsValues {
@@ -98,16 +98,41 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     }
   }, [audioUrl]);
 
+  // Re-create audio element if URL exists but ref is null (e.g., after navigation)
+  useEffect(() => {
+    if (audioUrl && !audioRef.current) {
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      
+      audio.addEventListener("loadedmetadata", () => {
+        setDuration(audio.duration);
+      });
+      
+      audio.addEventListener("timeupdate", () => {
+        setCurrentTime(audio.currentTime);
+      });
+      
+      audio.addEventListener("ended", () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      });
+    }
+  }, [audioUrl]);
+
   const playAudio = useCallback(() => {
+    console.log("playAudio called, audioRef:", audioRef.current);
     if (audioRef.current) {
       audioRef.current.play().catch((err) => {
         console.error("Play error:", err);
       });
       setIsPlaying(true);
+    } else {
+      console.warn("No audio element to play");
     }
   }, []);
 
   const pauseAudio = useCallback(() => {
+    console.log("pauseAudio called, audioRef:", audioRef.current);
     if (audioRef.current) {
       audioRef.current.pause();
     }
