@@ -53,6 +53,7 @@ interface VideoPreviewProps {
   videoFormat?: VideoFormatType;
   subtitleStyle?: SubtitleStyleSettings;
   durationMode?: DurationMode;
+  freezeLastFrame?: boolean;
   onPlay?: () => void;
   onPause?: () => void;
   onSeek?: (time: number) => void;
@@ -74,6 +75,7 @@ const VideoPreview = ({
   videoFormat = "short",
   subtitleStyle = DEFAULT_SUBTITLE_STYLE,
   durationMode = "longest",
+  freezeLastFrame = true,
   onPlay,
   onPause,
   onSeek,
@@ -118,13 +120,28 @@ const VideoPreview = ({
           return i;
         }
       }
-      // If time exceeds all clips, show last
-      return editedClips.length > 0 ? editedClips.length - 1 : 0;
+      // If time exceeds all clips
+      if (freezeLastFrame) {
+        // Show last clip (freeze frame)
+        return editedClips.length > 0 ? editedClips.length - 1 : 0;
+      } else {
+        // Loop back to first clip
+        const totalMediaDuration = editedClips[editedClips.length - 1]?.endTime || 0;
+        if (totalMediaDuration > 0) {
+          const loopedTime = time % totalMediaDuration;
+          for (let i = 0; i < editedClips.length; i++) {
+            if (loopedTime >= editedClips[i].startTime && loopedTime < editedClips[i].endTime) {
+              return i;
+            }
+          }
+        }
+        return 0;
+      }
     }
     
     // Fallback: distribute audio duration evenly
-    const totalDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-    const durationPerMedia = totalDuration / Math.max(1, mediaFiles.length);
+    const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+    const durationPerMedia = totalDur / Math.max(1, mediaFiles.length);
     
     for (let i = 0; i < mediaFiles.length; i++) {
       const start = i * durationPerMedia;
@@ -134,8 +151,25 @@ const VideoPreview = ({
       }
     }
     
-    return Math.max(0, mediaFiles.length - 1);
-  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
+    // Beyond media duration
+    if (freezeLastFrame) {
+      return Math.max(0, mediaFiles.length - 1);
+    } else {
+      // Loop
+      const totalMediaDur = mediaFiles.length * durationPerMedia;
+      if (totalMediaDur > 0) {
+        const loopedTime = time % totalMediaDur;
+        for (let i = 0; i < mediaFiles.length; i++) {
+          const start = i * durationPerMedia;
+          const end = (i + 1) * durationPerMedia;
+          if (loopedTime >= start && loopedTime < end) {
+            return i;
+          }
+        }
+      }
+      return 0;
+    }
+  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, freezeLastFrame]);
 
   // Get current media - use stable reference to prevent flickering
   const currentMedia = useMemo(() => {

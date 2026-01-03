@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone, Timer } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone, Timer, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -44,6 +44,8 @@ interface EditorStepProps {
   onVideoFormatChange?: (format: VideoFormatType) => void;
   durationMode?: DurationMode;
   onDurationModeChange?: (mode: DurationMode) => void;
+  freezeLastFrame?: boolean;
+  onFreezeLastFrameChange?: (freeze: boolean) => void;
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -77,6 +79,8 @@ const EditorStep = ({
   onVideoFormatChange,
   durationMode = "longest",
   onDurationModeChange,
+  freezeLastFrame = true,
+  onFreezeLastFrameChange,
   onGenerate,
   onNext,
   onBack,
@@ -281,6 +285,7 @@ const EditorStep = ({
                     videoFormat={videoFormat}
                     subtitleStyle={subtitleStyle}
                     durationMode={durationMode}
+                    freezeLastFrame={freezeLastFrame}
                     onPlay={onPlay}
                     onPause={onPause}
                     onSeek={onSeek}
@@ -384,6 +389,22 @@ const EditorStep = ({
                     Audio
                   </ToggleGroupItem>
                 </ToggleGroup>
+                
+                {/* Freeze Last Frame Toggle */}
+                {onFreezeLastFrameChange && (
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={freezeLastFrame}
+                      onChange={(e) => onFreezeLastFrameChange(e.target.checked)}
+                      className="w-3 h-3 rounded border-border accent-primary"
+                    />
+                    <div className="flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground">Freeze frame terakhir</span>
+                    </div>
+                  </label>
+                )}
               </div>
             )}
 
@@ -427,6 +448,7 @@ const EditorStep = ({
               videoFormat={videoFormat}
               subtitleStyle={subtitleStyle}
               durationMode={durationMode}
+              freezeLastFrame={freezeLastFrame}
               onPlay={onPlay}
               onPause={onPause}
               onSeek={onSeek}

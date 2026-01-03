@@ -29,6 +29,7 @@ const Index = () => {
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
   const [videoFormat, setVideoFormat] = useState<VideoFormatType>("short");
   const [durationMode, setDurationMode] = useState<DurationMode>("longest");
+  const [freezeLastFrame, setFreezeLastFrame] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(DEFAULT_OVERLAY_SETTINGS);
 
@@ -257,6 +258,8 @@ const Index = () => {
                   onVideoFormatChange={setVideoFormat}
                   durationMode={durationMode}
                   onDurationModeChange={setDurationMode}
+                  freezeLastFrame={freezeLastFrame}
+                  onFreezeLastFrameChange={setFreezeLastFrame}
                   onGenerate={handleGenerate}
                   onNext={handleEditorNext}
                   onBack={() => setCurrentStep("voiceover")}
