@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Subtitles, Loader2, Download, Palette, Type, AlignVerticalJustifyCenter } from "lucide-react";
+import { Subtitles, Loader2, Download, Palette, Type, AlignVerticalJustifyCenter, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,83 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyleSettings = {
   backgroundColor: "#000000",
   backgroundOpacity: 85,
 };
+
+// Preset styles
+interface StylePreset {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  settings: Omit<SubtitleStyleSettings, "enabled">;
+}
+
+const STYLE_PRESETS: StylePreset[] = [
+  {
+    id: "news",
+    name: "News Style",
+    icon: "📺",
+    description: "Bold, profesional untuk berita",
+    settings: {
+      fontSize: "large",
+      position: "bottom",
+      highlightColor: "#DC2626",
+      backgroundColor: "#000000",
+      backgroundOpacity: 90,
+    },
+  },
+  {
+    id: "karaoke",
+    name: "Karaoke",
+    icon: "🎤",
+    description: "Warna cerah, dinamis",
+    settings: {
+      fontSize: "medium",
+      position: "center",
+      highlightColor: "#EAB308",
+      backgroundColor: "#000000",
+      backgroundOpacity: 70,
+    },
+  },
+  {
+    id: "minimal",
+    name: "Minimal",
+    icon: "✨",
+    description: "Bersih, sederhana",
+    settings: {
+      fontSize: "small",
+      position: "bottom",
+      highlightColor: "#FFFFFF",
+      backgroundColor: "#000000",
+      backgroundOpacity: 60,
+    },
+  },
+  {
+    id: "neon",
+    name: "Neon",
+    icon: "💜",
+    description: "Glow effect, modern",
+    settings: {
+      fontSize: "medium",
+      position: "bottom",
+      highlightColor: "#9333EA",
+      backgroundColor: "#1a1a2e",
+      backgroundOpacity: 80,
+    },
+  },
+  {
+    id: "sport",
+    name: "Sport",
+    icon: "⚽",
+    description: "Energik, bold",
+    settings: {
+      fontSize: "large",
+      position: "top",
+      highlightColor: "#16A34A",
+      backgroundColor: "#000000",
+      backgroundOpacity: 85,
+    },
+  },
+];
 
 interface SubtitlePreviewProps {
   words: SubtitleWord[];
@@ -185,6 +262,48 @@ const SubtitlePreview = ({
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Palette className="w-4 h-4 text-primary" />
             <span>Style Settings</span>
+          </div>
+
+          {/* Preset Styles */}
+          <div className="p-3 rounded-lg bg-secondary/30">
+            <div className="flex items-center gap-3 mb-3">
+              <Sparkles className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+              <Label className="text-xs text-muted-foreground">Preset Style</Label>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {STYLE_PRESETS.map((preset) => {
+                const isActive = 
+                  styleSettings.fontSize === preset.settings.fontSize &&
+                  styleSettings.position === preset.settings.position &&
+                  styleSettings.highlightColor === preset.settings.highlightColor;
+                
+                return (
+                  <motion.button
+                    key={preset.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => updateStyle(preset.settings)}
+                    className={cn(
+                      "p-3 rounded-xl text-center transition-all border-2",
+                      isActive
+                        ? "border-primary bg-primary/10"
+                        : "border-transparent bg-muted/50 hover:bg-muted"
+                    )}
+                  >
+                    <span className="text-xl block mb-1">{preset.icon}</span>
+                    <span className="text-xs font-medium block">{preset.name}</span>
+                    <span className="text-[10px] text-muted-foreground block mt-0.5 line-clamp-1">
+                      {preset.description}
+                    </span>
+                    {/* Color preview */}
+                    <div 
+                      className="w-4 h-4 rounded-full mx-auto mt-2 ring-2 ring-offset-1 ring-offset-background ring-white/20"
+                      style={{ backgroundColor: preset.settings.highlightColor }}
+                    />
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Font Size */}
