@@ -1,6 +1,6 @@
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { Upload, Film, X, Check, Image, Plus, GripVertical } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { Upload, Film, X, Check, Image, Plus, GripVertical, Clock } from "lucide-react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ export interface MediaFile {
   file: File;
   type: "video" | "image";
   previewUrl: string;
+  duration?: number; // Duration in seconds
 }
 
 interface FootageUploaderProps {
@@ -16,9 +17,43 @@ interface FootageUploaderProps {
   uploadedFiles: MediaFile[];
 }
 
+const DEFAULT_IMAGE_DURATION = 3; // seconds per image
+
 const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [totalDuration, setTotalDuration] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate total duration whenever files change
+  useEffect(() => {
+    let duration = 0;
+    let pendingVideos = 0;
+    
+    uploadedFiles.forEach((media) => {
+      if (media.type === "image") {
+        duration += DEFAULT_IMAGE_DURATION;
+      } else if (media.type === "video") {
+        if (media.duration) {
+          duration += media.duration;
+        } else {
+          pendingVideos++;
+          // Get video duration
+          const video = document.createElement('video');
+          video.preload = 'metadata';
+          video.onloadedmetadata = () => {
+            const updatedFiles = uploadedFiles.map(f => 
+              f.id === media.id ? { ...f, duration: video.duration } : f
+            );
+            onUpload(updatedFiles);
+            URL.revokeObjectURL(video.src);
+          };
+          video.src = media.previewUrl;
+        }
+      }
+    });
+    
+    setTotalDuration(duration);
+  }, [uploadedFiles]);
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -261,18 +296,34 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
               </Reorder.Group>
             </div>
 
-            {/* File count */}
-            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <Check className="w-3 h-3 text-emerald-500" />
-              <span>
-                {uploadedFiles.length} media ({uploadedFiles.filter(m => m.type === "video").length} video, {uploadedFiles.filter(m => m.type === "image").length} gambar)
-              </span>
+            {/* File count and duration */}
+            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Check className="w-3 h-3 text-emerald-500" />
+                <span>
+                  {uploadedFiles.length} media ({uploadedFiles.filter(m => m.type === "video").length} video, {uploadedFiles.filter(m => m.type === "image").length} gambar)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">
+                <Clock className="w-3 h-3" />
+                <span>{formatDuration(totalDuration)}</span>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
   );
+};
+
+// Helper function to format duration
+const formatDuration = (seconds: number): string => {
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
+  }
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
 export default FootageUploader;
