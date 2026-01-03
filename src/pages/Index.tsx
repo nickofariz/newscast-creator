@@ -162,29 +162,34 @@ const Index = () => {
     setNewsText("");
   }, []);
 
+  // Check if we're in editor mode (needs full width)
+  const isEditorMode = currentStep === "editor";
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="pt-20 pb-12 px-4">
-        <div className="container mx-auto max-w-4xl">
-          {/* Hero Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm mb-4">
-              <Video className="w-4 h-4" />
-              <span>Buat video berita dalam hitungan detik</span>
-            </div>
-            <h1 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-2">
-              Short News <span className="text-gradient">Video Maker</span>
-            </h1>
-            <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-              Ubah teks berita menjadi video vertikal profesional dengan voice over AI.
-            </p>
-          </motion.div>
+        <div className={`mx-auto ${isEditorMode ? 'max-w-7xl' : 'container max-w-4xl'}`}>
+          {/* Hero Section - hide in editor mode */}
+          {!isEditorMode && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-8"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm mb-4">
+                <Video className="w-4 h-4" />
+                <span>Buat video berita dalam hitungan detik</span>
+              </div>
+              <h1 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-2">
+                Short News <span className="text-gradient">Video Maker</span>
+              </h1>
+              <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+                Ubah teks berita menjadi video vertikal profesional dengan voice over AI.
+              </p>
+            </motion.div>
+          )}
 
           {/* Stepper */}
           <OnboardingStepper
@@ -194,7 +199,7 @@ const Index = () => {
           />
 
           {/* Step Content */}
-          <div className="glass-card rounded-2xl p-6 md:p-8">
+          <div className={`glass-card rounded-2xl ${isEditorMode ? 'p-4 md:p-6' : 'p-6 md:p-8'}`}>
             <AnimatePresence mode="wait">
               {currentStep === "media" && (
                 <MediaStep
