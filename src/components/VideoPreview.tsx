@@ -656,7 +656,7 @@ const VideoPreview = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black flex items-center justify-center cursor-none"
+          className="fixed inset-0 z-[100] bg-black flex flex-col"
           onMouseMove={handleMouseMove}
           onMouseEnter={() => setShowControls(true)}
         >
@@ -693,13 +693,25 @@ const VideoPreview = ({
             </div>
           </motion.div>
 
-          {/* Fullscreen video container */}
-          <div 
-            className={cn(
-              "relative",
-              videoFormat === "short" ? "h-[85vh] aspect-[9/16]" : "w-[90vw] aspect-video"
-            )}
-          >
+          {/* Fullscreen video container - FULL SIZE */}
+          <div className="flex-1 flex items-center justify-center p-4 pt-16 pb-32">
+            <div 
+              className={cn(
+                "relative w-full h-full flex items-center justify-center",
+              )}
+            >
+              <div 
+                className={cn(
+                  "relative overflow-hidden rounded-lg",
+                  videoFormat === "short" 
+                    ? "h-full max-h-[calc(100vh-12rem)] aspect-[9/16]" 
+                    : "w-full max-w-[calc(100vw-4rem)] aspect-video"
+                )}
+                style={{
+                  maxHeight: videoFormat === "short" ? "calc(100vh - 12rem)" : undefined,
+                  maxWidth: videoFormat === "tv" ? "calc(100vw - 4rem)" : undefined,
+                }}
+              >
             {/* Media content */}
             <AnimatePresence mode="sync">
               {currentMedia ? (
@@ -797,6 +809,8 @@ const VideoPreview = ({
                 </motion.div>
               )}
             </AnimatePresence>
+              </div>
+            </div>
           </div>
 
           {/* Bottom controls bar */}
