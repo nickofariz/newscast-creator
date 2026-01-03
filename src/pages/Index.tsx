@@ -248,6 +248,9 @@ const Index = () => {
                   onGenerate={handleGenerate}
                   onNext={handleEditorNext}
                   onBack={() => setCurrentStep("voiceover")}
+                  audioUrl={audioUrl}
+                  onPlay={playAudio}
+                  onPause={pauseAudio}
                 />
               )}
 
