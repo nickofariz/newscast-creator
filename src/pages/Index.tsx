@@ -169,8 +169,8 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="pt-20 pb-12 px-4">
-        <div className={`mx-auto ${isEditorMode ? 'max-w-7xl' : 'container max-w-4xl'}`}>
+      <main className={`pt-20 pb-12 ${isEditorMode ? 'px-2 md:px-4' : 'px-4'}`}>
+        <div className={`mx-auto ${isEditorMode ? 'max-w-[1920px] w-full' : 'container max-w-4xl'}`}>
           {/* Hero Section - hide in editor mode */}
           {!isEditorMode && (
             <motion.div
@@ -199,7 +199,7 @@ const Index = () => {
           />
 
           {/* Step Content */}
-          <div className={`glass-card rounded-2xl ${isEditorMode ? 'p-4 md:p-6' : 'p-6 md:p-8'}`}>
+          <div className={`glass-card rounded-2xl ${isEditorMode ? 'p-2 md:p-4' : 'p-6 md:p-8'}`}>
             <AnimatePresence mode="wait">
               {currentStep === "media" && (
                 <MediaStep
