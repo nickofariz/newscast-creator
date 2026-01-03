@@ -40,6 +40,8 @@ interface VideoPreviewProps {
   isAudioPlaying?: boolean;
   audioDuration?: number;
   overlaySettings?: OverlaySettings;
+  onPlay?: () => void;
+  onPause?: () => void;
 }
 
 const DEFAULT_IMAGE_DURATION = 3;
@@ -55,6 +57,8 @@ const VideoPreview = ({
   isAudioPlaying = false,
   audioDuration = 0,
   overlaySettings,
+  onPlay,
+  onPause,
 }: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -645,7 +649,15 @@ const VideoPreview = ({
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setIsPlaying(!isPlaying)}
+            onClick={() => {
+              if (isAudioPlaying) {
+                onPause?.();
+              } else if (onPlay) {
+                onPlay();
+              } else {
+                setIsPlaying(!isPlaying);
+              }
+            }}
             className="w-14 h-14 rounded-full gradient-news flex items-center justify-center shadow-glow opacity-80 hover:opacity-100 transition-opacity"
           >
             {isPlaying || isAudioPlaying ? (

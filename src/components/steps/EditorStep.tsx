@@ -173,6 +173,8 @@ const EditorStep = ({
           isAudioPlaying={isPlaying}
           audioDuration={audioDuration}
           overlaySettings={overlaySettings}
+          onPlay={onPlay}
+          onPause={onPause}
         />
       </div>
 
