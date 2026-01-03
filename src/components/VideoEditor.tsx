@@ -785,18 +785,22 @@ const VideoEditor = ({
                         >
                           {/* Thumbnail */}
                           <div className="absolute inset-0">
-                            {clip.type === "video" ? (
+                            {clip.type === "video" && clip.previewUrl ? (
                               <video
                                 src={clip.previewUrl}
                                 className="w-full h-full object-cover"
                                 muted
                               />
-                            ) : (
+                            ) : clip.type === "image" && clip.previewUrl ? (
                               <img
                                 src={clip.previewUrl}
                                 alt={clip.file.name}
                                 className="w-full h-full object-cover"
                               />
+                            ) : (
+                              <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <span className="text-[8px] text-muted-foreground">...</span>
+                              </div>
                             )}
                             <div className="absolute inset-0 bg-black/20" />
                           </div>

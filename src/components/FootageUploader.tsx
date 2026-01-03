@@ -171,12 +171,8 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
 
   const handleFiles = (fileList: FileList) => {
     const newFiles: MediaFile[] = [];
-    
-    console.log("FootageUploader - handleFiles called with", fileList.length, "files");
 
     Array.from(fileList).forEach((file) => {
-      console.log("FootageUploader - Processing file:", file.name, file.type, file.size);
-      
       const isVideo = file.type.startsWith("video/");
       const isImage = file.type.startsWith("image/");
 
@@ -193,8 +189,6 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
       }
 
       const previewUrl = URL.createObjectURL(file);
-      console.log("FootageUploader - Created blob URL:", previewUrl);
-      
       newFiles.push({
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         file,
@@ -205,7 +199,6 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
 
     if (newFiles.length > 0) {
       const updated = [...uploadedFiles, ...newFiles];
-      console.log("FootageUploader - Calling onUpload with", updated.length, "files");
       onUpload(updated);
       toast.success(`${newFiles.length} media berhasil diupload!`);
     }
@@ -384,7 +377,7 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                         }
                       }}
                     >
-                      {media.type === "video" ? (
+                      {media.type === "video" && media.previewUrl ? (
                         <video
                           src={media.previewUrl}
                           className="w-full h-full object-cover pointer-events-none"
@@ -392,15 +385,18 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                           loop
                           playsInline
                           preload="metadata"
-                          onError={(e) => console.error("Video thumbnail error:", e, media.previewUrl)}
                         />
-                      ) : (
+                      ) : media.type === "image" && media.previewUrl ? (
                         <img
                           src={media.previewUrl}
                           alt={media.file.name}
                           className="w-full h-full object-cover pointer-events-none"
                           draggable={false}
                         />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <span className="text-[8px] text-muted-foreground">Loading...</span>
+                        </div>
                       )}
                       
                       {/* Video progress bar */}
@@ -614,7 +610,7 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
               className="relative max-w-[90vw] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              {previewMedia.type === "video" ? (
+              {previewMedia.type === "video" && previewMedia.previewUrl ? (
                 <video
                   src={previewMedia.previewUrl}
                   className="max-w-full max-h-[80vh] object-contain"
@@ -622,7 +618,7 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                   autoPlay
                   loop
                 />
-              ) : (
+              ) : previewMedia.type === "image" && previewMedia.previewUrl ? (
                 <div
                   className={`overflow-hidden ${zoomLevel > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`}
                   onMouseDown={handleMouseDown}
@@ -641,6 +637,10 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                     }}
                     draggable={false}
                   />
+                </div>
+              ) : (
+                <div className="w-64 h-48 bg-muted rounded-lg flex items-center justify-center">
+                  <span className="text-muted-foreground">Loading...</span>
                 </div>
               )}
             </motion.div>

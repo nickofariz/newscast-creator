@@ -164,19 +164,23 @@ const MiniTimeline = ({
                           }
                         }}
                       >
-                        {thumb.type === "video" ? (
+                        {thumb.type === "video" && thumb.previewUrl ? (
                           <video
                             src={thumb.previewUrl}
                             className="w-full h-full object-cover pointer-events-none"
                             muted
                             playsInline
                           />
-                        ) : (
+                        ) : thumb.type === "image" && thumb.previewUrl ? (
                           <img
                             src={thumb.previewUrl}
                             alt={`Clip ${index + 1}`}
                             className="w-full h-full object-cover pointer-events-none"
                           />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <span className="text-[8px] text-muted-foreground">...</span>
+                          </div>
                         )}
                         
                         {/* Active clip overlay */}
