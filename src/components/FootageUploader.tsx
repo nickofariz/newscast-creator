@@ -234,12 +234,34 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                     className="relative flex-shrink-0 group cursor-grab active:cursor-grabbing"
                     whileDrag={{ scale: 1.05, zIndex: 50 }}
                   >
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-background border border-border transition-all hover:border-primary/50">
+                    <div 
+                      className="relative w-20 h-20 rounded-lg overflow-hidden bg-background border border-border transition-all hover:border-primary/50"
+                      onMouseEnter={(e) => {
+                        if (media.type === "video") {
+                          const video = e.currentTarget.querySelector('video');
+                          if (video) {
+                            video.currentTime = 0;
+                            video.play().catch(() => {});
+                          }
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (media.type === "video") {
+                          const video = e.currentTarget.querySelector('video');
+                          if (video) {
+                            video.pause();
+                            video.currentTime = 0;
+                          }
+                        }
+                      }}
+                    >
                       {media.type === "video" ? (
                         <video
                           src={media.previewUrl}
                           className="w-full h-full object-cover pointer-events-none"
                           muted
+                          loop
+                          playsInline
                         />
                       ) : (
                         <img
@@ -248,6 +270,15 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                           className="w-full h-full object-cover pointer-events-none"
                           draggable={false}
                         />
+                      )}
+                      
+                      {/* Play indicator for video */}
+                      {media.type === "video" && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <div className="w-0 h-0 border-l-[8px] border-l-primary border-y-[5px] border-y-transparent ml-0.5" />
+                          </div>
+                        </div>
                       )}
                       
                       {/* Drag handle overlay */}
