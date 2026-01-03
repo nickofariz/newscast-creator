@@ -29,7 +29,7 @@ const Index = () => {
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
   const [videoFormat, setVideoFormat] = useState<VideoFormatType>("short");
   const [durationMode, setDurationMode] = useState<DurationMode>("longest");
-  const [freezeLastFrame, setFreezeLastFrame] = useState(true);
+  const [freezeLastFrame, setFreezeLastFrame] = useState(false); // Default to black screen
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(DEFAULT_OVERLAY_SETTINGS);
 
