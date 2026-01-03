@@ -108,6 +108,18 @@ const EditorStep = ({
     }));
   }, [editedClips]);
 
+  // Handle reorder from mini timeline
+  const handleThumbnailReorder = useCallback((reorderedIds: string[]) => {
+    // Reorder mediaFiles based on the new order
+    const reorderedMedia = reorderedIds
+      .map(id => mediaFiles.find(m => m.id === id))
+      .filter((m): m is MediaFile => m !== undefined);
+    
+    if (reorderedMedia.length === mediaFiles.length) {
+      onMediaUpdate(reorderedMedia);
+    }
+  }, [mediaFiles, onMediaUpdate]);
+
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ignore if user is typing in an input/textarea
@@ -302,6 +314,7 @@ const EditorStep = ({
                 thumbnails={thumbnailSources}
                 showThumbnailPreview={thumbnailSources.length > 0}
                 showMiniTimeline={thumbnailSources.length > 1}
+                onReorderThumbnails={handleThumbnailReorder}
               />
             )}
 
