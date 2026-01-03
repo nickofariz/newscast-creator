@@ -1,18 +1,15 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Sparkles, Download, History, ChevronRight, Video, Cloud, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Video } from "lucide-react";
 import Header from "@/components/Header";
-import NewsInput from "@/components/NewsInput";
-import VoiceSelector from "@/components/VoiceSelector";
-import VoiceSettings, { VoiceSettingsValues, DEFAULT_SETTINGS } from "@/components/VoiceSettings";
-import TemplateSelector from "@/components/TemplateSelector";
-import VideoPreview from "@/components/VideoPreview";
-import VideoHistory, { VideoItem } from "@/components/VideoHistory";
-import FootageUploader, { MediaFile } from "@/components/FootageUploader";
-import AudioPreview from "@/components/AudioPreview";
-import SubtitlePreview from "@/components/SubtitlePreview";
-import VideoEditor from "@/components/VideoEditor";
+import OnboardingStepper, { StepId } from "@/components/OnboardingStepper";
+import MediaStep from "@/components/steps/MediaStep";
+import VoiceOverStep from "@/components/steps/VoiceOverStep";
+import EditorStep from "@/components/steps/EditorStep";
+import ExportStep from "@/components/steps/ExportStep";
+import { MediaFile } from "@/components/FootageUploader";
+import { VideoItem } from "@/components/VideoHistory";
+import { VoiceSettingsValues, DEFAULT_SETTINGS } from "@/components/VoiceSettings";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
 import { useVideoStorage } from "@/hooks/useVideoStorage";
@@ -21,14 +18,23 @@ import { toast } from "sonner";
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
 const Index = () => {
-  const [newsText, setNewsText] = useState("");
-  const [selectedVoice, setSelectedVoice] = useState("HnnPtoATgzx4ubChwm24"); // Zaak default
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  // Step navigation
+  const [currentStep, setCurrentStep] = useState<StepId>("media");
+  const [completedSteps, setCompletedSteps] = useState<StepId[]>([]);
+
+  // Media state
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
+
+  // Voice over state
+  const [newsText, setNewsText] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState("HnnPtoATgzx4ubChwm24");
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettingsValues>(DEFAULT_SETTINGS);
-  
+
+  // Generation state
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Hooks
   const {
     generateSpeech,
     isGenerating: isGeneratingAudio,
@@ -46,16 +52,6 @@ const Index = () => {
     words: subtitleWords,
     downloadSRT,
   } = useSubtitleGenerator();
-
-  const handleGenerateAudio = () => {
-    generateSpeech(newsText, selectedVoice, voiceSettings);
-  };
-
-  const handleGenerateSubtitles = () => {
-    if (audioUrl) {
-      generateSubtitles(audioUrl);
-    }
-  };
 
   const {
     videos: storedVideos,
@@ -76,8 +72,44 @@ const Index = () => {
     audioUrl: v.audio_url || undefined,
   }));
 
+  // Step navigation handlers
+  const markStepComplete = useCallback((step: StepId) => {
+    setCompletedSteps((prev) => (prev.includes(step) ? prev : [...prev, step]));
+  }, []);
 
-  const handleGenerate = async () => {
+  const goToStep = useCallback((step: StepId) => {
+    setCurrentStep(step);
+  }, []);
+
+  const handleMediaNext = useCallback(() => {
+    markStepComplete("media");
+    setCurrentStep("voiceover");
+  }, [markStepComplete]);
+
+  const handleVoiceOverNext = useCallback(() => {
+    markStepComplete("voiceover");
+    setCurrentStep("editor");
+  }, [markStepComplete]);
+
+  const handleEditorNext = useCallback(() => {
+    markStepComplete("editor");
+    setCurrentStep("export");
+  }, [markStepComplete]);
+
+  // Audio generation
+  const handleGenerateAudio = useCallback(() => {
+    generateSpeech(newsText, selectedVoice, voiceSettings);
+  }, [generateSpeech, newsText, selectedVoice, voiceSettings]);
+
+  // Subtitle generation
+  const handleGenerateSubtitles = useCallback(() => {
+    if (audioUrl) {
+      generateSubtitles(audioUrl);
+    }
+  }, [audioUrl, generateSubtitles]);
+
+  // Video generation
+  const handleGenerate = useCallback(async () => {
     if (!newsText.trim()) {
       toast.error("Masukkan teks berita terlebih dahulu");
       return;
@@ -91,7 +123,6 @@ const Index = () => {
     setIsGenerating(true);
     toast.info("Menyimpan ke cloud...");
 
-    // Save to cloud storage
     await saveVideo({
       title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
       audioUrl: audioUrl || undefined,
@@ -102,184 +133,133 @@ const Index = () => {
     });
 
     setIsGenerating(false);
-  };
+    markStepComplete("editor");
+    setCurrentStep("export");
+  }, [newsText, audioUrl, subtitleWords, duration, selectedTemplate, selectedVoice, saveVideo, markStepComplete]);
 
-  const handleDownload = (id: string, url?: string) => {
+  // Download handler
+  const handleDownload = useCallback((id: string, url?: string) => {
     if (url) {
       window.open(url, "_blank");
     } else {
       toast.info("Video sedang diproses");
     }
-  };
+  }, []);
 
-  const handleDelete = async (id: string) => {
+  // Delete handler
+  const handleDelete = useCallback(async (id: string) => {
     await deleteStoredVideo(id);
-  };
+  }, [deleteStoredVideo]);
+
+  // Start new video
+  const handleStartNew = useCallback(() => {
+    setCurrentStep("media");
+    setCompletedSteps([]);
+    setUploadedMedia([]);
+    setNewsText("");
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="pt-20 pb-12 px-4">
-        <div className="container mx-auto max-w-6xl">
+        <div className="container mx-auto max-w-4xl">
           {/* Hero Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-10"
+            className="text-center mb-8"
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm mb-4">
               <Video className="w-4 h-4" />
               <span>Buat video berita dalam hitungan detik</span>
             </div>
-            <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-3">
+            <h1 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-2">
               Short News <span className="text-gradient">Video Maker</span>
             </h1>
-            <p className="text-muted-foreground max-w-xl mx-auto">
+            <p className="text-muted-foreground text-sm max-w-lg mx-auto">
               Ubah teks berita menjadi video vertikal profesional dengan voice over AI.
-              Siap upload ke TikTok, Reels, & Shorts.
             </p>
           </motion.div>
 
-          {/* Main Content */}
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Column - Controls */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="glass-card rounded-2xl p-6 space-y-6">
-                <NewsInput value={newsText} onChange={setNewsText} />
-                <VoiceSelector selected={selectedVoice} onChange={setSelectedVoice} />
-                <VoiceSettings settings={voiceSettings} onChange={setVoiceSettings} />
-                <AudioPreview
-                  isGenerating={isGeneratingAudio}
+          {/* Stepper */}
+          <OnboardingStepper
+            currentStep={currentStep}
+            onStepClick={goToStep}
+            completedSteps={completedSteps}
+          />
+
+          {/* Step Content */}
+          <div className="glass-card rounded-2xl p-6 md:p-8">
+            <AnimatePresence mode="wait">
+              {currentStep === "media" && (
+                <MediaStep
+                  key="media"
+                  uploadedMedia={uploadedMedia}
+                  onUploadMedia={setUploadedMedia}
+                  selectedTemplate={selectedTemplate}
+                  onSelectTemplate={setSelectedTemplate}
+                  onNext={handleMediaNext}
+                />
+              )}
+
+              {currentStep === "voiceover" && (
+                <VoiceOverStep
+                  key="voiceover"
+                  newsText={newsText}
+                  onNewsTextChange={setNewsText}
+                  selectedVoice={selectedVoice}
+                  onVoiceChange={setSelectedVoice}
+                  voiceSettings={voiceSettings}
+                  onVoiceSettingsChange={setVoiceSettings}
+                  isGeneratingAudio={isGeneratingAudio}
                   audioUrl={audioUrl}
                   isPlaying={isPlaying}
                   duration={duration}
                   currentTime={currentTime}
                   onPlay={playAudio}
                   onPause={pauseAudio}
-                  onGenerate={handleGenerateAudio}
-                  disabled={!newsText.trim()}
-                />
-                <SubtitlePreview
-                  words={subtitleWords}
-                  isGenerating={isGeneratingSubtitles}
-                  currentTime={currentTime}
-                  onGenerate={handleGenerateSubtitles}
-                  disabled={!audioUrl}
+                  onGenerateAudio={handleGenerateAudio}
+                  subtitleWords={subtitleWords}
+                  isGeneratingSubtitles={isGeneratingSubtitles}
+                  onGenerateSubtitles={handleGenerateSubtitles}
                   onDownloadSRT={downloadSRT}
+                  onNext={handleVoiceOverNext}
+                  onBack={() => setCurrentStep("media")}
                 />
-                <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
-                <FootageUploader onUpload={setUploadedMedia} uploadedFiles={uploadedMedia} />
-                <VideoEditor 
-                  mediaFiles={uploadedMedia} 
+              )}
+
+              {currentStep === "editor" && (
+                <EditorStep
+                  key="editor"
+                  mediaFiles={uploadedMedia}
                   onMediaUpdate={setUploadedMedia}
                   audioDuration={duration}
-                />
-
-                {/* Generate Button */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                  className="pt-4"
-                >
-                  <Button
-                    variant="news"
-                    size="xl"
-                    className="w-full"
-                    onClick={handleGenerate}
-                    disabled={isGenerating || !newsText.trim()}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                        Memproses Video...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5" />
-                        Generate Video
-                        <ChevronRight className="w-5 h-5" />
-                      </>
-                    )}
-                  </Button>
-                </motion.div>
-              </div>
-
-              {/* History Toggle for Mobile */}
-              <div className="lg:hidden">
-                <Button
-                  variant="glass"
-                  className="w-full"
-                  onClick={() => setShowHistory(!showHistory)}
-                >
-                  <History className="w-4 h-4 mr-2" />
-                  {showHistory ? "Sembunyikan" : "Lihat"} Riwayat ({videos.length})
-                </Button>
-
-                {showHistory && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-4 glass-card rounded-2xl p-4"
-                  >
-                    <VideoHistory
-                      videos={videos}
-                      onDownload={handleDownload}
-                      onDelete={handleDelete}
-                    />
-                  </motion.div>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column - Preview & History */}
-            <div className="space-y-6">
-              <div className="glass-card rounded-2xl p-6 sticky top-24">
-                <VideoPreview
                   newsText={newsText}
-                  template={selectedTemplate}
-                  isGenerating={isGenerating}
-                  mediaFiles={uploadedMedia}
+                  selectedTemplate={selectedTemplate}
                   subtitleWords={subtitleWords}
                   currentTime={currentTime}
-                  isAudioPlaying={isPlaying}
-                  audioDuration={duration}
+                  isPlaying={isPlaying}
+                  isGenerating={isGenerating}
+                  onGenerate={handleGenerate}
+                  onNext={handleEditorNext}
+                  onBack={() => setCurrentStep("voiceover")}
                 />
+              )}
 
-                {/* Quick Actions */}
-                <div className="mt-6 flex gap-3">
-                  <Button
-                    variant="glass"
-                    className="flex-1"
-                    disabled={videos.length === 0 || isGenerating}
-                    onClick={() => videos[0] && handleDownload(videos[0].id, videos[0].videoUrl || videos[0].audioUrl)}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              </div>
-
-              {/* History - Desktop */}
-              <div className="hidden lg:block glass-card rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
-                    <History className="w-4 h-4 text-primary" />
-                    Riwayat Video
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
-                    {videos.length} video
-                  </span>
-                </div>
-                <VideoHistory
+              {currentStep === "export" && (
+                <ExportStep
+                  key="export"
                   videos={videos}
+                  isLoadingVideos={isLoadingVideos}
                   onDownload={handleDownload}
                   onDelete={handleDelete}
+                  onBack={() => setCurrentStep("editor")}
+                  onStartNew={handleStartNew}
                 />
-              </div>
-            </div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Features Footer */}
@@ -287,7 +267,7 @@ const Index = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4"
+            className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3"
           >
             {[
               { icon: "🎙️", title: "Voice AI", desc: "Bahasa Indonesia" },
@@ -297,10 +277,10 @@ const Index = () => {
             ].map((feature, i) => (
               <div
                 key={i}
-                className="p-4 rounded-xl bg-card/50 border border-border/50 text-center"
+                className="p-3 rounded-xl bg-card/50 border border-border/50 text-center"
               >
-                <span className="text-2xl">{feature.icon}</span>
-                <p className="font-semibold text-foreground text-sm mt-2">{feature.title}</p>
+                <span className="text-xl">{feature.icon}</span>
+                <p className="font-semibold text-foreground text-xs mt-1">{feature.title}</p>
                 <p className="text-xs text-muted-foreground">{feature.desc}</p>
               </div>
             ))}
