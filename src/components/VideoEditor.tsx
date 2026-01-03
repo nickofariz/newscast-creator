@@ -13,7 +13,8 @@ import {
   Trash2,
   GripVertical,
   Clock,
-  GripHorizontal
+  GripHorizontal,
+  RotateCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "./FootageUploader";
@@ -568,17 +569,36 @@ const VideoEditor = ({
                             onMouseDown={(e) => startDrag(e, 'media-trim-end', clip.clipDuration, index, undefined, clip.trimStart, clip.trimEnd)}
                           />
 
-                          {/* Delete button on hover */}
+                          {/* Action buttons on hover/select */}
                           {isSelected && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteClip(index);
-                              }}
-                              className="absolute top-0.5 right-3 bg-destructive rounded p-0.5"
-                            >
-                              <Trash2 className="w-2 h-2 text-white" />
-                            </button>
+                            <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5">
+                              {/* Reset trim button - only show if trimmed */}
+                              {(clip.trimStart > 0 || clip.trimEnd < 1) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setClips(prev => prev.map((c, i) => 
+                                      i === index ? { ...c, trimStart: 0, trimEnd: 1 } : c
+                                    ));
+                                  }}
+                                  className="bg-blue-600 rounded p-0.5"
+                                  title="Reset trim"
+                                >
+                                  <RotateCcw className="w-2 h-2 text-white" />
+                                </button>
+                              )}
+                              {/* Delete button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClip(index);
+                                }}
+                                className="bg-destructive rounded p-0.5"
+                                title="Hapus clip"
+                              >
+                                <Trash2 className="w-2 h-2 text-white" />
+                              </button>
+                            </div>
                           )}
                         </motion.div>
                       </Reorder.Item>
