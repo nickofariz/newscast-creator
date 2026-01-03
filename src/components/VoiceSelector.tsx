@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Play, Pause, ChevronDown, Globe, User, Volume2 } from "lucide-react";
+import { Mic, Play, Pause, ChevronDown, User, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -10,40 +10,38 @@ export interface Voice {
   name: string;
   description: string;
   gender: "male" | "female";
-  accent: string;
-  category: "popular" | "character" | "professional";
-  previewUrl?: string;
+  category: "berita" | "narasi" | "casual";
 }
 
-// ElevenLabs Top Voices
+// Indonesian Voice Library dari ElevenLabs
 const VOICE_LIBRARY: Voice[] = [
-  // Popular Voices
-  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", description: "Suara wanita natural & warm", gender: "female", accent: "American", category: "popular" },
-  { id: "JBFqnCBsd6RMkjVDRZzb", name: "George", description: "Suara pria dewasa & tegas", gender: "male", accent: "British", category: "popular" },
-  { id: "onwK4e9ZLuTAKqWW03F9", name: "Daniel", description: "Suara pria muda & energik", gender: "male", accent: "British", category: "popular" },
-  { id: "XrExE9yKIg1WjnnlVkGX", name: "Matilda", description: "Suara wanita friendly", gender: "female", accent: "American", category: "popular" },
+  // Berita & News
+  { id: "HnnPtoATgzx4ubChwm24", name: "Zaak", description: "Suara wanita muda, cocok untuk berita & iklan", gender: "female", category: "berita" },
+  { id: "3mAVBNEqop5UbHtD8oxQ", name: "Zephlyn", description: "Suara pria muda untuk berita & narasi", gender: "male", category: "berita" },
+  { id: "F414PgPuQGviai32J141", name: "Hendro Atmoko", description: "Suara pria muda untuk berita & film", gender: "male", category: "berita" },
+  { id: "7ExgohZ4jKVjuJLwSEWl", name: "Nova", description: "Suara wanita hangat & berwibawa", gender: "female", category: "berita" },
+  { id: "xDHG0ZvXAzrqzDSjDtKa", name: "Deandra Putri", description: "Suara wanita berkarakter untuk berita", gender: "female", category: "berita" },
   
-  // Professional Voices
-  { id: "CwhRBWXzGAHq8TQ4Fs17", name: "Roger", description: "Suara news anchor profesional", gender: "male", accent: "American", category: "professional" },
-  { id: "FGY2WhTYpPnrIDTdsKH5", name: "Laura", description: "Suara narator wanita", gender: "female", accent: "American", category: "professional" },
-  { id: "IKne3meq5aSn9XLyUdCD", name: "Charlie", description: "Suara pria casual & friendly", gender: "male", accent: "Australian", category: "professional" },
-  { id: "nPczCjzI2devNBz1zQrb", name: "Brian", description: "Suara narator pria deep", gender: "male", accent: "American", category: "professional" },
-  { id: "pFZP5JQG7iQjIQuC4Bku", name: "Lily", description: "Suara wanita muda & ceria", gender: "female", accent: "British", category: "professional" },
-  { id: "cgSgspJ2msm6clMCkdW9", name: "Jessica", description: "Suara wanita ekspresif", gender: "female", accent: "American", category: "professional" },
+  // Narasi & Storytelling
+  { id: "4RK3Moe6TpBQ4otXBFtc", name: "Suara Narasi", description: "Suara pria nyaman untuk narasi", gender: "male", category: "narasi" },
+  { id: "lFjzhZHq0NwTRiu2GQxy", name: "Tri Nugraha", description: "Suara pria dewasa untuk storytelling", gender: "male", category: "narasi" },
+  { id: "I7sakys8pBZ1Z5f0UhT9", name: "Putri Maharani", description: "Suara wanita ekspresif & hangat", gender: "female", category: "narasi" },
+  { id: "JaUVfDrFcfwGIsv8X2kN", name: "Defasyalala", description: "Suara wanita hangat untuk storytelling", gender: "female", category: "narasi" },
+  { id: "kPgkc35gNKgkdAQnjIow", name: "Bagas", description: "Suara pria dewasa profesional", gender: "male", category: "narasi" },
+  { id: "IALUBpQ56gzxhNH8HDDK", name: "Mizani", description: "Suara pria hangat untuk audiobook", gender: "male", category: "narasi" },
   
-  // Character Voices
-  { id: "N2lVS1w4EtoT3dr4eOWO", name: "Callum", description: "Suara hoarse & karakteristik", gender: "male", accent: "Transatlantic", category: "character" },
-  { id: "SAz9YHcvj6GT2YYXdXww", name: "River", description: "Suara non-binary & unik", gender: "male", accent: "American", category: "character" },
-  { id: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam", description: "Suara pria muda artikulatif", gender: "male", accent: "American", category: "character" },
-  { id: "cjVigY5qzO86Huf0OWal", name: "Eric", description: "Suara pria friendly & casual", gender: "male", accent: "American", category: "character" },
-  { id: "bIHbv24MWmeRgasZH58o", name: "Will", description: "Suara pria friendly POC", gender: "male", accent: "American", category: "character" },
-  { id: "Xb7hH8MSUJpSbSDYk0k2", name: "Alice", description: "Suara wanita British confident", gender: "female", accent: "British", category: "character" },
+  // Casual & Social Media
+  { id: "iWydkXKoiVtvdn4vLKp9", name: "Cahaya", description: "Suara wanita trendy untuk sosmed", gender: "female", category: "casual" },
+  { id: "QC3gSHMyKh8m20lGyUNZ", name: "Jonathan", description: "Suara pria muda santai & profesional", gender: "male", category: "casual" },
+  { id: "n2qPGxujWlmlL7krJ7OC", name: "Belly Rachdianto", description: "Suara pria muda untuk edukasi", gender: "male", category: "casual" },
+  { id: "wWRuqXP4yAwzRerUveS8", name: "Mila Rahmadhania", description: "Suara wanita ceria & friendly", gender: "female", category: "casual" },
+  { id: "plgKUYgnlZ1DCNh54DwJ", name: "Dakocan", description: "Suara pria muda casual untuk podcast", gender: "male", category: "casual" },
 ];
 
 const CATEGORIES = [
-  { id: "popular", label: "Populer" },
-  { id: "professional", label: "Profesional" },
-  { id: "character", label: "Karakter" },
+  { id: "berita", label: "Berita" },
+  { id: "narasi", label: "Narasi" },
+  { id: "casual", label: "Casual" },
 ];
 
 interface VoiceSelectorProps {
@@ -53,7 +51,7 @@ interface VoiceSelectorProps {
 
 const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string>("popular");
+  const [activeCategory, setActiveCategory] = useState<string>("berita");
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
 
   const selectedVoice = VOICE_LIBRARY.find(v => v.id === selected) || VOICE_LIBRARY[0];
@@ -84,7 +82,7 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
     >
       <label className="flex items-center gap-2 text-sm font-medium text-foreground">
         <Mic className="w-4 h-4 text-primary" />
-        Voice Over Library
+        Voice Over Indonesia
       </label>
 
       {/* Selected Voice Preview */}
@@ -113,9 +111,11 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground flex items-center gap-1">
-            <Globe className="w-3 h-3" />
-            {selectedVoice.accent}
+          <span className={cn(
+            "text-[10px] px-2 py-0.5 rounded-full",
+            selectedVoice.gender === "female" ? "bg-pink-500/20 text-pink-400" : "bg-blue-500/20 text-blue-400"
+          )}>
+            {selectedVoice.gender === "female" ? "Perempuan" : "Laki-laki"}
           </span>
           <ChevronDown className={cn(
             "w-4 h-4 text-muted-foreground transition-transform",
@@ -153,7 +153,7 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
               </div>
 
               {/* Voice List */}
-              <ScrollArea className="h-[240px]">
+              <ScrollArea className="h-[260px]">
                 <div className="space-y-2 pr-2">
                   {filteredVoices.map((voice) => {
                     const isSelected = selected === voice.id;
@@ -187,8 +187,11 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-sm text-foreground">{voice.name}</p>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
-                              {voice.accent}
+                            <span className={cn(
+                              "text-[9px] px-1.5 py-0.5 rounded",
+                              voice.gender === "female" ? "bg-pink-500/20 text-pink-400" : "bg-blue-500/20 text-blue-400"
+                            )}>
+                              {voice.gender === "female" ? "♀" : "♂"}
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground truncate">
@@ -227,7 +230,7 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
 
               {/* Info */}
               <p className="text-[10px] text-muted-foreground text-center">
-                Powered by ElevenLabs • 16 voices tersedia
+                Powered by ElevenLabs • 16 suara Indonesia tersedia
               </p>
             </div>
           </motion.div>
