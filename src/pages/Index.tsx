@@ -202,8 +202,6 @@ const Index = () => {
                   onUploadMedia={setUploadedMedia}
                   selectedTemplate={selectedTemplate}
                   onSelectTemplate={setSelectedTemplate}
-                  overlaySettings={overlaySettings}
-                  onOverlaySettingsChange={setOverlaySettings}
                   onNext={handleMediaNext}
                 />
               )}
@@ -247,6 +245,7 @@ const Index = () => {
                   isPlaying={isPlaying}
                   isGenerating={isGenerating}
                   overlaySettings={overlaySettings}
+                  onOverlaySettingsChange={setOverlaySettings}
                   onGenerate={handleGenerate}
                   onNext={handleEditorNext}
                   onBack={() => setCurrentStep("voiceover")}
