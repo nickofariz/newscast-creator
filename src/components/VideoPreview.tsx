@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Volume2, Pause } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
@@ -8,10 +8,35 @@ interface VideoPreviewProps {
   newsText: string;
   template: TemplateType;
   isGenerating: boolean;
+  footageFile?: File | null;
 }
 
-const VideoPreview = ({ newsText, template, isGenerating }: VideoPreviewProps) => {
+const VideoPreview = ({ newsText, template, isGenerating, footageFile }: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [footageUrl, setFootageUrl] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Handle footage file changes
+  useEffect(() => {
+    if (footageFile) {
+      const url = URL.createObjectURL(footageFile);
+      setFootageUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setFootageUrl(null);
+    }
+  }, [footageFile]);
+
+  // Handle play/pause
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.play();
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isPlaying]);
 
   // Extract first line as headline
   const lines = newsText.trim().split('\n').filter(line => line.trim());
@@ -113,17 +138,31 @@ const VideoPreview = ({ newsText, template, isGenerating }: VideoPreviewProps) =
       </div>
 
       <div className="video-frame relative mx-auto max-w-[200px] shadow-card">
-        {/* Background gradient */}
-        <div className="absolute inset-0 gradient-dark" />
+        {/* Background - Video or Gradient */}
+        {footageUrl ? (
+          <video
+            ref={videoRef}
+            src={footageUrl}
+            className="absolute inset-0 w-full h-full object-cover"
+            loop
+            muted
+            playsInline
+          />
+        ) : (
+          <>
+            <div className="absolute inset-0 gradient-dark" />
+            <div 
+              className="absolute inset-0 opacity-5"
+              style={{
+                backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
+                backgroundSize: '20px 20px'
+              }}
+            />
+          </>
+        )}
         
-        {/* Grid pattern overlay */}
-        <div 
-          className="absolute inset-0 opacity-5"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
-            backgroundSize: '20px 20px'
-          }}
-        />
+        {/* Dark overlay for text readability */}
+        {footageUrl && <div className="absolute inset-0 bg-black/40" />}
 
         {/* Template content */}
         <AnimatePresence mode="wait">
