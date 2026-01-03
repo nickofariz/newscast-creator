@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Play, Pause, ChevronDown, User, Volume2 } from "lucide-react";
+import { Mic, Play, Square, ChevronDown, User, Volume2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export interface Voice {
   id: string;
@@ -44,6 +45,8 @@ const CATEGORIES = [
   { id: "casual", label: "Casual" },
 ];
 
+const SAMPLE_TEXT = "Halo, ini adalah contoh suara saya. Bagaimana menurut Anda?";
+
 interface VoiceSelectorProps {
   selected: string;
   onChange: (voiceId: string) => void;
@@ -53,25 +56,101 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>("berita");
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCache = useRef<Map<string, string>>(new Map());
 
   const selectedVoice = VOICE_LIBRARY.find(v => v.id === selected) || VOICE_LIBRARY[0];
   const filteredVoices = VOICE_LIBRARY.filter(v => v.category === activeCategory);
 
-  const handlePlayPreview = async (voice: Voice, e: React.MouseEvent) => {
+  const stopCurrentAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setPlayingVoice(null);
+  }, []);
+
+  const handlePlayPreview = useCallback(async (voice: Voice, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // If already playing this voice, stop it
     if (playingVoice === voice.id) {
-      setPlayingVoice(null);
+      stopCurrentAudio();
       return;
     }
 
-    setPlayingVoice(voice.id);
-    
-    // Simulate preview duration
-    setTimeout(() => {
-      setPlayingVoice(null);
-    }, 2000);
-  };
+    // Stop any currently playing audio
+    stopCurrentAudio();
+
+    // Check cache first
+    const cachedUrl = audioCache.current.get(voice.id);
+    if (cachedUrl) {
+      const audio = new Audio(cachedUrl);
+      audioRef.current = audio;
+      setPlayingVoice(voice.id);
+      
+      audio.onended = () => {
+        setPlayingVoice(null);
+      };
+      
+      audio.play().catch(() => {
+        setPlayingVoice(null);
+        toast.error("Gagal memutar audio");
+      });
+      return;
+    }
+
+    // Generate new preview
+    setLoadingVoice(voice.id);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            text: SAMPLE_TEXT, 
+            voiceId: voice.id 
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to generate preview");
+      }
+
+      const data = await response.json();
+      const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+      
+      // Cache the audio URL
+      audioCache.current.set(voice.id, audioUrl);
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      setPlayingVoice(voice.id);
+      setLoadingVoice(null);
+
+      audio.onended = () => {
+        setPlayingVoice(null);
+      };
+
+      audio.play().catch(() => {
+        setPlayingVoice(null);
+        toast.error("Gagal memutar audio");
+      });
+    } catch (error) {
+      console.error("Preview error:", error);
+      setLoadingVoice(null);
+      toast.error("Gagal generate preview suara");
+    }
+  }, [playingVoice, stopCurrentAudio]);
 
   return (
     <motion.div
@@ -158,6 +237,7 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
                   {filteredVoices.map((voice) => {
                     const isSelected = selected === voice.id;
                     const isPlaying = playingVoice === voice.id;
+                    const isLoading = loadingVoice === voice.id;
 
                     return (
                       <motion.div
@@ -203,11 +283,17 @@ const VoiceSelector = ({ selected, onChange }: VoiceSelectorProps) => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 flex-shrink-0"
+                          className={cn(
+                            "h-8 w-8 flex-shrink-0",
+                            isPlaying && "bg-primary/20"
+                          )}
                           onClick={(e) => handlePlayPreview(voice, e)}
+                          disabled={isLoading}
                         >
-                          {isPlaying ? (
-                            <Volume2 className="w-4 h-4 text-primary animate-pulse" />
+                          {isLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          ) : isPlaying ? (
+                            <Square className="w-3 h-3 text-primary fill-primary" />
                           ) : (
                             <Play className="w-4 h-4" />
                           )}
