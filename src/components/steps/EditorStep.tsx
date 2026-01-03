@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
-import { motion } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, Minimize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
@@ -66,6 +66,23 @@ const EditorStep = ({
   onSeek,
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Toggle fullscreen mode
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+  }, []);
+
+  // Escape key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -114,14 +131,112 @@ const EditorStep = ({
   }, [handleKeyDown]);
 
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
+
+  // Fullscreen Timeline Component
+  const TimelineContent = ({ inFullscreen = false }: { inFullscreen?: boolean }) => (
+    <div className={inFullscreen ? "h-full flex flex-col" : ""}>
+      {/* Fullscreen Header */}
+      {inFullscreen && (
+        <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="font-medium text-foreground">Timeline Editor</span>
+            {audioUrl && (
+              <div className="flex items-center gap-2 ml-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={isPlaying ? onPause : onPlay}
+                  className="h-8 px-3"
+                >
+                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </Button>
+                <span className="text-sm font-mono text-muted-foreground">
+                  {formatTime(currentTime)} / {formatTime(audioDuration)}
+                </span>
+                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+          <Button variant="ghost" size="sm" onClick={toggleFullscreen} className="h-8 px-3">
+            <Minimize2 className="w-4 h-4 mr-2" />
+            Keluar Fullscreen
+          </Button>
+        </div>
+      )}
+      
+      {/* Timeline Editor */}
+      <div className={inFullscreen ? "flex-1 p-4 overflow-auto" : ""}>
+        <VideoEditor
+          mediaFiles={mediaFiles}
+          onMediaUpdate={onMediaUpdate}
+          audioDuration={audioDuration}
+          audioUrl={audioUrl}
+          overlayText={newsText}
+          overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
+          currentTime={currentTime}
+          isPlaying={isPlaying}
+          onSeek={onSeek}
+          onClipsChange={handleClipsChange}
+        />
+      </div>
+
+      {/* Fullscreen Preview */}
+      {inFullscreen && (
+        <div className="p-4 border-t border-border bg-card/30">
+          <div className="flex items-start gap-4">
+            <div className="w-48 flex-shrink-0">
+              <VideoPreview
+                newsText={newsText}
+                template={selectedTemplate}
+                isGenerating={isGenerating}
+                mediaFiles={mediaFiles}
+                editedClips={editedClips}
+                subtitleWords={subtitleWords}
+                currentTime={currentTime}
+                isAudioPlaying={isPlaying}
+                audioDuration={audioDuration}
+                overlaySettings={overlaySettings}
+                onPlay={onPlay}
+                onPause={onPause}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p><kbd className="px-1 bg-muted rounded">Space</kbd> Play/Pause</p>
+              <p><kbd className="px-1 bg-muted rounded">←→</kbd> Seek</p>
+              <p><kbd className="px-1 bg-muted rounded">Esc</kbd> Keluar</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
   
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-4"
-    >
+    <>
+      {/* Fullscreen Modal */}
+      <AnimatePresence>
+        {isFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-background flex flex-col"
+          >
+            <TimelineContent inFullscreen />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Normal Layout */}
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        className="space-y-4"
+      >
       {/* Full Width Editor Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {/* Left: Preview Panel - Compact */}
@@ -208,6 +323,18 @@ const EditorStep = ({
 
             <TabsContent value="timeline" className="mt-0">
               <div className="glass-card rounded-xl p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-muted-foreground">Timeline Editor</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleFullscreen}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 mr-1" />
+                    Fullscreen
+                  </Button>
+                </div>
                 <VideoEditor
                   mediaFiles={mediaFiles}
                   onMediaUpdate={onMediaUpdate}
@@ -282,6 +409,7 @@ const EditorStep = ({
         </Button>
       </div>
     </motion.div>
+    </>
   );
 };
 
