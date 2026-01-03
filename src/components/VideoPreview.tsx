@@ -234,13 +234,13 @@ const VideoPreview = ({
     }
   }, [isAudioPlaying]);
 
-  // Sync internal time with external currentTime when audio is active
+  // Sync internal time with external currentTime when audio exists
+  // This ensures seeking works regardless of play state
   useEffect(() => {
-    if (isAudioPlaying || audioDuration > 0) {
-      // When there's audio, always use the external currentTime
+    if (audioDuration > 0) {
       setInternalTime(currentTime);
     }
-  }, [currentTime, isAudioPlaying, audioDuration]);
+  }, [currentTime, audioDuration]);
 
   // Reset internal time when not playing
   useEffect(() => {
@@ -289,13 +289,12 @@ const VideoPreview = ({
   // Seek video to correct position within clip when time changes
   useEffect(() => {
     if (videoRef.current && currentMedia?.type === "video" && hasEditedClips) {
-      // Always prefer external currentTime when audio exists
       const time = audioDuration > 0 ? currentTime : internalTime;
       const currentClip = editedClips[currentMediaIndex];
       if (currentClip) {
         const offsetInClip = time - currentClip.startTime;
-        // Only seek if there's a significant difference to avoid stuttering
-        if (Math.abs(videoRef.current.currentTime - offsetInClip) > 0.3) {
+        // Reduce threshold for more responsive seeking
+        if (Math.abs(videoRef.current.currentTime - offsetInClip) > 0.1) {
           videoRef.current.currentTime = Math.max(0, offsetInClip);
         }
       }
