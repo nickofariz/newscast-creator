@@ -8,6 +8,7 @@ import VoiceSelector from "@/components/VoiceSelector";
 import TemplateSelector from "@/components/TemplateSelector";
 import VideoPreview from "@/components/VideoPreview";
 import VideoHistory, { VideoItem } from "@/components/VideoHistory";
+import FootageUploader from "@/components/FootageUploader";
 import { toast } from "sonner";
 
 type VoiceType = "male" | "female";
@@ -19,6 +20,7 @@ const Index = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [uploadedFootage, setUploadedFootage] = useState<File | null>(null);
 
   // Mock video history
   const [videos, setVideos] = useState<VideoItem[]>([
@@ -111,6 +113,7 @@ const Index = () => {
                 <NewsInput value={newsText} onChange={setNewsText} />
                 <VoiceSelector selected={selectedVoice} onChange={setSelectedVoice} />
                 <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
+                <FootageUploader onUpload={setUploadedFootage} uploadedFile={uploadedFootage} />
 
                 {/* Generate Button */}
                 <motion.div
