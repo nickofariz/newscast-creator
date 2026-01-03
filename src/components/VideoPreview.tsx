@@ -69,8 +69,8 @@ const VideoPreview = ({
   const activeMediaIndex = useMemo(() => {
     if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
     
-    // ALWAYS prioritize currentTime from props when audio is playing
-    const time = currentTime;
+    // Use currentTime from audio if playing, otherwise use internalTime
+    const time = isAudioPlaying ? currentTime : internalTime;
     
     // Use edited clips if available - this is the primary logic
     if (hasEditedClips) {
@@ -96,7 +96,7 @@ const VideoPreview = ({
     }
     
     return Math.max(0, mediaFiles.length - 1);
-  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
+  }, [currentTime, internalTime, isAudioPlaying, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
 
   // Update current media index when active index changes
   useEffect(() => {
@@ -118,7 +118,7 @@ const VideoPreview = ({
 
   // Calculate progress within current media segment
   const segmentProgress = useMemo(() => {
-    const time = currentTime;
+    const time = isAudioPlaying ? currentTime : internalTime;
     
     if (hasEditedClips && editedClips[currentMediaIndex]) {
       const clip = editedClips[currentMediaIndex];
@@ -132,7 +132,7 @@ const VideoPreview = ({
     const start = currentMediaIndex * durationPerMedia;
     const progress = ((time - start) / durationPerMedia) * 100;
     return Math.min(100, Math.max(0, progress));
-  }, [currentTime, editedClips, currentMediaIndex, hasEditedClips, audioDuration, mediaFiles.length]);
+  }, [currentTime, internalTime, isAudioPlaying, editedClips, currentMediaIndex, hasEditedClips, audioDuration, mediaFiles.length]);
 
   // Calculate total duration for internal timer
   const totalDuration = useMemo(() => {
@@ -222,16 +222,17 @@ const VideoPreview = ({
   // Seek video to correct position within clip when time changes
   useEffect(() => {
     if (videoRef.current && currentMedia?.type === "video" && hasEditedClips) {
+      const time = isAudioPlaying ? currentTime : internalTime;
       const currentClip = editedClips[currentMediaIndex];
       if (currentClip) {
-        const offsetInClip = currentTime - currentClip.startTime;
+        const offsetInClip = time - currentClip.startTime;
         // Only seek if there's a significant difference to avoid stuttering
         if (Math.abs(videoRef.current.currentTime - offsetInClip) > 0.3) {
           videoRef.current.currentTime = Math.max(0, offsetInClip);
         }
       }
     }
-  }, [currentTime, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);
+  }, [currentTime, internalTime, isAudioPlaying, currentMediaIndex, editedClips, hasEditedClips, currentMedia]);
 
   // Extract first line as headline
   const lines = newsText.trim().split('\n').filter(line => line.trim());
@@ -250,7 +251,7 @@ const VideoPreview = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const displayTime = currentTime;
+  const displayTime = isAudioPlaying ? currentTime : internalTime;
 
   const renderTemplate = () => {
     switch (template) {
