@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
@@ -38,6 +38,7 @@ interface EditorStepProps {
   overlaySettings: OverlaySettings;
   onOverlaySettingsChange: (settings: OverlaySettings) => void;
   videoFormat?: VideoFormatType;
+  onVideoFormatChange?: (format: VideoFormatType) => void;
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -68,6 +69,7 @@ const EditorStep = ({
   overlaySettings,
   onOverlaySettingsChange,
   videoFormat = "short",
+  onVideoFormatChange,
   onGenerate,
   onNext,
   onBack,
@@ -316,32 +318,62 @@ const EditorStep = ({
                 <span className="text-sm font-medium text-foreground">Preview</span>
               </div>
               
-              {/* Audio Player */}
-              {audioUrl && onPlay && onPause && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={isPlaying ? onPause : onPlay}
-                    className="h-8 px-3"
+              {/* Video Format Toggle */}
+              {onVideoFormatChange && (
+                <div className="flex items-center gap-1 p-0.5 bg-muted rounded-lg">
+                  <button
+                    onClick={() => onVideoFormatChange("short")}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                      videoFormat === "short"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    title="Portrait 9:16"
                   >
-                    {isPlaying ? (
-                      <Pause className="w-4 h-4" />
-                    ) : (
-                      <Play className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Volume2 className="w-3 h-3" />
-                    <span className="font-mono text-[10px]">{formatTime(currentTime)}/{formatTime(audioDuration)}</span>
-                  </div>
+                    <Smartphone className="w-3 h-3" />
+                    <span className="hidden sm:inline">9:16</span>
+                  </button>
+                  <button
+                    onClick={() => onVideoFormatChange("tv")}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                      videoFormat === "tv"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    title="Landscape 16:9"
+                  >
+                    <Monitor className="w-3 h-3" />
+                    <span className="hidden sm:inline">16:9</span>
+                  </button>
                 </div>
               )}
-              
-              {!audioUrl && (
-                <span className="text-xs text-muted-foreground">Belum ada audio</span>
-              )}
             </div>
+
+            {/* Audio Player - now below header */}
+            {audioUrl && onPlay && onPause && (
+              <div className="flex items-center justify-between mb-3 px-2 py-1.5 bg-muted/50 rounded-lg">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={isPlaying ? onPause : onPlay}
+                  className="h-7 w-7 p-0"
+                >
+                  {isPlaying ? (
+                    <Pause className="w-3.5 h-3.5" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5" />
+                  )}
+                </Button>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Volume2 className="w-3 h-3" />
+                  <span className="font-mono text-[10px]">{formatTime(currentTime)}/{formatTime(audioDuration)}</span>
+                </div>
+              </div>
+            )}
+            
+            {!audioUrl && (
+              <p className="text-xs text-muted-foreground text-center mb-3">Belum ada audio</p>
+            )}
 
             <VideoPreview
               newsText={newsText}
