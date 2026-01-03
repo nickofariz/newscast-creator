@@ -7,11 +7,18 @@ import {
   Upload, 
   X, 
   Check,
-  Layers
+  Layers,
+  Palette,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  Frame,
+  Link2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 export interface OverlaySettings {
@@ -19,6 +26,25 @@ export interface OverlaySettings {
     enabled: boolean;
     url: string | null;
     position: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+    size: number; // 20-100
+  };
+  headline: {
+    enabled: boolean;
+    position: "top" | "center" | "bottom";
+    style: "solid" | "gradient" | "transparent";
+    color: string;
+    showSubtitle: boolean;
+  };
+  credit: {
+    enabled: boolean;
+    text: string;
+    secondaryText: string;
+    position: "top" | "bottom";
+  };
+  frame: {
+    enabled: boolean;
+    style: "border" | "bars" | "corner";
+    color: string;
   };
   lowerThird: {
     enabled: boolean;
@@ -38,6 +64,25 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     enabled: false,
     url: null,
     position: "top-right",
+    size: 40,
+  },
+  headline: {
+    enabled: true,
+    position: "bottom",
+    style: "solid",
+    color: "#DC2626", // Red
+    showSubtitle: true,
+  },
+  credit: {
+    enabled: false,
+    text: "",
+    secondaryText: "",
+    position: "bottom",
+  },
+  frame: {
+    enabled: false,
+    style: "border",
+    color: "#DC2626",
   },
   lowerThird: {
     enabled: false,
@@ -57,8 +102,17 @@ interface OverlaySelectorProps {
   onChange: (settings: OverlaySettings) => void;
 }
 
+const COLOR_PRESETS = [
+  { id: "red", color: "#DC2626", label: "Merah" },
+  { id: "orange", color: "#EA580C", label: "Oranye" },
+  { id: "blue", color: "#2563EB", label: "Biru" },
+  { id: "green", color: "#16A34A", label: "Hijau" },
+  { id: "purple", color: "#9333EA", label: "Ungu" },
+  { id: "black", color: "#171717", label: "Hitam" },
+];
+
 const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
-  const [activeTab, setActiveTab] = useState<"logo" | "lowerThird" | "breakingNews">("logo");
+  const [activeTab, setActiveTab] = useState<"headline" | "logo" | "credit" | "frame">("headline");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,36 +126,11 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
     }
   };
 
-  const handleRemoveLogo = () => {
-    onChange({
-      ...settings,
-      logo: { ...settings.logo, url: null, enabled: false },
-    });
-  };
-
   const overlayTabs = [
+    { id: "headline" as const, label: "Headline", icon: Type },
     { id: "logo" as const, label: "Logo", icon: Image },
-    { id: "lowerThird" as const, label: "Lower Third", icon: Type },
-    { id: "breakingNews" as const, label: "Breaking News", icon: AlertTriangle },
-  ];
-
-  const logoPositions = [
-    { id: "top-left" as const, label: "Kiri Atas" },
-    { id: "top-right" as const, label: "Kanan Atas" },
-    { id: "bottom-left" as const, label: "Kiri Bawah" },
-    { id: "bottom-right" as const, label: "Kanan Bawah" },
-  ];
-
-  const lowerThirdStyles = [
-    { id: "modern" as const, label: "Modern", preview: "bg-gradient-to-r from-primary to-primary/80" },
-    { id: "classic" as const, label: "Classic", preview: "bg-black/80" },
-    { id: "minimal" as const, label: "Minimal", preview: "bg-white/90 text-black" },
-  ];
-
-  const breakingNewsStyles = [
-    { id: "red" as const, label: "Merah", color: "bg-red-600" },
-    { id: "blue" as const, label: "Biru", color: "bg-blue-600" },
-    { id: "orange" as const, label: "Oranye", color: "bg-orange-500" },
+    { id: "credit" as const, label: "Credit", icon: Link2 },
+    { id: "frame" as const, label: "Frame", icon: Frame },
   ];
 
   return (
@@ -113,23 +142,27 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
         </div>
         <div>
           <h3 className="font-medium text-foreground text-sm">Overlay & Watermark</h3>
-          <p className="text-xs text-muted-foreground">Tambahkan logo, lower third, atau banner</p>
+          <p className="text-xs text-muted-foreground">Kustomisasi tampilan video Anda</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-secondary/50 rounded-lg">
+      <div className="flex gap-1 p-1 bg-secondary/50 rounded-lg">
         {overlayTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          const isEnabled = settings[tab.id].enabled;
+          const isEnabled = 
+            tab.id === "headline" ? settings.headline.enabled :
+            tab.id === "logo" ? settings.logo.enabled :
+            tab.id === "credit" ? settings.credit.enabled :
+            settings.frame.enabled;
 
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all",
+                "flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-md text-xs font-medium transition-all",
                 isActive
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -152,6 +185,173 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
         animate={{ opacity: 1, y: 0 }}
         className="p-4 bg-secondary/30 rounded-lg space-y-4"
       >
+        {/* Headline Tab */}
+        {activeTab === "headline" && (
+          <>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Headline Box</Label>
+              <button
+                onClick={() =>
+                  onChange({
+                    ...settings,
+                    headline: { ...settings.headline, enabled: !settings.headline.enabled },
+                  })
+                }
+                className={cn(
+                  "w-10 h-6 rounded-full transition-colors relative",
+                  settings.headline.enabled ? "bg-primary" : "bg-muted"
+                )}
+              >
+                <div
+                  className={cn(
+                    "absolute w-4 h-4 rounded-full bg-white top-1 transition-all",
+                    settings.headline.enabled ? "left-5" : "left-1"
+                  )}
+                />
+              </button>
+            </div>
+
+            {settings.headline.enabled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="space-y-4"
+              >
+                {/* Position */}
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Posisi</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { id: "top" as const, icon: AlignVerticalJustifyStart, label: "Atas" },
+                      { id: "center" as const, icon: AlignVerticalJustifyCenter, label: "Tengah" },
+                      { id: "bottom" as const, icon: AlignVerticalJustifyEnd, label: "Bawah" },
+                    ].map((pos) => {
+                      const Icon = pos.icon;
+                      return (
+                        <button
+                          key={pos.id}
+                          onClick={() =>
+                            onChange({
+                              ...settings,
+                              headline: { ...settings.headline, position: pos.id },
+                            })
+                          }
+                          className={cn(
+                            "flex-1 flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
+                            settings.headline.position === pos.id
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background border-border hover:border-primary/50"
+                          )}
+                        >
+                          <Icon className="w-4 h-4" />
+                          {pos.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Style */}
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Style</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { id: "solid" as const, label: "Solid", preview: "bg-red-600" },
+                      { id: "gradient" as const, label: "Gradient", preview: "bg-gradient-to-t from-orange-500 to-transparent" },
+                      { id: "transparent" as const, label: "Transparan", preview: "bg-black/50" },
+                    ].map((style) => (
+                      <button
+                        key={style.id}
+                        onClick={() =>
+                          onChange({
+                            ...settings,
+                            headline: { ...settings.headline, style: style.id },
+                          })
+                        }
+                        className={cn(
+                          "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
+                          settings.headline.style === style.id
+                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className={cn("h-6 rounded mb-1", style.preview)} />
+                        {style.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Color */}
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Warna</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        onClick={() =>
+                          onChange({
+                            ...settings,
+                            headline: { ...settings.headline, color: preset.color },
+                          })
+                        }
+                        className={cn(
+                          "w-8 h-8 rounded-lg transition-all border-2",
+                          settings.headline.color === preset.color
+                            ? "border-foreground scale-110"
+                            : "border-transparent hover:scale-105"
+                        )}
+                        style={{ backgroundColor: preset.color }}
+                        title={preset.label}
+                      />
+                    ))}
+                    <div className="relative">
+                      <input
+                        type="color"
+                        value={settings.headline.color}
+                        onChange={(e) =>
+                          onChange({
+                            ...settings,
+                            headline: { ...settings.headline, color: e.target.value },
+                          })
+                        }
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                      <div className="w-8 h-8 rounded-lg border-2 border-dashed border-muted-foreground flex items-center justify-center">
+                        <Palette className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Show Subtitle Toggle */}
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Tampilkan Subtitle</Label>
+                  <button
+                    onClick={() =>
+                      onChange({
+                        ...settings,
+                        headline: { ...settings.headline, showSubtitle: !settings.headline.showSubtitle },
+                      })
+                    }
+                    className={cn(
+                      "w-8 h-5 rounded-full transition-colors relative",
+                      settings.headline.showSubtitle ? "bg-primary" : "bg-muted"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "absolute w-3 h-3 rounded-full bg-white top-1 transition-all",
+                        settings.headline.showSubtitle ? "left-4" : "left-1"
+                      )}
+                    />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </>
+        )}
+
         {/* Logo Tab */}
         {activeTab === "logo" && (
           <>
@@ -186,9 +386,7 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
               >
                 {/* Logo Upload */}
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">
-                    Upload Logo
-                  </Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Upload Logo</Label>
                   {settings.logo.url ? (
                     <div className="flex items-center gap-3 p-3 bg-background rounded-lg border border-border">
                       <img
@@ -203,7 +401,7 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={handleRemoveLogo}
+                        onClick={() => onChange({ ...settings, logo: { ...settings.logo, url: null } })}
                         className="text-muted-foreground hover:text-destructive"
                       >
                         <X className="w-4 h-4" />
@@ -215,9 +413,7 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
                       className="w-full p-4 border-2 border-dashed border-border rounded-lg text-center hover:border-primary/50 transition-colors"
                     >
                       <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">
-                        Klik untuk upload logo (PNG, JPG)
-                      </p>
+                      <p className="text-xs text-muted-foreground">Klik untuk upload logo (PNG, JPG)</p>
                     </button>
                   )}
                   <input
@@ -231,11 +427,14 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
 
                 {/* Logo Position */}
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">
-                    Posisi Logo
-                  </Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Posisi Logo</Label>
                   <div className="grid grid-cols-2 gap-2">
-                    {logoPositions.map((pos) => (
+                    {[
+                      { id: "top-left" as const, label: "Kiri Atas" },
+                      { id: "top-right" as const, label: "Kanan Atas" },
+                      { id: "bottom-left" as const, label: "Kiri Bawah" },
+                      { id: "bottom-right" as const, label: "Kanan Bawah" },
+                    ].map((pos) => (
                       <button
                         key={pos.id}
                         onClick={() =>
@@ -256,122 +455,115 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
                     ))}
                   </div>
                 </div>
+
+                {/* Logo Size */}
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">
+                    Ukuran: {settings.logo.size}px
+                  </Label>
+                  <Slider
+                    value={[settings.logo.size]}
+                    onValueChange={([value]) =>
+                      onChange({ ...settings, logo: { ...settings.logo, size: value } })
+                    }
+                    min={20}
+                    max={80}
+                    step={5}
+                    className="w-full"
+                  />
+                </div>
               </motion.div>
             )}
           </>
         )}
 
-        {/* Lower Third Tab */}
-        {activeTab === "lowerThird" && (
+        {/* Credit Tab */}
+        {activeTab === "credit" && (
           <>
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Lower Third</Label>
+              <Label className="text-sm font-medium">Credit / Watermark Text</Label>
               <button
                 onClick={() =>
                   onChange({
                     ...settings,
-                    lowerThird: { ...settings.lowerThird, enabled: !settings.lowerThird.enabled },
+                    credit: { ...settings.credit, enabled: !settings.credit.enabled },
                   })
                 }
                 className={cn(
                   "w-10 h-6 rounded-full transition-colors relative",
-                  settings.lowerThird.enabled ? "bg-primary" : "bg-muted"
+                  settings.credit.enabled ? "bg-primary" : "bg-muted"
                 )}
               >
                 <div
                   className={cn(
                     "absolute w-4 h-4 rounded-full bg-white top-1 transition-all",
-                    settings.lowerThird.enabled ? "left-5" : "left-1"
+                    settings.credit.enabled ? "left-5" : "left-1"
                   )}
                 />
               </button>
             </div>
 
-            {settings.lowerThird.enabled && (
+            {settings.credit.enabled && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 className="space-y-4"
               >
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">
-                    Nama / Judul
-                  </Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Teks Utama</Label>
                   <Input
-                    value={settings.lowerThird.title}
+                    value={settings.credit.text}
                     onChange={(e) =>
                       onChange({
                         ...settings,
-                        lowerThird: { ...settings.lowerThird, title: e.target.value },
+                        credit: { ...settings.credit, text: e.target.value },
                       })
                     }
-                    placeholder="Nama Reporter"
+                    placeholder="Baca selengkapnya: website.com"
                     className="text-sm"
                   />
                 </div>
 
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">
-                    Subtitle / Jabatan
-                  </Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Teks Sekunder</Label>
                   <Input
-                    value={settings.lowerThird.subtitle}
+                    value={settings.credit.secondaryText}
                     onChange={(e) =>
                       onChange({
                         ...settings,
-                        lowerThird: { ...settings.lowerThird, subtitle: e.target.value },
+                        credit: { ...settings.credit, secondaryText: e.target.value },
                       })
                     }
-                    placeholder="Reporter Senior"
+                    placeholder="Part of Media Network"
                     className="text-sm"
                   />
                 </div>
 
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">
-                    Style
-                  </Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Posisi</Label>
                   <div className="flex gap-2">
-                    {lowerThirdStyles.map((style) => (
+                    {[
+                      { id: "top" as const, label: "Atas" },
+                      { id: "bottom" as const, label: "Bawah" },
+                    ].map((pos) => (
                       <button
-                        key={style.id}
+                        key={pos.id}
                         onClick={() =>
                           onChange({
                             ...settings,
-                            lowerThird: { ...settings.lowerThird, style: style.id },
+                            credit: { ...settings.credit, position: pos.id },
                           })
                         }
                         className={cn(
                           "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
-                          settings.lowerThird.style === style.id
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                            : "border-border hover:border-primary/50"
+                          settings.credit.position === pos.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border hover:border-primary/50"
                         )}
                       >
-                        <div className={cn("h-4 rounded mb-1", style.preview)} />
-                        {style.label}
+                        {pos.label}
                       </button>
                     ))}
-                  </div>
-                </div>
-
-                {/* Preview */}
-                <div className="p-3 bg-black/80 rounded-lg">
-                  <p className="text-[10px] text-muted-foreground mb-2">Preview:</p>
-                  <div
-                    className={cn(
-                      "inline-block px-3 py-1.5 rounded",
-                      settings.lowerThird.style === "modern" && "bg-gradient-to-r from-primary to-primary/80 text-white",
-                      settings.lowerThird.style === "classic" && "bg-black/90 text-white border-l-4 border-primary",
-                      settings.lowerThird.style === "minimal" && "bg-white/95 text-black"
-                    )}
-                  >
-                    <p className="text-xs font-semibold">
-                      {settings.lowerThird.title || "Nama Reporter"}
-                    </p>
-                    <p className="text-[10px] opacity-80">
-                      {settings.lowerThird.subtitle || "Reporter Senior"}
-                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -379,79 +571,88 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
           </>
         )}
 
-        {/* Breaking News Tab */}
-        {activeTab === "breakingNews" && (
+        {/* Frame Tab */}
+        {activeTab === "frame" && (
           <>
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Breaking News Banner</Label>
+              <Label className="text-sm font-medium">Frame / Border</Label>
               <button
                 onClick={() =>
                   onChange({
                     ...settings,
-                    breakingNews: { ...settings.breakingNews, enabled: !settings.breakingNews.enabled },
+                    frame: { ...settings.frame, enabled: !settings.frame.enabled },
                   })
                 }
                 className={cn(
                   "w-10 h-6 rounded-full transition-colors relative",
-                  settings.breakingNews.enabled ? "bg-primary" : "bg-muted"
+                  settings.frame.enabled ? "bg-primary" : "bg-muted"
                 )}
               >
                 <div
                   className={cn(
                     "absolute w-4 h-4 rounded-full bg-white top-1 transition-all",
-                    settings.breakingNews.enabled ? "left-5" : "left-1"
+                    settings.frame.enabled ? "left-5" : "left-1"
                   )}
                 />
               </button>
             </div>
 
-            {settings.breakingNews.enabled && (
+            {settings.frame.enabled && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 className="space-y-4"
               >
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">
-                    Teks Banner
-                  </Label>
-                  <Input
-                    value={settings.breakingNews.text}
-                    onChange={(e) =>
-                      onChange({
-                        ...settings,
-                        breakingNews: { ...settings.breakingNews, text: e.target.value },
-                      })
-                    }
-                    placeholder="BREAKING NEWS"
-                    className="text-sm"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-2 block">
-                    Warna Banner
-                  </Label>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Style Frame</Label>
                   <div className="flex gap-2">
-                    {breakingNewsStyles.map((style) => (
+                    {[
+                      { id: "border" as const, label: "Border" },
+                      { id: "bars" as const, label: "Bars" },
+                      { id: "corner" as const, label: "Corner" },
+                    ].map((style) => (
                       <button
                         key={style.id}
                         onClick={() =>
                           onChange({
                             ...settings,
-                            breakingNews: { ...settings.breakingNews, style: style.id },
+                            frame: { ...settings.frame, style: style.id },
                           })
                         }
                         className={cn(
-                          "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
-                          settings.breakingNews.style === style.id
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                            : "border-border hover:border-primary/50"
+                          "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border",
+                          settings.frame.style === style.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border hover:border-primary/50"
                         )}
                       >
-                        <div className={cn("w-4 h-4 rounded", style.color)} />
                         {style.label}
                       </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-2 block">Warna Frame</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        onClick={() =>
+                          onChange({
+                            ...settings,
+                            frame: { ...settings.frame, color: preset.color },
+                          })
+                        }
+                        className={cn(
+                          "w-8 h-8 rounded-lg transition-all border-2",
+                          settings.frame.color === preset.color
+                            ? "border-foreground scale-110"
+                            : "border-transparent hover:scale-105"
+                        )}
+                        style={{ backgroundColor: preset.color }}
+                        title={preset.label}
+                      />
                     ))}
                   </div>
                 </div>
@@ -459,15 +660,48 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
                 {/* Preview */}
                 <div className="p-3 bg-black/80 rounded-lg">
                   <p className="text-[10px] text-muted-foreground mb-2">Preview:</p>
-                  <div
+                  <div 
                     className={cn(
-                      "px-4 py-2 text-white text-xs font-bold text-center animate-pulse",
-                      settings.breakingNews.style === "red" && "bg-red-600",
-                      settings.breakingNews.style === "blue" && "bg-blue-600",
-                      settings.breakingNews.style === "orange" && "bg-orange-500"
+                      "w-16 h-24 bg-gray-600 mx-auto relative",
+                      settings.frame.style === "border" && "border-4",
+                      settings.frame.style === "corner" && "border-0"
                     )}
+                    style={{ 
+                      borderColor: settings.frame.style === "border" ? settings.frame.color : undefined 
+                    }}
                   >
-                    {settings.breakingNews.text || "BREAKING NEWS"}
+                    {settings.frame.style === "bars" && (
+                      <>
+                        <div 
+                          className="absolute top-0 left-0 right-0 h-2" 
+                          style={{ backgroundColor: settings.frame.color }}
+                        />
+                        <div 
+                          className="absolute bottom-0 left-0 right-0 h-2" 
+                          style={{ backgroundColor: settings.frame.color }}
+                        />
+                      </>
+                    )}
+                    {settings.frame.style === "corner" && (
+                      <>
+                        <div 
+                          className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2" 
+                          style={{ borderColor: settings.frame.color }}
+                        />
+                        <div 
+                          className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2" 
+                          style={{ borderColor: settings.frame.color }}
+                        />
+                        <div 
+                          className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2" 
+                          style={{ borderColor: settings.frame.color }}
+                        />
+                        <div 
+                          className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2" 
+                          style={{ borderColor: settings.frame.color }}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -477,22 +711,27 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
       </motion.div>
 
       {/* Active Overlays Summary */}
-      {(settings.logo.enabled || settings.lowerThird.enabled || settings.breakingNews.enabled) && (
+      {(settings.headline.enabled || settings.logo.enabled || settings.credit.enabled || settings.frame.enabled) && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">Aktif:</span>
+          {settings.headline.enabled && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
+              <Check className="w-3 h-3" /> Headline
+            </span>
+          )}
           {settings.logo.enabled && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
               <Check className="w-3 h-3" /> Logo
             </span>
           )}
-          {settings.lowerThird.enabled && (
+          {settings.credit.enabled && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
-              <Check className="w-3 h-3" /> Lower Third
+              <Check className="w-3 h-3" /> Credit
             </span>
           )}
-          {settings.breakingNews.enabled && (
+          {settings.frame.enabled && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
-              <Check className="w-3 h-3" /> Breaking News
+              <Check className="w-3 h-3" /> Frame
             </span>
           )}
         </div>

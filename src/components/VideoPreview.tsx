@@ -287,18 +287,66 @@ const VideoPreview = ({
 
     return (
       <>
+        {/* Frame Overlay */}
+        {overlaySettings.frame?.enabled && (
+          <>
+            {overlaySettings.frame.style === "border" && (
+              <div
+                className="absolute inset-0 z-20 pointer-events-none border-4"
+                style={{ borderColor: overlaySettings.frame.color }}
+              />
+            )}
+            {overlaySettings.frame.style === "bars" && (
+              <>
+                <div
+                  className="absolute top-0 left-0 right-0 h-3 z-20"
+                  style={{ backgroundColor: overlaySettings.frame.color }}
+                />
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-3 z-20"
+                  style={{ backgroundColor: overlaySettings.frame.color }}
+                />
+              </>
+            )}
+            {overlaySettings.frame.style === "corner" && (
+              <>
+                <div
+                  className="absolute top-2 left-2 w-6 h-6 border-t-3 border-l-3 z-20"
+                  style={{ borderColor: overlaySettings.frame.color }}
+                />
+                <div
+                  className="absolute top-2 right-2 w-6 h-6 border-t-3 border-r-3 z-20"
+                  style={{ borderColor: overlaySettings.frame.color }}
+                />
+                <div
+                  className="absolute bottom-8 left-2 w-6 h-6 border-b-3 border-l-3 z-20"
+                  style={{ borderColor: overlaySettings.frame.color }}
+                />
+                <div
+                  className="absolute bottom-8 right-2 w-6 h-6 border-b-3 border-r-3 z-20"
+                  style={{ borderColor: overlaySettings.frame.color }}
+                />
+              </>
+            )}
+          </>
+        )}
+
         {/* Logo Overlay */}
-        {overlaySettings.logo.enabled && overlaySettings.logo.url && (
+        {overlaySettings.logo?.enabled && overlaySettings.logo.url && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             className={cn(
-              "absolute z-30 w-10 h-10",
-              overlaySettings.logo.position === "top-left" && "top-3 left-3",
-              overlaySettings.logo.position === "top-right" && "top-3 right-3",
+              "absolute z-30",
+              overlaySettings.logo.position === "top-left" && "top-4 left-3",
+              overlaySettings.logo.position === "top-right" && "top-4 right-3",
               overlaySettings.logo.position === "bottom-left" && "bottom-14 left-3",
               overlaySettings.logo.position === "bottom-right" && "bottom-14 right-3"
             )}
+            style={{
+              width: `${overlaySettings.logo.size || 40}px`,
+              height: `${overlaySettings.logo.size || 40}px`,
+            }}
           >
             <img
               src={overlaySettings.logo.url}
@@ -308,8 +356,69 @@ const VideoPreview = ({
           </motion.div>
         )}
 
-        {/* Breaking News Banner */}
-        {overlaySettings.breakingNews.enabled && (
+        {/* Headline Box Overlay */}
+        {overlaySettings.headline?.enabled && (
+          <motion.div
+            initial={{ opacity: 0, y: overlaySettings.headline.position === "top" ? -20 : 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "absolute left-0 right-0 z-25 px-2",
+              overlaySettings.headline.position === "top" && "top-6",
+              overlaySettings.headline.position === "center" && "top-1/2 -translate-y-1/2",
+              overlaySettings.headline.position === "bottom" && "bottom-10"
+            )}
+          >
+            <div
+              className={cn(
+                "px-3 py-2 rounded-lg",
+                overlaySettings.headline.style === "transparent" && "bg-black/60 backdrop-blur-sm"
+              )}
+              style={{
+                backgroundColor: overlaySettings.headline.style === "solid" 
+                  ? overlaySettings.headline.color 
+                  : undefined,
+                background: overlaySettings.headline.style === "gradient"
+                  ? `linear-gradient(to top, ${overlaySettings.headline.color}, transparent)`
+                  : undefined,
+              }}
+            >
+              <p className="text-white text-[11px] font-bold leading-tight drop-shadow-md">
+                {headline}
+              </p>
+              {overlaySettings.headline.showSubtitle && (
+                <p className="text-white/90 text-[9px] font-medium leading-tight mt-0.5 drop-shadow-md">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Credit Text */}
+        {overlaySettings.credit?.enabled && (overlaySettings.credit.text || overlaySettings.credit.secondaryText) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className={cn(
+              "absolute left-2 right-2 z-30 text-center",
+              overlaySettings.credit.position === "top" ? "top-4" : "bottom-4"
+            )}
+          >
+            {overlaySettings.credit.text && (
+              <p className="text-white text-[8px] font-medium drop-shadow-md">
+                {overlaySettings.credit.text}
+              </p>
+            )}
+            {overlaySettings.credit.secondaryText && (
+              <p className="text-white/70 text-[7px] drop-shadow-md">
+                {overlaySettings.credit.secondaryText}
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* Breaking News Banner (legacy support) */}
+        {overlaySettings.breakingNews?.enabled && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -333,8 +442,8 @@ const VideoPreview = ({
           </motion.div>
         )}
 
-        {/* Lower Third */}
-        {overlaySettings.lowerThird.enabled && (overlaySettings.lowerThird.title || overlaySettings.lowerThird.subtitle) && (
+        {/* Lower Third (legacy support) */}
+        {overlaySettings.lowerThird?.enabled && (overlaySettings.lowerThird.title || overlaySettings.lowerThird.subtitle) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
