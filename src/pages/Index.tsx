@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, Download, History, ChevronRight, Video } from "lucide-react";
+import { Sparkles, Download, History, ChevronRight, Video, Cloud, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import NewsInput from "@/components/NewsInput";
@@ -13,6 +13,7 @@ import AudioPreview from "@/components/AudioPreview";
 import SubtitlePreview from "@/components/SubtitlePreview";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
+import { useVideoStorage } from "@/hooks/useVideoStorage";
 import { toast } from "sonner";
 
 type VoiceType = "male" | "female";
@@ -54,23 +55,25 @@ const Index = () => {
     }
   };
 
-  // Mock video history
-  const [videos, setVideos] = useState<VideoItem[]>([
-    {
-      id: "1",
-      title: "Breaking: Kebijakan Ekonomi Baru 2024",
-      createdAt: new Date(Date.now() - 3600000),
-      duration: 32,
-      status: "completed",
-    },
-    {
-      id: "2",
-      title: "Update: Perkembangan Teknologi AI",
-      createdAt: new Date(Date.now() - 86400000),
-      duration: 28,
-      status: "completed",
-    },
-  ]);
+  const {
+    videos: storedVideos,
+    isLoading: isLoadingVideos,
+    isSaving,
+    saveVideo,
+    deleteVideo: deleteStoredVideo,
+  } = useVideoStorage();
+
+  // Convert stored videos to VideoItem format
+  const videos: VideoItem[] = storedVideos.map((v) => ({
+    id: v.id,
+    title: v.title,
+    createdAt: new Date(v.created_at),
+    duration: v.duration,
+    status: v.status as "completed" | "processing" | "failed",
+    videoUrl: v.video_url,
+    audioUrl: v.audio_url || undefined,
+  }));
+
 
   const handleGenerate = async () => {
     if (!newsText.trim()) {
@@ -84,32 +87,31 @@ const Index = () => {
     }
 
     setIsGenerating(true);
-    toast.info("Memproses video...");
+    toast.info("Menyimpan ke cloud...");
 
-    // Simulate video generation
-    setTimeout(() => {
-      const newVideo: VideoItem = {
-        id: Date.now().toString(),
-        title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
-        createdAt: new Date(),
-        duration: Math.round((newsText.split(/\s+/).length / 150) * 60),
-        status: "completed",
-      };
+    // Save to cloud storage
+    await saveVideo({
+      title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
+      audioUrl: audioUrl || undefined,
+      subtitleWords: subtitleWords,
+      duration: Math.round(duration) || Math.round((newsText.split(/\s+/).length / 150) * 60),
+      template: selectedTemplate,
+      voice: selectedVoice,
+    });
 
-      setVideos((prev) => [newVideo, ...prev]);
-      setIsGenerating(false);
-      toast.success("Video berhasil dibuat!");
-    }, 3000);
+    setIsGenerating(false);
   };
 
-  const handleDownload = (id: string) => {
-    toast.success("Mengunduh video...");
-    // In real implementation, this would trigger the actual download
+  const handleDownload = (id: string, url?: string) => {
+    if (url) {
+      window.open(url, "_blank");
+    } else {
+      toast.info("Video sedang diproses");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setVideos((prev) => prev.filter((v) => v.id !== id));
-    toast.success("Video dihapus");
+  const handleDelete = async (id: string) => {
+    await deleteStoredVideo(id);
   };
 
   return (
@@ -240,7 +242,7 @@ const Index = () => {
                     variant="glass"
                     className="flex-1"
                     disabled={videos.length === 0 || isGenerating}
-                    onClick={() => videos[0] && handleDownload(videos[0].id)}
+                    onClick={() => videos[0] && handleDownload(videos[0].id, videos[0].videoUrl || videos[0].audioUrl)}
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download
