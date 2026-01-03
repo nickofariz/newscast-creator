@@ -29,6 +29,8 @@ export interface EditedClip {
   effectiveDuration: number;
 }
 
+export type VideoFormatType = "short" | "tv";
+
 interface VideoPreviewProps {
   newsText: string;
   template: TemplateType;
@@ -40,6 +42,7 @@ interface VideoPreviewProps {
   isAudioPlaying?: boolean;
   audioDuration?: number;
   overlaySettings?: OverlaySettings;
+  videoFormat?: VideoFormatType;
   onPlay?: () => void;
   onPause?: () => void;
 }
@@ -57,6 +60,7 @@ const VideoPreview = ({
   isAudioPlaying = false,
   audioDuration = 0,
   overlaySettings,
+  videoFormat = "short",
   onPlay,
   onPause,
 }: VideoPreviewProps) => {
@@ -552,7 +556,12 @@ const VideoPreview = ({
         )}
       </div>
 
-      <div className="video-frame relative mx-auto max-w-[200px] shadow-card">
+      <div 
+        className={cn(
+          "video-frame relative mx-auto shadow-card",
+          videoFormat === "short" ? "max-w-[200px] aspect-[9/16]" : "max-w-[320px] aspect-video"
+        )}
+      >
         {/* Background - Media or Gradient */}
         <AnimatePresence mode="sync">
           {currentMedia ? (

@@ -4,7 +4,7 @@ import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, V
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
-import VideoPreview from "@/components/VideoPreview";
+import VideoPreview, { VideoFormatType } from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
 import { OverlaySettings } from "@/components/OverlaySelector";
 import OverlaySelector from "@/components/OverlaySelector";
@@ -32,6 +32,7 @@ interface EditorStepProps {
   isGenerating: boolean;
   overlaySettings: OverlaySettings;
   onOverlaySettingsChange: (settings: OverlaySettings) => void;
+  videoFormat?: VideoFormatType;
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -57,6 +58,7 @@ const EditorStep = ({
   isGenerating,
   overlaySettings,
   onOverlaySettingsChange,
+  videoFormat = "short",
   onGenerate,
   onNext,
   onBack,
@@ -198,6 +200,7 @@ const EditorStep = ({
                     isAudioPlaying={isPlaying}
                     audioDuration={audioDuration}
                     overlaySettings={overlaySettings}
+                    videoFormat={videoFormat}
                     onPlay={onPlay}
                     onPause={onPause}
                   />
@@ -290,6 +293,7 @@ const EditorStep = ({
               isAudioPlaying={isPlaying}
               audioDuration={audioDuration}
               overlaySettings={overlaySettings}
+              videoFormat={videoFormat}
               onPlay={onPlay}
               onPause={onPause}
             />
