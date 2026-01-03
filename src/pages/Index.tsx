@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import NewsInput from "@/components/NewsInput";
 import VoiceSelector from "@/components/VoiceSelector";
+import VoiceSettings, { VoiceSettingsValues, DEFAULT_SETTINGS } from "@/components/VoiceSettings";
 import TemplateSelector from "@/components/TemplateSelector";
 import VideoPreview from "@/components/VideoPreview";
 import VideoHistory, { VideoItem } from "@/components/VideoHistory";
@@ -26,6 +27,7 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettingsValues>(DEFAULT_SETTINGS);
   
   const {
     generateSpeech,
@@ -46,7 +48,7 @@ const Index = () => {
   } = useSubtitleGenerator();
 
   const handleGenerateAudio = () => {
-    generateSpeech(newsText, selectedVoice);
+    generateSpeech(newsText, selectedVoice, voiceSettings);
   };
 
   const handleGenerateSubtitles = () => {
@@ -146,6 +148,7 @@ const Index = () => {
               <div className="glass-card rounded-2xl p-6 space-y-6">
                 <NewsInput value={newsText} onChange={setNewsText} />
                 <VoiceSelector selected={selectedVoice} onChange={setSelectedVoice} />
+                <VoiceSettings settings={voiceSettings} onChange={setVoiceSettings} />
                 <AudioPreview
                   isGenerating={isGeneratingAudio}
                   audioUrl={audioUrl}
