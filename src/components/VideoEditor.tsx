@@ -541,7 +541,7 @@ const VideoEditor = ({
 
       {/* Transition Selector - show when clip is selected */}
       {selectedClipIndex !== null && clips[selectedClipIndex] && (
-        <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg border border-border">
+        <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg border border-border flex-wrap">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-medium text-foreground">Transisi Masuk:</span>
@@ -568,6 +568,21 @@ const VideoEditor = ({
           <span className="text-[10px] text-muted-foreground">
             Clip {selectedClipIndex + 1} dari {clips.length}
           </span>
+          
+          {/* Apply to all button */}
+          {clips.length > 1 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs ml-auto"
+              onClick={() => {
+                const currentTransition = clips[selectedClipIndex].transition || "none";
+                setClips(prev => prev.map(c => ({ ...c, transition: currentTransition })));
+              }}
+            >
+              Terapkan ke Semua ({clips.length})
+            </Button>
+          )}
         </div>
       )}
 
