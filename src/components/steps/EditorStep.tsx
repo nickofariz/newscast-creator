@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone, Timer, ImageIcon } from "lucide-react";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone, Timer, ImageIcon, Clapperboard } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -60,6 +61,9 @@ interface EditorStepProps {
   onDownloadSRT?: () => void;
   // Expose edited clips to parent
   onClipsUpdate?: (clips: EditedClip[]) => void;
+  // Export quality
+  exportQuality?: "720p" | "1080p";
+  onExportQualityChange?: (quality: "720p" | "1080p") => void;
 }
 
 const SEEK_STEP = 5; // seconds
@@ -94,6 +98,8 @@ const EditorStep = ({
   onGenerateSubtitles,
   onDownloadSRT,
   onClipsUpdate,
+  exportQuality = "720p",
+  onExportQualityChange,
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -603,6 +609,23 @@ const EditorStep = ({
           <ChevronLeft className="w-5 h-5" />
           Kembali
         </Button>
+
+        {/* Quality Selector */}
+        {onExportQualityChange && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+            <Clapperboard className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground hidden sm:inline">Kualitas:</span>
+            <Select value={exportQuality} onValueChange={(v) => onExportQualityChange(v as "720p" | "1080p")}>
+              <SelectTrigger className="w-24 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="720p">720p HD</SelectItem>
+                <SelectItem value="1080p">1080p Full HD</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         {/* Export Video Button */}
         <Button
