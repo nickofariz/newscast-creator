@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { Upload, Film, X, Check, Image, Plus, GripVertical, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, Film, X, Check, Image, Plus, GripVertical, Clock, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,10 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [totalDuration, setTotalDuration] = useState(0);
   const [previewMedia, setPreviewMedia] = useState<MediaFile | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Calculate total duration whenever files change
@@ -65,14 +69,64 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
   const goToPrevMedia = useCallback(() => {
     if (currentPreviewIndex > 0) {
       setPreviewMedia(uploadedFiles[currentPreviewIndex - 1]);
+      setZoomLevel(1);
+      setPanPosition({ x: 0, y: 0 });
     }
   }, [currentPreviewIndex, uploadedFiles]);
 
   const goToNextMedia = useCallback(() => {
     if (currentPreviewIndex < uploadedFiles.length - 1) {
       setPreviewMedia(uploadedFiles[currentPreviewIndex + 1]);
+      setZoomLevel(1);
+      setPanPosition({ x: 0, y: 0 });
     }
   }, [currentPreviewIndex, uploadedFiles]);
+
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel(prev => Math.min(prev + 0.5, 4));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel(prev => {
+      const newZoom = Math.max(prev - 0.5, 1);
+      if (newZoom === 1) setPanPosition({ x: 0, y: 0 });
+      return newZoom;
+    });
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+    }
+  }, [zoomLevel, panPosition]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning && zoomLevel > 1) {
+      setPanPosition({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+    }
+  }, [isPanning, zoomLevel, panStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      handleZoomIn();
+    } else {
+      handleZoomOut();
+    }
+  }, [handleZoomIn, handleZoomOut]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -486,6 +540,46 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
               </button>
             )}
 
+            {/* Zoom controls for images */}
+            {previewMedia.type === "image" && (
+              <div className="absolute top-4 right-16 flex items-center gap-2 z-10">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleZoomOut();
+                  }}
+                  disabled={zoomLevel <= 1}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ZoomOut className="w-5 h-5 text-white" />
+                </button>
+                <span className="text-white text-sm font-medium min-w-[3rem] text-center">
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleZoomIn();
+                  }}
+                  disabled={zoomLevel >= 4}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ZoomIn className="w-5 h-5 text-white" />
+                </button>
+                {zoomLevel > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleResetZoom();
+                    }}
+                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors ml-1"
+                  >
+                    <RotateCcw className="w-5 h-5 text-white" />
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Media content */}
             <motion.div
               key={previewMedia.id}
@@ -505,11 +599,24 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                   loop
                 />
               ) : (
-                <img
-                  src={previewMedia.previewUrl}
-                  alt={previewMedia.file.name}
-                  className="max-w-full max-h-[80vh] object-contain"
-                />
+                <div
+                  className={`overflow-hidden ${zoomLevel > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onWheel={handleWheel}
+                >
+                  <img
+                    src={previewMedia.previewUrl}
+                    alt={previewMedia.file.name}
+                    className="max-w-full max-h-[80vh] object-contain transition-transform duration-200 select-none"
+                    style={{
+                      transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
+                    }}
+                    draggable={false}
+                  />
+                </div>
               )}
             </motion.div>
 
@@ -519,7 +626,10 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                 {currentPreviewIndex + 1} / {uploadedFiles.length}
               </div>
               <span className="text-white/50 text-xs">
-                ← → untuk navigasi • ESC untuk menutup
+                {previewMedia.type === "image" 
+                  ? "Scroll untuk zoom • Drag untuk geser • ← → navigasi • ESC tutup"
+                  : "← → untuk navigasi • ESC untuk menutup"
+                }
               </span>
             </div>
           </motion.div>,
