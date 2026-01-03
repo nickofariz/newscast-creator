@@ -261,27 +261,45 @@ const VideoPreview = ({
 
   const displayTime = isAudioPlaying ? currentTime : internalTime;
 
+  // Size classes based on video format
+  const isTV = videoFormat === "tv";
+  const textSizes = {
+    headline: isTV ? "text-base" : "text-sm",
+    subtitle: isTV ? "text-sm" : "text-xs",
+    breaking: isTV ? "text-xs" : "text-[10px]",
+    tiny: isTV ? "text-[10px]" : "text-[8px]",
+  };
+  const spacing = {
+    padding: isTV ? "px-4 py-3" : "px-3 py-2",
+    paddingSmall: isTV ? "px-3 py-1.5" : "px-3 py-1",
+    top: isTV ? "top-4" : "top-8",
+    topBreaking: isTV ? "top-3" : "top-6",
+    topHeadline: isTV ? "top-10" : "top-14",
+    bottom: isTV ? "bottom-8" : "bottom-12",
+    inset: isTV ? "left-6 right-6" : "left-4 right-4",
+  };
+
   const renderTemplate = () => {
     switch (template) {
       case "headline-top":
         return (
           <>
-            <div className="absolute top-8 left-4 right-4">
+            <div className={cn("absolute", spacing.top, spacing.inset)}>
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-sm font-display font-bold text-foreground leading-tight"
+                className={cn(textSizes.headline, "font-display font-bold text-foreground leading-tight")}
               >
                 {headline}
               </motion.div>
             </div>
-            <div className="absolute bottom-12 left-4 right-4">
+            <div className={cn("absolute", spacing.bottom, spacing.inset)}>
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg"
+                className={cn("bg-background/80 backdrop-blur-sm rounded-lg", spacing.padding)}
               >
-                <p className="text-xs text-foreground font-medium leading-relaxed">
+                <p className={cn(textSizes.subtitle, "text-foreground font-medium leading-relaxed")}>
                   {subtitle}
                 </p>
               </motion.div>
@@ -291,13 +309,13 @@ const VideoPreview = ({
 
       case "minimal":
         return (
-          <div className="absolute bottom-12 left-4 right-4">
+          <div className={cn("absolute", spacing.bottom, spacing.inset)}>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="px-3 py-2"
+              className={spacing.padding}
             >
-              <p className="text-xs text-foreground font-bold leading-relaxed text-center drop-shadow-lg">
+              <p className={cn(textSizes.subtitle, "text-foreground font-bold leading-relaxed text-center drop-shadow-lg")}>
                 {subtitle}
               </p>
             </motion.div>
@@ -307,33 +325,33 @@ const VideoPreview = ({
       case "breaking":
         return (
           <>
-            <div className="absolute top-6 left-4">
+            <div className={cn("absolute left-4", spacing.topBreaking)}>
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="gradient-news px-3 py-1 rounded-sm"
+                className={cn("gradient-news rounded-sm", spacing.paddingSmall)}
               >
-                <span className="text-[10px] font-bold text-primary-foreground tracking-wider">
+                <span className={cn(textSizes.breaking, "font-bold text-primary-foreground tracking-wider")}>
                   BREAKING NEWS
                 </span>
               </motion.div>
             </div>
-            <div className="absolute top-14 left-4 right-4">
+            <div className={cn("absolute", spacing.topHeadline, spacing.inset)}>
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-sm font-display font-bold text-foreground leading-tight"
+                className={cn(textSizes.headline, "font-display font-bold text-foreground leading-tight")}
               >
                 {headline}
               </motion.div>
             </div>
-            <div className="absolute bottom-12 left-4 right-4">
+            <div className={cn("absolute", spacing.bottom, spacing.inset)}>
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-primary/20 border-l-2 border-primary px-3 py-2 rounded-r-lg"
+                className={cn("bg-primary/20 border-l-2 border-primary rounded-r-lg", spacing.padding)}
               >
-                <p className="text-xs text-foreground font-medium leading-relaxed">
+                <p className={cn(textSizes.subtitle, "text-foreground font-medium leading-relaxed")}>
                   {subtitle}
                 </p>
               </motion.div>
@@ -347,6 +365,10 @@ const VideoPreview = ({
   const renderOverlays = () => {
     if (!overlaySettings) return null;
 
+    const logoSize = isTV ? (overlaySettings.logo?.size || 40) * 1.3 : (overlaySettings.logo?.size || 40);
+    const cornerSize = isTV ? "w-8 h-8" : "w-6 h-6";
+    const barHeight = isTV ? "h-4" : "h-3";
+
     return (
       <>
         {/* Frame Overlay */}
@@ -354,18 +376,18 @@ const VideoPreview = ({
           <>
             {overlaySettings.frame.style === "border" && (
               <div
-                className="absolute inset-0 z-20 pointer-events-none border-4"
+                className={cn("absolute inset-0 z-20 pointer-events-none", isTV ? "border-[6px]" : "border-4")}
                 style={{ borderColor: overlaySettings.frame.color }}
               />
             )}
             {overlaySettings.frame.style === "bars" && (
               <>
                 <div
-                  className="absolute top-0 left-0 right-0 h-3 z-20"
+                  className={cn("absolute top-0 left-0 right-0 z-20", barHeight)}
                   style={{ backgroundColor: overlaySettings.frame.color }}
                 />
                 <div
-                  className="absolute bottom-0 left-0 right-0 h-3 z-20"
+                  className={cn("absolute bottom-0 left-0 right-0 z-20", barHeight)}
                   style={{ backgroundColor: overlaySettings.frame.color }}
                 />
               </>
@@ -373,19 +395,19 @@ const VideoPreview = ({
             {overlaySettings.frame.style === "corner" && (
               <>
                 <div
-                  className="absolute top-2 left-2 w-6 h-6 border-t-3 border-l-3 z-20"
+                  className={cn("absolute top-2 left-2 border-t-3 border-l-3 z-20", cornerSize)}
                   style={{ borderColor: overlaySettings.frame.color }}
                 />
                 <div
-                  className="absolute top-2 right-2 w-6 h-6 border-t-3 border-r-3 z-20"
+                  className={cn("absolute top-2 right-2 border-t-3 border-r-3 z-20", cornerSize)}
                   style={{ borderColor: overlaySettings.frame.color }}
                 />
                 <div
-                  className="absolute bottom-8 left-2 w-6 h-6 border-b-3 border-l-3 z-20"
+                  className={cn("absolute left-2 border-b-3 border-l-3 z-20", cornerSize, isTV ? "bottom-6" : "bottom-8")}
                   style={{ borderColor: overlaySettings.frame.color }}
                 />
                 <div
-                  className="absolute bottom-8 right-2 w-6 h-6 border-b-3 border-r-3 z-20"
+                  className={cn("absolute right-2 border-b-3 border-r-3 z-20", cornerSize, isTV ? "bottom-6" : "bottom-8")}
                   style={{ borderColor: overlaySettings.frame.color }}
                 />
               </>
@@ -400,14 +422,14 @@ const VideoPreview = ({
             animate={{ opacity: 1, scale: 1 }}
             className={cn(
               "absolute z-30",
-              overlaySettings.logo.position === "top-left" && "top-4 left-3",
-              overlaySettings.logo.position === "top-right" && "top-4 right-3",
-              overlaySettings.logo.position === "bottom-left" && "bottom-14 left-3",
-              overlaySettings.logo.position === "bottom-right" && "bottom-14 right-3"
+              overlaySettings.logo.position === "top-left" && (isTV ? "top-3 left-4" : "top-4 left-3"),
+              overlaySettings.logo.position === "top-right" && (isTV ? "top-3 right-4" : "top-4 right-3"),
+              overlaySettings.logo.position === "bottom-left" && (isTV ? "bottom-10 left-4" : "bottom-14 left-3"),
+              overlaySettings.logo.position === "bottom-right" && (isTV ? "bottom-10 right-4" : "bottom-14 right-3")
             )}
             style={{
-              width: `${overlaySettings.logo.size || 40}px`,
-              height: `${overlaySettings.logo.size || 40}px`,
+              width: `${logoSize}px`,
+              height: `${logoSize}px`,
             }}
           >
             <img
@@ -424,15 +446,17 @@ const VideoPreview = ({
             initial={{ opacity: 0, y: overlaySettings.headline.position === "top" ? -20 : 20 }}
             animate={{ opacity: 1, y: 0 }}
             className={cn(
-              "absolute left-0 right-0 z-25 px-2",
-              overlaySettings.headline.position === "top" && "top-6",
+              "absolute left-0 right-0 z-25",
+              isTV ? "px-4" : "px-2",
+              overlaySettings.headline.position === "top" && (isTV ? "top-4" : "top-6"),
               overlaySettings.headline.position === "center" && "top-1/2 -translate-y-1/2",
-              overlaySettings.headline.position === "bottom" && "bottom-10"
+              overlaySettings.headline.position === "bottom" && (isTV ? "bottom-8" : "bottom-10")
             )}
           >
             <div
               className={cn(
-                "px-3 py-2 rounded-lg",
+                "rounded-lg",
+                isTV ? "px-4 py-3" : "px-3 py-2",
                 overlaySettings.headline.style === "transparent" && "bg-black/60 backdrop-blur-sm"
               )}
               style={{
@@ -444,11 +468,11 @@ const VideoPreview = ({
                   : undefined,
               }}
             >
-              <p className="text-white text-[11px] font-bold leading-tight drop-shadow-md">
+              <p className={cn("text-white font-bold leading-tight drop-shadow-md", isTV ? "text-sm" : "text-[11px]")}>
                 {headline}
               </p>
               {overlaySettings.headline.showSubtitle && (
-                <p className="text-white/90 text-[9px] font-medium leading-tight mt-0.5 drop-shadow-md">
+                <p className={cn("text-white/90 font-medium leading-tight mt-0.5 drop-shadow-md", isTV ? "text-xs" : "text-[9px]")}>
                   {subtitle}
                 </p>
               )}
@@ -462,17 +486,18 @@ const VideoPreview = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className={cn(
-              "absolute left-2 right-2 z-30 text-center",
-              overlaySettings.credit.position === "top" ? "top-4" : "bottom-4"
+              "absolute z-30 text-center",
+              isTV ? "left-4 right-4" : "left-2 right-2",
+              overlaySettings.credit.position === "top" ? (isTV ? "top-3" : "top-4") : (isTV ? "bottom-3" : "bottom-4")
             )}
           >
             {overlaySettings.credit.text && (
-              <p className="text-white text-[8px] font-medium drop-shadow-md">
+              <p className={cn("text-white font-medium drop-shadow-md", isTV ? "text-[10px]" : "text-[8px]")}>
                 {overlaySettings.credit.text}
               </p>
             )}
             {overlaySettings.credit.secondaryText && (
-              <p className="text-white/70 text-[7px] drop-shadow-md">
+              <p className={cn("text-white/70 drop-shadow-md", isTV ? "text-[9px]" : "text-[7px]")}>
                 {overlaySettings.credit.secondaryText}
               </p>
             )}
@@ -484,11 +509,12 @@ const VideoPreview = ({
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="absolute top-6 left-0 right-0 z-30"
+            className={cn("absolute left-0 right-0 z-30", isTV ? "top-4" : "top-6")}
           >
             <div
               className={cn(
-                "mx-2 px-3 py-1.5 text-white text-[10px] font-bold text-center tracking-wider",
+                "text-white font-bold text-center tracking-wider",
+                isTV ? "mx-4 px-4 py-2 text-xs" : "mx-2 px-3 py-1.5 text-[10px]",
                 overlaySettings.breakingNews.style === "red" && "bg-red-600",
                 overlaySettings.breakingNews.style === "blue" && "bg-blue-600",
                 overlaySettings.breakingNews.style === "orange" && "bg-orange-500"
@@ -509,24 +535,26 @@ const VideoPreview = ({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-20 left-2 right-2 z-30"
+            className={cn("absolute z-30", isTV ? "bottom-14 left-4 right-4" : "bottom-20 left-2 right-2")}
           >
             <div
               className={cn(
-                "px-2 py-1.5 rounded",
+                "rounded",
+                isTV ? "px-3 py-2" : "px-2 py-1.5",
                 overlaySettings.lowerThird.style === "modern" && "bg-gradient-to-r from-primary to-primary/80 text-white",
                 overlaySettings.lowerThird.style === "classic" && "bg-black/90 text-white border-l-2 border-primary",
                 overlaySettings.lowerThird.style === "minimal" && "bg-white/95 text-black"
               )}
             >
               {overlaySettings.lowerThird.title && (
-                <p className="text-[10px] font-semibold leading-tight">
+                <p className={cn("font-semibold leading-tight", isTV ? "text-xs" : "text-[10px]")}>
                   {overlaySettings.lowerThird.title}
                 </p>
               )}
               {overlaySettings.lowerThird.subtitle && (
                 <p className={cn(
-                  "text-[8px] leading-tight",
+                  "leading-tight",
+                  isTV ? "text-[10px]" : "text-[8px]",
                   overlaySettings.lowerThird.style === "minimal" ? "text-black/70" : "text-white/80"
                 )}>
                   {overlaySettings.lowerThird.subtitle}
