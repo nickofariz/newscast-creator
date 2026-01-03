@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
 interface SubtitleWord {
   text: string;
@@ -32,10 +34,11 @@ interface ExportOptions {
   audioDuration: number;
   subtitleStyle?: SubtitleStyleSettings;
   quality?: "720p" | "1080p";
+  format?: "webm" | "mp4";
 }
 
 interface ExportProgress {
-  status: "idle" | "preparing" | "rendering" | "encoding" | "complete" | "error";
+  status: "idle" | "preparing" | "rendering" | "encoding" | "converting" | "complete" | "error";
   progress: number; // 0-100
   message: string;
   estimatedTimeRemaining?: number; // in seconds
@@ -54,6 +57,8 @@ export const useVideoExporter = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const abortRef = useRef(false);
+  const ffmpegRef = useRef<FFmpeg | null>(null);
+  const ffmpegLoadedRef = useRef(false);
 
   const getActiveSubtitle = useCallback((
     subtitleWords: SubtitleWord[],
@@ -199,6 +204,55 @@ export const useVideoExporter = () => {
     });
   };
 
+  // Load FFmpeg
+  const loadFFmpeg = useCallback(async () => {
+    if (ffmpegLoadedRef.current && ffmpegRef.current) return ffmpegRef.current;
+    
+    const ffmpeg = new FFmpeg();
+    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+    
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+    
+    ffmpegRef.current = ffmpeg;
+    ffmpegLoadedRef.current = true;
+    return ffmpeg;
+  }, []);
+
+  // Convert WebM to MP4
+  const convertToMp4 = useCallback(async (webmBlob: Blob): Promise<Blob> => {
+    setExportProgress({ status: "converting", progress: 92, message: "Memuat FFmpeg..." });
+    
+    const ffmpeg = await loadFFmpeg();
+    
+    setExportProgress({ status: "converting", progress: 94, message: "Mengkonversi ke MP4..." });
+    
+    const webmData = await fetchFile(webmBlob);
+    await ffmpeg.writeFile("input.webm", webmData);
+    
+    await ffmpeg.exec([
+      "-i", "input.webm",
+      "-c:v", "libx264",
+      "-preset", "fast",
+      "-crf", "23",
+      "-c:a", "aac",
+      "-b:a", "128k",
+      "-movflags", "+faststart",
+      "output.mp4"
+    ]);
+    
+    const mp4Data = await ffmpeg.readFile("output.mp4");
+    const mp4Blob = new Blob([new Uint8Array(mp4Data as Uint8Array)], { type: "video/mp4" });
+    
+    // Cleanup
+    await ffmpeg.deleteFile("input.webm");
+    await ffmpeg.deleteFile("output.mp4");
+    
+    return mp4Blob;
+  }, [loadFFmpeg]);
+
   const exportVideo = useCallback(async (options: ExportOptions): Promise<{ url: string; blob: Blob } | null> => {
     const {
       mediaFiles,
@@ -208,6 +262,7 @@ export const useVideoExporter = () => {
       audioDuration,
       subtitleStyle = DEFAULT_SUBTITLE_STYLE,
       quality = "720p",
+      format = "webm",
     } = options;
 
     abortRef.current = false;
@@ -394,15 +449,26 @@ export const useVideoExporter = () => {
       if (audioSource) audioSource.disconnect();
       if (audioContext) audioContext.close();
 
-      // Create blob and URL
-      const blob = new Blob(recordedChunksRef.current, { type: selectedMimeType });
-      const url = URL.createObjectURL(blob);
+      // Create blob
+      let finalBlob = new Blob(recordedChunksRef.current, { type: selectedMimeType });
+      
+      // Convert to MP4 if requested
+      if (format === "mp4") {
+        try {
+          finalBlob = await convertToMp4(finalBlob);
+        } catch (conversionError) {
+          console.error("MP4 conversion failed, using WebM:", conversionError);
+          // Fall back to WebM if conversion fails
+        }
+      }
+      
+      const url = URL.createObjectURL(finalBlob);
       
       setExportedVideoUrl(url);
-      setExportedBlob(blob);
+      setExportedBlob(finalBlob);
       setExportProgress({ status: "complete", progress: 100, message: "Export selesai!" });
       
-      return { url, blob };
+      return { url, blob: finalBlob };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Export failed";
       setExportProgress({ status: "error", progress: 0, message });
