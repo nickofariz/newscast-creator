@@ -1,17 +1,10 @@
 import { motion } from "framer-motion";
-import { ChevronRight, ChevronLeft, Mic, Settings, Subtitles } from "lucide-react";
+import { ChevronRight, ChevronLeft, Mic, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NewsInput from "@/components/NewsInput";
 import VoiceSelector from "@/components/VoiceSelector";
 import VoiceSettings, { VoiceSettingsValues } from "@/components/VoiceSettings";
 import AudioPreview from "@/components/AudioPreview";
-import SubtitlePreview from "@/components/SubtitlePreview";
-
-interface SubtitleWord {
-  text: string;
-  start: number;
-  end: number;
-}
 
 interface VoiceOverStepProps {
   newsText: string;
@@ -29,11 +22,6 @@ interface VoiceOverStepProps {
   onPlay: () => void;
   onPause: () => void;
   onGenerateAudio: () => void;
-  // Subtitles
-  subtitleWords: SubtitleWord[];
-  isGeneratingSubtitles: boolean;
-  onGenerateSubtitles: () => void;
-  onDownloadSRT: () => void;
   // Navigation
   onNext: () => void;
   onBack: () => void;
@@ -54,10 +42,6 @@ const VoiceOverStep = ({
   onPlay,
   onPause,
   onGenerateAudio,
-  subtitleWords,
-  isGeneratingSubtitles,
-  onGenerateSubtitles,
-  onDownloadSRT,
   onNext,
   onBack,
 }: VoiceOverStepProps) => {
@@ -121,27 +105,6 @@ const VoiceOverStep = ({
           onPause={onPause}
           onGenerate={onGenerateAudio}
           disabled={!newsText.trim()}
-        />
-      </div>
-
-      {/* Subtitle Preview */}
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-            <Subtitles className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <div>
-            <h3 className="font-medium text-foreground text-sm">Auto Subtitle</h3>
-            <p className="text-xs text-muted-foreground">Generate subtitle otomatis dari audio</p>
-          </div>
-        </div>
-        <SubtitlePreview
-          words={subtitleWords}
-          isGenerating={isGeneratingSubtitles}
-          currentTime={currentTime}
-          onGenerate={onGenerateSubtitles}
-          disabled={!audioUrl}
-          onDownloadSRT={onDownloadSRT}
         />
       </div>
 

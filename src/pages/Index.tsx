@@ -221,10 +221,6 @@ const Index = () => {
                   onPlay={playAudio}
                   onPause={pauseAudio}
                   onGenerateAudio={handleGenerateAudio}
-                  subtitleWords={subtitleWords}
-                  isGeneratingSubtitles={isGeneratingSubtitles}
-                  onGenerateSubtitles={handleGenerateSubtitles}
-                  onDownloadSRT={downloadSRT}
                   onNext={handleVoiceOverNext}
                   onBack={() => setCurrentStep("media")}
                 />
