@@ -38,6 +38,7 @@ interface EditorStepProps {
   audioUrl?: string | null;
   onPlay?: () => void;
   onPause?: () => void;
+  onSeek?: (time: number) => void;
 }
 
 const EditorStep = ({
@@ -59,6 +60,7 @@ const EditorStep = ({
   audioUrl,
   onPlay,
   onPause,
+  onSeek,
 }: EditorStepProps) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -154,6 +156,9 @@ const EditorStep = ({
               audioUrl={audioUrl}
               overlayText={newsText}
               overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              onSeek={onSeek}
             />
           </div>
         </TabsContent>

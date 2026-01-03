@@ -46,6 +46,7 @@ const Index = () => {
     isPlaying,
     duration,
     currentTime,
+    seekTo,
   } = useTextToSpeech();
 
   const {
@@ -247,6 +248,7 @@ const Index = () => {
                   audioUrl={audioUrl}
                   onPlay={playAudio}
                   onPause={pauseAudio}
+                  onSeek={seekTo}
                 />
               )}
 

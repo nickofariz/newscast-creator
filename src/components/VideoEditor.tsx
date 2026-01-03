@@ -38,6 +38,9 @@ interface VideoEditorProps {
   audioUrl?: string | null;
   overlayText?: string;
   overlayImage?: string | null;
+  currentTime: number;
+  isPlaying: boolean;
+  onSeek?: (time: number) => void;
 }
 
 const DEFAULT_CLIP_DURATION = 3;
@@ -50,12 +53,13 @@ const VideoEditor = ({
   audioDuration,
   audioUrl,
   overlayText,
-  overlayImage
+  overlayImage,
+  currentTime,
+  isPlaying,
+  onSeek
 }: VideoEditorProps) => {
   const [clips, setClips] = useState<MediaClip[]>([]);
   const [selectedClipIndex, setSelectedClipIndex] = useState<number | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [textTiming, setTextTiming] = useState<LayerTiming>({ startTime: 0, duration: 10 });
   const [imageTiming, setImageTiming] = useState<LayerTiming>({ startTime: 0, duration: 10 });
@@ -68,7 +72,6 @@ const VideoEditor = ({
   } | null>(null);
   
   const timelineRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const newClips: MediaClip[] = mediaFiles.map((media) => ({
@@ -95,29 +98,7 @@ const VideoEditor = ({
     }
   }, [totalDuration]);
 
-  useEffect(() => {
-    if (isPlaying) {
-      timerRef.current = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= totalDuration) {
-            setIsPlaying(false);
-            return 0;
-          }
-          return prev + 0.05;
-        });
-      }, 50);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isPlaying, totalDuration]);
+  // Note: currentTime and isPlaying now come from props (controlled by parent)
 
   // Handle drag events
   useEffect(() => {
@@ -170,8 +151,8 @@ const VideoEditor = ({
     if (!timelineRef.current || isDragging) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const clickedTime = x / (TIMELINE_PIXELS_PER_SECOND * zoom);
-    setCurrentTime(Math.max(0, Math.min(totalDuration, clickedTime)));
+    const clickedTime = Math.max(0, Math.min(totalDuration, x / (TIMELINE_PIXELS_PER_SECOND * zoom)));
+    onSeek?.(clickedTime);
   };
 
   const handleClipReorder = (newOrder: MediaClip[]) => {
@@ -297,21 +278,16 @@ const VideoEditor = ({
 
   return (
     <div className="space-y-3">
-      {/* Controls */}
+      {/* Controls - time display only, play/pause controlled by parent */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setIsPlaying(!isPlaying)}
-          >
+          <div className={`h-8 w-8 p-0 flex items-center justify-center rounded-md border ${isPlaying ? 'bg-primary/10 border-primary' : 'bg-muted/50 border-border'}`}>
             {isPlaying ? (
-              <Pause className="w-4 h-4" />
+              <Pause className="w-4 h-4 text-primary" />
             ) : (
-              <Play className="w-4 h-4" />
+              <Play className="w-4 h-4 text-muted-foreground" />
             )}
-          </Button>
+          </div>
           <span className="text-xs font-mono text-muted-foreground">
             {formatTime(currentTime)} / {formatTime(totalDuration)}
           </span>
