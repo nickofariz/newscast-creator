@@ -93,18 +93,18 @@ const VideoPreview = ({
   const hasEditedClips = editedClips.length > 0;
 
   // Determine which media should be shown based on current time and edited clips
+  // Use a ref to track previous index and prevent unnecessary re-renders
+  const prevMediaIndexRef = useRef<number>(0);
+  
   const activeMediaIndex = useMemo(() => {
     if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
     
-    // Always use currentTime for seeking - this ensures immediate response
     const time = currentTime;
-    console.log("VideoPreview activeMediaIndex - currentTime:", time, "editedClips:", editedClips.length);
     
     // Use edited clips if available - this is the primary logic
     if (hasEditedClips) {
       for (let i = 0; i < editedClips.length; i++) {
         if (time >= editedClips[i].startTime && time < editedClips[i].endTime) {
-          console.log("VideoPreview - found clip index:", i, "for time:", time);
           return i;
         }
       }
@@ -127,9 +127,12 @@ const VideoPreview = ({
     return Math.max(0, mediaFiles.length - 1);
   }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
 
-  // Update current media index when active index changes
+  // Only update current media index when it actually changes to prevent flickering
   useEffect(() => {
-    setCurrentMediaIndex(activeMediaIndex);
+    if (activeMediaIndex !== prevMediaIndexRef.current) {
+      prevMediaIndexRef.current = activeMediaIndex;
+      setCurrentMediaIndex(activeMediaIndex);
+    }
   }, [activeMediaIndex]);
 
   // Get current media - use editedClips source if available
@@ -709,42 +712,39 @@ const VideoPreview = ({
           {/* Fullscreen video container - FULL SCREEN */}
           <div className="absolute inset-0 z-10">
             {/* Media content - fills entire screen */}
-            <AnimatePresence mode="sync">
-              {currentMedia ? (
-                (() => {
-                  const variants = getTransitionVariants(currentMedia.transition);
-                  return (
-                    <motion.div
-                      key={`fs-${currentMedia.id}-${currentMediaIndex}`}
-                      initial={variants.initial}
-                      animate={variants.animate}
-                      exit={variants.exit}
-                      transition={variants.transition}
-                      className="absolute inset-0"
-                    >
-                      {currentMedia.type === "video" ? (
-                        <video
-                          src={currentMedia.previewUrl}
-                          className="w-full h-full object-contain bg-black"
-                          loop
-                          muted
-                          playsInline
-                          autoPlay={isAudioPlaying}
-                        />
-                      ) : (
-                        <img
-                          src={currentMedia.previewUrl}
-                          alt="Background"
-                          className="w-full h-full object-contain bg-black"
-                        />
-                      )}
-                    </motion.div>
-                  );
-                })()
-              ) : (
-                <div className="absolute inset-0 gradient-dark" />
-              )}
-            </AnimatePresence>
+            {currentMedia ? (
+              <div className="absolute inset-0">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={`fs-${currentMedia.id}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="absolute inset-0"
+                  >
+                    {currentMedia.type === "video" ? (
+                      <video
+                        src={currentMedia.previewUrl}
+                        className="w-full h-full object-contain bg-black"
+                        loop
+                        muted
+                        playsInline
+                        autoPlay={isAudioPlaying}
+                      />
+                    ) : (
+                      <img
+                        src={currentMedia.previewUrl}
+                        alt="Background"
+                        className="w-full h-full object-contain bg-black"
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            ) : (
+              <div className="absolute inset-0 gradient-dark" />
+            )}
 
             {/* Dark overlay */}
             {currentMedia && <div className="absolute inset-0 bg-black/20 pointer-events-none" />}
@@ -1015,60 +1015,48 @@ const VideoPreview = ({
         </AnimatePresence>
 
         {/* Background - Media or Gradient */}
-        <AnimatePresence mode="sync">
-          {currentMedia ? (
-            (() => {
-              const variants = getTransitionVariants(currentMedia.transition);
-              return (
-                <motion.div
-                  key={`${currentMedia.id}-${currentMediaIndex}`}
-                  initial={variants.initial}
-                  animate={variants.animate}
-                  exit={variants.exit}
-                  transition={variants.transition}
-                  className={cn(
-                    "absolute inset-0 overflow-hidden",
-                    isSeeking && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                  )}
-                >
-                  {currentMedia.type === "video" ? (
-                    <video
-                      ref={videoRef}
-                      src={currentMedia.previewUrl}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      loop
-                      muted
-                      playsInline
-                    />
-                  ) : (
-                    <img
-                      src={currentMedia.previewUrl}
-                      alt="Background"
-                      className={cn(
-                        "absolute inset-0 w-full h-full object-cover transition-transform duration-150",
-                        isSeeking && "scale-[1.02]"
-                      )}
-                    />
-                  )}
-                </motion.div>
-              );
-            })()
-          ) : (
-            <motion.div
-              key="placeholder"
-              className="absolute inset-0"
-            >
-              <div className="absolute inset-0 gradient-dark" />
-              <div 
-                className="absolute inset-0 opacity-5"
-                style={{
-                  backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
-                  backgroundSize: '20px 20px'
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {currentMedia ? (
+          <div className="absolute inset-0 overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={currentMedia.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="absolute inset-0"
+              >
+                {currentMedia.type === "video" ? (
+                  <video
+                    ref={videoRef}
+                    src={currentMedia.previewUrl}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    loop
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={currentMedia.previewUrl}
+                    alt="Background"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="absolute inset-0">
+            <div className="absolute inset-0 gradient-dark" />
+            <div 
+              className="absolute inset-0 opacity-5"
+              style={{
+                backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
+                backgroundSize: '20px 20px'
+              }}
+            />
+          </div>
+        )}
         
         {/* Dark overlay for text readability */}
         {currentMedia && <div className="absolute inset-0 bg-black/40" />}
