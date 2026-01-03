@@ -1,24 +1,17 @@
 import { motion } from "framer-motion";
-import { ChevronRight, Image, Layers } from "lucide-react";
+import { ChevronRight, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FootageUploader, { MediaFile } from "@/components/FootageUploader";
-import TemplateSelector from "@/components/TemplateSelector";
-
-type TemplateType = "headline-top" | "minimal" | "breaking";
 
 interface MediaStepProps {
   uploadedMedia: MediaFile[];
   onUploadMedia: (files: MediaFile[]) => void;
-  selectedTemplate: TemplateType;
-  onSelectTemplate: (template: TemplateType) => void;
   onNext: () => void;
 }
 
 const MediaStep = ({
   uploadedMedia,
   onUploadMedia,
-  selectedTemplate,
-  onSelectTemplate,
   onNext,
 }: MediaStepProps) => {
   const canProceed = uploadedMedia.length > 0;
@@ -48,20 +41,6 @@ const MediaStep = ({
       {/* Media Uploader */}
       <div className="glass-card rounded-xl p-5">
         <FootageUploader onUpload={onUploadMedia} uploadedFiles={uploadedMedia} />
-      </div>
-
-      {/* Template Selection */}
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-            <Layers className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <div>
-            <h3 className="font-medium text-foreground text-sm">Template Video</h3>
-            <p className="text-xs text-muted-foreground">Pilih layout untuk video Anda</p>
-          </div>
-        </div>
-        <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
       </div>
 
       {/* Next Button */}
