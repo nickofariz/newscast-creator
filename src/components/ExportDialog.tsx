@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, X, Loader2, CheckCircle, AlertCircle, Film, ImageIcon } from "lucide-react";
+import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -65,6 +66,46 @@ const ExportDialog = ({
   const [format, setFormat] = useState<"webm" | "mp4">("mp4");
   const [thumbnails, setThumbnails] = useState<string[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Trigger confetti when export is complete
+  useEffect(() => {
+    if (exportProgress.status === "complete") {
+      // Fire confetti from both sides
+      const duration = 2000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0, y: 0.6 },
+          colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7']
+        });
+        confetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1, y: 0.6 },
+          colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+
+      // Initial burst
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7']
+      });
+
+      frame();
+    }
+  }, [exportProgress.status]);
 
   // Generate thumbnails from media previews
   useEffect(() => {
