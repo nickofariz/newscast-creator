@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Volume2, Pause } from "lucide-react";
+import { Play, Volume2, Pause, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
@@ -10,11 +10,18 @@ interface SubtitleWord {
   end: number;
 }
 
+interface MediaFile {
+  id: string;
+  file: File;
+  type: "video" | "image";
+  previewUrl: string;
+}
+
 interface VideoPreviewProps {
   newsText: string;
   template: TemplateType;
   isGenerating: boolean;
-  footageFile?: File | null;
+  mediaFiles?: MediaFile[];
   subtitleWords?: SubtitleWord[];
   currentTime?: number;
   isAudioPlaying?: boolean;
@@ -24,14 +31,16 @@ const VideoPreview = ({
   newsText, 
   template, 
   isGenerating, 
-  footageFile,
+  mediaFiles = [],
   subtitleWords = [],
   currentTime = 0,
   isAudioPlaying = false,
 }: VideoPreviewProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [footageUrl, setFootageUrl] = useState<string | null>(null);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const currentMedia = mediaFiles[currentMediaIndex];
 
   // Get active subtitle text based on current time
   const activeSubtitle = useMemo(() => {
@@ -60,16 +69,24 @@ const VideoPreview = ({
     });
   }, [subtitleWords, currentTime, isAudioPlaying]);
 
-  // Handle footage file changes
+  // Reset index when media files change
   useEffect(() => {
-    if (footageFile) {
-      const url = URL.createObjectURL(footageFile);
-      setFootageUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else {
-      setFootageUrl(null);
+    if (currentMediaIndex >= mediaFiles.length) {
+      setCurrentMediaIndex(Math.max(0, mediaFiles.length - 1));
     }
-  }, [footageFile]);
+  }, [mediaFiles.length, currentMediaIndex]);
+
+  const goToNextMedia = () => {
+    if (mediaFiles.length > 1) {
+      setCurrentMediaIndex((prev) => (prev + 1) % mediaFiles.length);
+    }
+  };
+
+  const goToPrevMedia = () => {
+    if (mediaFiles.length > 1) {
+      setCurrentMediaIndex((prev) => (prev - 1 + mediaFiles.length) % mediaFiles.length);
+    }
+  };
 
   // Handle play/pause
   useEffect(() => {
@@ -182,16 +199,24 @@ const VideoPreview = ({
       </div>
 
       <div className="video-frame relative mx-auto max-w-[200px] shadow-card">
-        {/* Background - Video or Gradient */}
-        {footageUrl ? (
-          <video
-            ref={videoRef}
-            src={footageUrl}
-            className="absolute inset-0 w-full h-full object-cover"
-            loop
-            muted
-            playsInline
-          />
+        {/* Background - Media or Gradient */}
+        {currentMedia ? (
+          currentMedia.type === "video" ? (
+            <video
+              ref={videoRef}
+              src={currentMedia.previewUrl}
+              className="absolute inset-0 w-full h-full object-cover"
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <img
+              src={currentMedia.previewUrl}
+              alt="Background"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )
         ) : (
           <>
             <div className="absolute inset-0 gradient-dark" />
@@ -206,7 +231,28 @@ const VideoPreview = ({
         )}
         
         {/* Dark overlay for text readability */}
-        {footageUrl && <div className="absolute inset-0 bg-black/40" />}
+        {currentMedia && <div className="absolute inset-0 bg-black/40" />}
+
+        {/* Media navigation */}
+        {mediaFiles.length > 1 && (
+          <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20">
+            <button
+              onClick={(e) => { e.stopPropagation(); goToPrevMedia(); }}
+              className="w-6 h-6 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4 text-white" />
+            </button>
+            <span className="text-[10px] text-white bg-black/50 px-2 py-0.5 rounded-full">
+              {currentMediaIndex + 1}/{mediaFiles.length}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); goToNextMedia(); }}
+              className="w-6 h-6 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        )}
 
         {/* Template content */}
         <AnimatePresence mode="wait">
