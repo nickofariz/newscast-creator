@@ -12,7 +12,8 @@ import {
   ZoomOut,
   Trash2,
   GripVertical,
-  Clock
+  Clock,
+  GripHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaFile } from "./FootageUploader";
@@ -22,6 +23,11 @@ interface MediaClip extends MediaFile {
   trimStart: number;
   trimEnd: number;
   clipDuration: number;
+}
+
+interface LayerTiming {
+  startTime: number;
+  duration: number;
 }
 
 interface VideoEditorProps {
@@ -35,6 +41,7 @@ interface VideoEditorProps {
 
 const DEFAULT_CLIP_DURATION = 3;
 const TIMELINE_PIXELS_PER_SECOND = 50;
+const MIN_DURATION = 0.5;
 
 const VideoEditor = ({ 
   mediaFiles, 
@@ -49,6 +56,16 @@ const VideoEditor = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [textTiming, setTextTiming] = useState<LayerTiming>({ startTime: 0, duration: 10 });
+  const [imageTiming, setImageTiming] = useState<LayerTiming>({ startTime: 0, duration: 10 });
+  const [isDragging, setIsDragging] = useState<{
+    type: 'media-start' | 'media-end' | 'text-start' | 'text-end' | 'text-move' | 'image-start' | 'image-end' | 'image-move';
+    index?: number;
+    startX: number;
+    originalValue: number;
+    originalStart?: number;
+  } | null>(null);
+  
   const timelineRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -62,13 +79,20 @@ const VideoEditor = ({
     setClips(newClips);
   }, [mediaFiles]);
 
-  const totalDuration = Math.max(
-    clips.reduce((acc, clip) => {
-      const effectiveDuration = clip.clipDuration * (clip.trimEnd - clip.trimStart);
-      return acc + effectiveDuration;
-    }, 0),
-    audioDuration || 0
-  );
+  const mediaDuration = clips.reduce((acc, clip) => {
+    const effectiveDuration = clip.clipDuration * (clip.trimEnd - clip.trimStart);
+    return acc + effectiveDuration;
+  }, 0);
+
+  const totalDuration = Math.max(mediaDuration, audioDuration || 0, textTiming.startTime + textTiming.duration, imageTiming.startTime + imageTiming.duration);
+
+  // Update layer timings when total duration changes
+  useEffect(() => {
+    if (totalDuration > 0) {
+      setTextTiming(prev => ({ ...prev, duration: Math.max(prev.duration, totalDuration) }));
+      setImageTiming(prev => ({ ...prev, duration: Math.max(prev.duration, totalDuration) }));
+    }
+  }, [totalDuration]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -94,8 +118,55 @@ const VideoEditor = ({
     };
   }, [isPlaying, totalDuration]);
 
+  // Handle drag events
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - isDragging.startX;
+      const deltaTime = deltaX / (TIMELINE_PIXELS_PER_SECOND * zoom);
+
+      if (isDragging.type === 'media-end' && isDragging.index !== undefined) {
+        const newDuration = Math.max(MIN_DURATION, isDragging.originalValue + deltaTime);
+        setClips(prev => prev.map((clip, i) => 
+          i === isDragging.index ? { ...clip, clipDuration: newDuration } : clip
+        ));
+      } else if (isDragging.type === 'text-end') {
+        const newDuration = Math.max(MIN_DURATION, isDragging.originalValue + deltaTime);
+        setTextTiming(prev => ({ ...prev, duration: newDuration }));
+      } else if (isDragging.type === 'text-start') {
+        const newStart = Math.max(0, isDragging.originalValue + deltaTime);
+        setTextTiming(prev => ({ ...prev, startTime: newStart }));
+      } else if (isDragging.type === 'text-move') {
+        const newStart = Math.max(0, isDragging.originalStart! + deltaTime);
+        setTextTiming(prev => ({ ...prev, startTime: newStart }));
+      } else if (isDragging.type === 'image-end') {
+        const newDuration = Math.max(MIN_DURATION, isDragging.originalValue + deltaTime);
+        setImageTiming(prev => ({ ...prev, duration: newDuration }));
+      } else if (isDragging.type === 'image-start') {
+        const newStart = Math.max(0, isDragging.originalValue + deltaTime);
+        setImageTiming(prev => ({ ...prev, startTime: newStart }));
+      } else if (isDragging.type === 'image-move') {
+        const newStart = Math.max(0, isDragging.originalStart! + deltaTime);
+        setImageTiming(prev => ({ ...prev, startTime: newStart }));
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, zoom]);
+
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current) return;
+    if (!timelineRef.current || isDragging) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const clickedTime = x / (TIMELINE_PIXELS_PER_SECOND * zoom);
@@ -114,6 +185,18 @@ const VideoEditor = ({
     if (selectedClipIndex === index) {
       setSelectedClipIndex(null);
     }
+  };
+
+  const startDrag = (
+    e: React.MouseEvent,
+    type: typeof isDragging extends null ? never : NonNullable<typeof isDragging>['type'],
+    originalValue: number,
+    index?: number,
+    originalStart?: number
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDragging({ type, index, startX: e.clientX, originalValue, originalStart });
   };
 
   const formatTime = (seconds: number) => {
@@ -147,6 +230,26 @@ const VideoEditor = ({
     return marks;
   };
 
+  // Resize handle component
+  const ResizeHandle = ({ 
+    side, 
+    onMouseDown,
+    color
+  }: { 
+    side: 'left' | 'right';
+    onMouseDown: (e: React.MouseEvent) => void;
+    color: string;
+  }) => (
+    <div
+      onMouseDown={onMouseDown}
+      className={`absolute top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${
+        side === 'left' ? 'left-0' : 'right-0'
+      } ${color}`}
+    >
+      <div className="w-0.5 h-4 bg-current rounded-full" />
+    </div>
+  );
+
   // Layer component
   const LayerRow = ({ 
     icon: Icon, 
@@ -162,12 +265,10 @@ const VideoEditor = ({
     isEmpty?: boolean;
   }) => (
     <div className="flex border-b border-border/50 last:border-b-0">
-      {/* Layer Label */}
       <div className="w-20 flex-shrink-0 p-2 bg-card/50 border-r border-border/50 flex items-center gap-1.5">
         <Icon className={`w-3 h-3 ${color}`} />
         <span className="text-[10px] font-medium text-muted-foreground truncate">{label}</span>
       </div>
-      {/* Layer Content */}
       <div className="flex-1 min-h-[40px] relative">
         {isEmpty ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -237,6 +338,12 @@ const VideoEditor = ({
           </Button>
         </div>
       </div>
+
+      {/* Drag hint */}
+      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+        <GripHorizontal className="w-3 h-3" />
+        Drag tepi layer untuk mengatur durasi
+      </p>
 
       {/* Multi-Layer Timeline */}
       <div className="rounded-lg border border-border overflow-hidden bg-card/30">
@@ -337,6 +444,13 @@ const VideoEditor = ({
                             </span>
                           </div>
 
+                          {/* Resize handle - right side */}
+                          <ResizeHandle
+                            side="right"
+                            color="text-blue-400"
+                            onMouseDown={(e) => startDrag(e, 'media-end', clip.clipDuration, index)}
+                          />
+
                           {/* Delete button on hover */}
                           {isSelected && (
                             <button
@@ -344,7 +458,7 @@ const VideoEditor = ({
                                 e.stopPropagation();
                                 handleDeleteClip(index);
                               }}
-                              className="absolute top-0.5 right-0.5 bg-destructive rounded p-0.5"
+                              className="absolute top-0.5 right-3 bg-destructive rounded p-0.5"
                             >
                               <Trash2 className="w-2 h-2 text-white" />
                             </button>
@@ -359,7 +473,7 @@ const VideoEditor = ({
             </ScrollArea>
           </LayerRow>
 
-          {/* Layer 2: Audio (Voice Over) */}
+          {/* Layer 2: Audio (Voice Over) - Fixed duration from TTS */}
           <LayerRow icon={Volume2} label="Audio" color="text-green-500" isEmpty={!audioDuration}>
             {audioDuration > 0 && (
               <ScrollArea className="w-full h-full">
@@ -368,7 +482,7 @@ const VideoEditor = ({
                   style={{ width: `${getTimelineWidth()}px` }}
                 >
                   <div 
-                    className="h-[30px] rounded bg-green-500/20 border border-green-500/40 flex items-center px-2"
+                    className="h-[30px] rounded bg-green-500/20 border border-green-500/40 flex items-center px-2 group relative"
                     style={{ width: `${audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
                   >
                     <div className="flex-1 h-4 flex items-center gap-px overflow-hidden">
@@ -380,7 +494,7 @@ const VideoEditor = ({
                         />
                       ))}
                     </div>
-                    <span className="text-[8px] text-green-600 ml-1">{formatTime(audioDuration)}</span>
+                    <span className="text-[8px] text-green-600 ml-1 bg-green-500/20 px-1 rounded">{formatTime(audioDuration)}</span>
                   </div>
                 </div>
                 <ScrollBar orientation="horizontal" />
@@ -388,20 +502,40 @@ const VideoEditor = ({
             )}
           </LayerRow>
 
-          {/* Layer 3: Text Overlay */}
+          {/* Layer 3: Text Overlay - Draggable */}
           <LayerRow icon={Type} label="Text" color="text-yellow-500" isEmpty={!overlayText}>
             {overlayText && (
               <ScrollArea className="w-full h-full">
                 <div 
-                  className="p-1 min-h-[38px]"
+                  className="p-1 min-h-[38px] relative"
                   style={{ width: `${getTimelineWidth()}px` }}
                 >
                   <div 
-                    className="h-[30px] rounded bg-yellow-500/20 border border-yellow-500/40 flex items-center px-2"
-                    style={{ width: `${totalDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
+                    className="h-[30px] rounded bg-yellow-500/20 border border-yellow-500/40 flex items-center px-2 group relative cursor-move"
+                    style={{ 
+                      width: `${textTiming.duration * TIMELINE_PIXELS_PER_SECOND * zoom}px`,
+                      marginLeft: `${textTiming.startTime * TIMELINE_PIXELS_PER_SECOND * zoom}px`
+                    }}
+                    onMouseDown={(e) => startDrag(e, 'text-move', textTiming.duration, undefined, textTiming.startTime)}
                   >
+                    {/* Left resize handle */}
+                    <ResizeHandle
+                      side="left"
+                      color="text-yellow-400"
+                      onMouseDown={(e) => startDrag(e, 'text-start', textTiming.startTime)}
+                    />
+                    
+                    <GripHorizontal className="w-3 h-3 text-yellow-600/50 mr-1 flex-shrink-0" />
                     <Type className="w-3 h-3 text-yellow-600 mr-1 flex-shrink-0" />
-                    <span className="text-[9px] text-yellow-700 truncate">{overlayText}</span>
+                    <span className="text-[9px] text-yellow-700 truncate flex-1">{overlayText.substring(0, 20)}...</span>
+                    <span className="text-[8px] text-yellow-600 bg-yellow-500/20 px-1 rounded">{formatTime(textTiming.duration)}</span>
+                    
+                    {/* Right resize handle */}
+                    <ResizeHandle
+                      side="right"
+                      color="text-yellow-400"
+                      onMouseDown={(e) => startDrag(e, 'text-end', textTiming.duration)}
+                    />
                   </div>
                 </div>
                 <ScrollBar orientation="horizontal" />
@@ -409,24 +543,44 @@ const VideoEditor = ({
             )}
           </LayerRow>
 
-          {/* Layer 4: Image Overlay (Logo/Watermark) */}
+          {/* Layer 4: Image Overlay (Logo/Watermark) - Draggable */}
           <LayerRow icon={ImageIcon} label="Image" color="text-purple-500" isEmpty={!overlayImage}>
             {overlayImage && (
               <ScrollArea className="w-full h-full">
                 <div 
-                  className="p-1 min-h-[38px]"
+                  className="p-1 min-h-[38px] relative"
                   style={{ width: `${getTimelineWidth()}px` }}
                 >
                   <div 
-                    className="h-[30px] rounded bg-purple-500/20 border border-purple-500/40 flex items-center px-2"
-                    style={{ width: `${totalDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
+                    className="h-[30px] rounded bg-purple-500/20 border border-purple-500/40 flex items-center px-2 group relative cursor-move"
+                    style={{ 
+                      width: `${imageTiming.duration * TIMELINE_PIXELS_PER_SECOND * zoom}px`,
+                      marginLeft: `${imageTiming.startTime * TIMELINE_PIXELS_PER_SECOND * zoom}px`
+                    }}
+                    onMouseDown={(e) => startDrag(e, 'image-move', imageTiming.duration, undefined, imageTiming.startTime)}
                   >
+                    {/* Left resize handle */}
+                    <ResizeHandle
+                      side="left"
+                      color="text-purple-400"
+                      onMouseDown={(e) => startDrag(e, 'image-start', imageTiming.startTime)}
+                    />
+                    
+                    <GripHorizontal className="w-3 h-3 text-purple-600/50 mr-1 flex-shrink-0" />
                     <img 
                       src={overlayImage} 
                       alt="Overlay" 
-                      className="h-5 w-5 object-contain rounded mr-1"
+                      className="h-5 w-5 object-contain rounded mr-1 pointer-events-none"
                     />
-                    <span className="text-[9px] text-purple-600">Logo/Watermark</span>
+                    <span className="text-[9px] text-purple-600 flex-1">Logo</span>
+                    <span className="text-[8px] text-purple-600 bg-purple-500/20 px-1 rounded">{formatTime(imageTiming.duration)}</span>
+                    
+                    {/* Right resize handle */}
+                    <ResizeHandle
+                      side="right"
+                      color="text-purple-400"
+                      onMouseDown={(e) => startDrag(e, 'image-end', imageTiming.duration)}
+                    />
                   </div>
                 </div>
                 <ScrollBar orientation="horizontal" />
@@ -452,15 +606,15 @@ const VideoEditor = ({
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-green-500" />
-          <span>Audio</span>
+          <span>Audio (fixed)</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-yellow-500" />
-          <span>Text</span>
+          <span>Text (drag)</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-purple-500" />
-          <span>Image</span>
+          <span>Image (drag)</span>
         </div>
       </div>
     </div>
