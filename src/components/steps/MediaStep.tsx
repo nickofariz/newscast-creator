@@ -3,6 +3,7 @@ import { ChevronRight, Image, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FootageUploader, { MediaFile } from "@/components/FootageUploader";
 import TemplateSelector from "@/components/TemplateSelector";
+import OverlaySelector, { OverlaySettings } from "@/components/OverlaySelector";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
@@ -11,6 +12,8 @@ interface MediaStepProps {
   onUploadMedia: (files: MediaFile[]) => void;
   selectedTemplate: TemplateType;
   onSelectTemplate: (template: TemplateType) => void;
+  overlaySettings: OverlaySettings;
+  onOverlaySettingsChange: (settings: OverlaySettings) => void;
   onNext: () => void;
 }
 
@@ -19,6 +22,8 @@ const MediaStep = ({
   onUploadMedia,
   selectedTemplate,
   onSelectTemplate,
+  overlaySettings,
+  onOverlaySettingsChange,
   onNext,
 }: MediaStepProps) => {
   const canProceed = uploadedMedia.length > 0;
@@ -62,6 +67,11 @@ const MediaStep = ({
           </div>
         </div>
         <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
+      </div>
+
+      {/* Overlay Settings */}
+      <div className="glass-card rounded-xl p-5">
+        <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
       </div>
 
       {/* Next Button */}
