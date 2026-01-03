@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ZoomIn } from "lucide-react";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { ZoomIn, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ThumbnailSource {
@@ -20,6 +20,7 @@ interface ScrubBarProps {
   thumbnails?: ThumbnailSource[];
   showThumbnailPreview?: boolean;
   showMiniTimeline?: boolean;
+  onReorderThumbnails?: (reorderedIds: string[]) => void;
 }
 
 const ScrubBar = ({ 
@@ -30,7 +31,8 @@ const ScrubBar = ({
   height = "md",
   thumbnails = [],
   showThumbnailPreview = true,
-  showMiniTimeline = false
+  showMiniTimeline = false,
+  onReorderThumbnails
 }: ScrubBarProps) => {
   const barRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -38,18 +40,33 @@ const ScrubBar = ({
   const [hoverTime, setHoverTime] = useState<number>(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [activeThumbIndex, setActiveThumbIndex] = useState<number | null>(null);
+  const [isDraggingThumb, setIsDraggingThumb] = useState(false);
+  const [orderedThumbnails, setOrderedThumbnails] = useState<ThumbnailSource[]>(thumbnails);
+
+  // Sync ordered thumbnails with props
+  useEffect(() => {
+    setOrderedThumbnails(thumbnails);
+  }, [thumbnails]);
+
+  // Handle reorder
+  const handleReorder = useCallback((newOrder: ThumbnailSource[]) => {
+    setOrderedThumbnails(newOrder);
+    if (onReorderThumbnails) {
+      onReorderThumbnails(newOrder.map(t => t.id));
+    }
+  }, [onReorderThumbnails]);
 
   // Find current thumbnail index based on progress
   const currentThumbIndex = useMemo(() => {
-    if (!thumbnails.length || duration <= 0) return 0;
+    if (!orderedThumbnails.length || duration <= 0) return 0;
     const currentTime = (progress / 100) * duration;
-    for (let i = 0; i < thumbnails.length; i++) {
-      if (currentTime >= thumbnails[i].startTime && currentTime < thumbnails[i].endTime) {
+    for (let i = 0; i < orderedThumbnails.length; i++) {
+      if (currentTime >= orderedThumbnails[i].startTime && currentTime < orderedThumbnails[i].endTime) {
         return i;
       }
     }
-    return thumbnails.length - 1;
-  }, [thumbnails, progress, duration]);
+    return orderedThumbnails.length - 1;
+  }, [orderedThumbnails, progress, duration]);
 
   const calculateTimeFromPosition = useCallback((clientX: number) => {
     if (!barRef.current || duration <= 0) return 0;
@@ -290,50 +307,59 @@ const ScrubBar = ({
         style={{ left: `calc(${progress}% - ${height === "sm" ? "5px" : "6px"})` }} 
       />
 
-      {/* Mini Timeline with all thumbnails */}
-      {showMiniTimeline && thumbnails.length > 0 && (
+      {/* Mini Timeline with all thumbnails - Draggable */}
+      {showMiniTimeline && orderedThumbnails.length > 0 && (
         <div className="absolute top-full mt-2 left-0 right-0">
-          <div className="flex gap-1 justify-center">
-            {thumbnails.map((thumb, index) => {
+          <Reorder.Group
+            axis="x"
+            values={orderedThumbnails}
+            onReorder={handleReorder}
+            className="flex gap-1 justify-center"
+          >
+            {orderedThumbnails.map((thumb, index) => {
               const isActive = index === currentThumbIndex;
               const isHovered = index === activeThumbIndex;
-              const thumbProgress = duration > 0 
-                ? ((thumb.endTime - thumb.startTime) / duration) * 100 
-                : 100 / thumbnails.length;
               
               return (
-                <motion.div
+                <Reorder.Item
                   key={thumb.id}
+                  value={thumb}
+                  onDragStart={() => setIsDraggingThumb(true)}
+                  onDragEnd={() => setIsDraggingThumb(false)}
                   className={cn(
-                    "relative cursor-pointer overflow-hidden rounded transition-all",
+                    "relative cursor-grab overflow-hidden rounded transition-all",
                     "border-2",
                     isActive ? "border-primary shadow-md" : "border-transparent",
-                    isHovered && !isActive && "border-primary/50"
+                    isHovered && !isActive && "border-primary/50",
+                    isDraggingThumb && "cursor-grabbing"
                   )}
                   style={{ 
-                    flex: `${thumbProgress} 1 0%`,
-                    minWidth: '32px',
-                    maxWidth: '80px'
+                    minWidth: '48px',
+                    maxWidth: '80px',
+                    flex: '1 1 0%'
                   }}
-                  animate={{
-                    scale: isHovered ? 1.05 : 1,
-                    y: isHovered ? -2 : 0
+                  whileDrag={{ 
+                    scale: 1.1, 
+                    zIndex: 50,
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)"
                   }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   onMouseEnter={() => setActiveThumbIndex(index)}
                   onMouseLeave={() => setActiveThumbIndex(null)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Seek to the start of this clip
-                    onSeek(thumb.startTime);
-                  }}
                 >
                   {/* Thumbnail image */}
-                  <div className="aspect-video relative bg-muted">
+                  <div 
+                    className="aspect-video relative bg-muted"
+                    onClick={(e) => {
+                      if (!isDraggingThumb) {
+                        e.stopPropagation();
+                        onSeek(thumb.startTime);
+                      }
+                    }}
+                  >
                     {thumb.type === "video" ? (
                       <video
                         src={thumb.previewUrl}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover pointer-events-none"
                         muted
                         playsInline
                       />
@@ -341,14 +367,14 @@ const ScrubBar = ({
                       <img
                         src={thumb.previewUrl}
                         alt={`Clip ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover pointer-events-none"
                       />
                     )}
                     
                     {/* Progress overlay for active clip */}
                     {isActive && (
                       <motion.div
-                        className="absolute inset-0 bg-primary/20"
+                        className="absolute inset-0 bg-primary/20 pointer-events-none"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
@@ -357,7 +383,7 @@ const ScrubBar = ({
                           style={{
                             width: `${
                               duration > 0 && (thumb.endTime - thumb.startTime) > 0
-                                ? (((progress / 100) * duration - thumb.startTime) / (thumb.endTime - thumb.startTime)) * 100
+                                ? Math.min(100, Math.max(0, (((progress / 100) * duration - thumb.startTime) / (thumb.endTime - thumb.startTime)) * 100))
                                 : 0
                             }%`
                           }}
@@ -365,36 +391,44 @@ const ScrubBar = ({
                       </motion.div>
                     )}
                     
+                    {/* Drag handle icon */}
+                    <div className={cn(
+                      "absolute top-0.5 right-0.5 p-0.5 rounded bg-black/50 transition-opacity",
+                      isHovered ? "opacity-100" : "opacity-0"
+                    )}>
+                      <GripVertical className="w-2.5 h-2.5 text-white" />
+                    </div>
+                    
                     {/* Clip number */}
                     <div className={cn(
-                      "absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[8px] font-medium",
+                      "absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[8px] font-medium pointer-events-none",
                       isActive ? "bg-primary text-primary-foreground" : "bg-black/60 text-white"
                     )}>
                       {index + 1}
                     </div>
                     
-                    {/* Duration badge on hover */}
+                    {/* Time badge on hover */}
                     <AnimatePresence>
-                      {isHovered && (
+                      {isHovered && !isDraggingThumb && (
                         <motion.div
                           initial={{ opacity: 0, y: 5 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 5 }}
-                          className="absolute bottom-0.5 right-0.5 px-1 py-0.5 bg-black/70 rounded text-[7px] text-white font-mono"
+                          className="absolute bottom-0.5 right-0.5 px-1 py-0.5 bg-black/70 rounded text-[7px] text-white font-mono pointer-events-none"
                         >
                           {formatTime(thumb.startTime)}
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
-                </motion.div>
+                </Reorder.Item>
               );
             })}
-          </div>
+          </Reorder.Group>
           
           {/* Timeline hint */}
           <p className="text-center text-[9px] text-muted-foreground mt-1">
-            Klik thumbnail untuk navigasi cepat
+            {isDraggingThumb ? "Lepas untuk menyimpan urutan" : "Drag untuk reorder • Klik untuk navigasi"}
           </p>
         </div>
       )}
