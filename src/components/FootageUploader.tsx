@@ -112,13 +112,8 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.35 }}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Film className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Background Media</span>
-          <span className="text-xs text-muted-foreground">(opsional)</span>
-        </div>
-        {uploadedFiles.length > 0 && (
+      {uploadedFiles.length > 0 && (
+        <div className="flex justify-end mb-3">
           <Button
             variant="ghost"
             size="sm"
@@ -127,8 +122,8 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
           >
             Hapus Semua
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Upload Area */}
       <div
