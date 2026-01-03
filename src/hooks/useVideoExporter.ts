@@ -60,6 +60,43 @@ export const useVideoExporter = () => {
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const ffmpegLoadedRef = useRef(false);
 
+  // Play notification sound when export completes
+  const playNotificationSound = useCallback(() => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Create a pleasant two-tone notification
+      const playTone = (frequency: number, startTime: number, duration: number) => {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = "sine";
+        
+        // Fade in and out for smooth sound
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime + startTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + startTime + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + startTime + duration);
+        
+        oscillator.start(audioCtx.currentTime + startTime);
+        oscillator.stop(audioCtx.currentTime + startTime + duration);
+      };
+
+      // Play ascending tones (success sound)
+      playTone(523.25, 0, 0.15);     // C5
+      playTone(659.25, 0.12, 0.15);  // E5
+      playTone(783.99, 0.24, 0.25);  // G5
+
+      // Close audio context after sounds finish
+      setTimeout(() => audioCtx.close(), 1000);
+    } catch (error) {
+      console.log("Could not play notification sound:", error);
+    }
+  }, []);
+
   const getActiveSubtitle = useCallback((
     subtitleWords: SubtitleWord[],
     currentTime: number,
@@ -467,6 +504,9 @@ export const useVideoExporter = () => {
       setExportedVideoUrl(url);
       setExportedBlob(finalBlob);
       setExportProgress({ status: "complete", progress: 100, message: "Export selesai!" });
+      
+      // Play notification sound
+      playNotificationSound();
       
       return { url, blob: finalBlob };
     } catch (error) {
