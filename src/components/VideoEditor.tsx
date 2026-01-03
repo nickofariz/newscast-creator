@@ -557,12 +557,13 @@ const VideoEditor = ({
         </div>
       </div>
 
-      {/* Transition Selector - show when clip is selected */}
+      {/* Transition & Ken Burns Selector - show when clip is selected */}
       {selectedClipIndex !== null && clips[selectedClipIndex] && (
         <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg border border-border flex-wrap">
+          {/* Transition Selector */}
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-medium text-foreground">Transisi Masuk:</span>
+            <span className="text-xs font-medium text-foreground">Transisi:</span>
           </div>
           <Select
             value={clips[selectedClipIndex].transition || "none"}
@@ -572,52 +573,51 @@ const VideoEditor = ({
               ));
             }}
           >
-            <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectTrigger className="w-[130px] h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-popover border border-border shadow-lg z-50 min-w-[180px]">
-              <SelectItem value="none" className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center">
-                    <div className="w-3 h-3 bg-muted-foreground/40 rounded-sm" />
-                  </div>
-                  <span>Tanpa Transisi</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="fade" className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <div className="w-3 h-3 bg-primary rounded-sm animate-transition-fade" />
-                  </div>
-                  <span>Fade In</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="slide" className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <div className="w-3 h-3 bg-blue-500 rounded-sm animate-transition-slide" />
-                  </div>
-                  <span>Slide</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="zoom" className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <div className="w-3 h-3 bg-green-500 rounded-sm animate-transition-zoom" />
-                  </div>
-                  <span>Zoom In</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="blur" className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
-                    <div className="w-3 h-3 bg-purple-500 rounded-sm animate-transition-blur" />
-                  </div>
-                  <span>Blur In</span>
-                </div>
-              </SelectItem>
+            <SelectContent className="bg-popover border border-border shadow-lg z-50 min-w-[160px]">
+              <SelectItem value="none">Tanpa Transisi</SelectItem>
+              <SelectItem value="fade">Fade In</SelectItem>
+              <SelectItem value="slide">Slide</SelectItem>
+              <SelectItem value="zoom">Zoom In</SelectItem>
+              <SelectItem value="blur">Blur In</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Ken Burns Selector - only for images */}
+          {clips[selectedClipIndex].type === "image" && (
+            <>
+              <div className="w-px h-6 bg-border" />
+              <div className="flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-medium text-foreground">Ken Burns:</span>
+              </div>
+              <Select
+                value={clips[selectedClipIndex].kenBurns || "random"}
+                onValueChange={(value: KenBurnsType) => {
+                  setClips(prev => prev.map((c, i) => 
+                    i === selectedClipIndex ? { ...c, kenBurns: value } : c
+                  ));
+                }}
+              >
+                <SelectTrigger className="w-[130px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border border-border shadow-lg z-50 min-w-[160px]">
+                  <SelectItem value="random">🎲 Random</SelectItem>
+                  <SelectItem value="none">Tanpa Efek</SelectItem>
+                  <SelectItem value="zoom-in">🔍 Zoom In</SelectItem>
+                  <SelectItem value="zoom-out">🔎 Zoom Out</SelectItem>
+                  <SelectItem value="pan-left">⬅️ Pan Kiri</SelectItem>
+                  <SelectItem value="pan-right">➡️ Pan Kanan</SelectItem>
+                  <SelectItem value="pan-up">⬆️ Pan Atas</SelectItem>
+                  <SelectItem value="pan-down">⬇️ Pan Bawah</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
           <span className="text-[10px] text-muted-foreground">
             Clip {selectedClipIndex + 1} dari {clips.length}
           </span>
@@ -629,8 +629,14 @@ const VideoEditor = ({
               size="sm"
               className="h-7 text-xs ml-auto"
               onClick={() => {
-                const currentTransition = clips[selectedClipIndex].transition || "none";
-                setClips(prev => prev.map(c => ({ ...c, transition: currentTransition })));
+                const currentClip = clips[selectedClipIndex];
+                const currentTransition = currentClip.transition || "none";
+                const currentKenBurns = currentClip.kenBurns || "random";
+                setClips(prev => prev.map(c => ({ 
+                  ...c, 
+                  transition: currentTransition,
+                  kenBurns: c.type === "image" ? currentKenBurns : c.kenBurns
+                })));
               }}
             >
               Terapkan ke Semua ({clips.length})
