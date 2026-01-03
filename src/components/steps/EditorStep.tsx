@@ -1,3 +1,4 @@
+import { useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,8 @@ interface EditorStepProps {
   onSeek?: (time: number) => void;
 }
 
+const SEEK_STEP = 5; // seconds
+
 const EditorStep = ({
   mediaFiles,
   onMediaUpdate,
@@ -67,6 +70,42 @@ const EditorStep = ({
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
+
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Ignore if user is typing in an input/textarea
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    switch (e.code) {
+      case "Space":
+        e.preventDefault();
+        if (audioUrl) {
+          isPlaying ? onPause?.() : onPlay?.();
+        }
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        if (onSeek && audioDuration > 0) {
+          const newTime = Math.max(0, currentTime - SEEK_STEP);
+          onSeek(newTime);
+        }
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        if (onSeek && audioDuration > 0) {
+          const newTime = Math.min(audioDuration, currentTime + SEEK_STEP);
+          onSeek(newTime);
+        }
+        break;
+    }
+  }, [audioUrl, isPlaying, onPlay, onPause, onSeek, currentTime, audioDuration]);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
   return (
