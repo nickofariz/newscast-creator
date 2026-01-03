@@ -239,18 +239,34 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                       onMouseEnter={(e) => {
                         if (media.type === "video") {
                           const video = e.currentTarget.querySelector('video');
+                          const progressBar = e.currentTarget.querySelector('[data-progress-bar]') as HTMLElement;
                           if (video) {
                             video.currentTime = 0;
                             video.play().catch(() => {});
+                            // Update progress bar
+                            const updateProgress = () => {
+                              if (progressBar && video.duration) {
+                                const progress = (video.currentTime / video.duration) * 100;
+                                progressBar.style.width = `${progress}%`;
+                              }
+                              if (!video.paused) {
+                                requestAnimationFrame(updateProgress);
+                              }
+                            };
+                            requestAnimationFrame(updateProgress);
                           }
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (media.type === "video") {
                           const video = e.currentTarget.querySelector('video');
+                          const progressBar = e.currentTarget.querySelector('[data-progress-bar]') as HTMLElement;
                           if (video) {
                             video.pause();
                             video.currentTime = 0;
+                          }
+                          if (progressBar) {
+                            progressBar.style.width = '0%';
                           }
                         }
                       }}
@@ -272,10 +288,21 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                         />
                       )}
                       
-                      {/* Play indicator for video */}
+                      {/* Video progress bar */}
+                      {media.type === "video" && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div 
+                            data-progress-bar
+                            className="h-full bg-primary transition-none"
+                            style={{ width: '0%' }}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Play indicator for video - hide when playing */}
                       {media.type === "video" && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                          <div className="w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-lg animate-pulse">
                             <div className="w-0 h-0 border-l-[8px] border-l-primary border-y-[5px] border-y-transparent ml-0.5" />
                           </div>
                         </div>
