@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
-import { ChevronRight, ChevronLeft, Film, Sparkles } from "lucide-react";
+import { ChevronRight, ChevronLeft, Film, Sparkles, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import VideoEditor from "@/components/VideoEditor";
 import VideoPreview from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
 import { OverlaySettings } from "@/components/OverlaySelector";
+import OverlaySelector from "@/components/OverlaySelector";
+import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 
 interface SubtitleWord {
   text: string;
@@ -24,7 +26,8 @@ interface EditorStepProps {
   currentTime: number;
   isPlaying: boolean;
   isGenerating: boolean;
-  overlaySettings?: OverlaySettings;
+  overlaySettings: OverlaySettings;
+  onOverlaySettingsChange: (settings: OverlaySettings) => void;
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -41,6 +44,7 @@ const EditorStep = ({
   isPlaying,
   isGenerating,
   overlaySettings,
+  onOverlaySettingsChange,
   onGenerate,
   onNext,
   onBack,
@@ -62,7 +66,7 @@ const EditorStep = ({
             Video Editor
           </h2>
           <p className="text-sm text-muted-foreground">
-            Atur timeline dan merge video dengan voice over
+            Atur timeline, overlay, dan merge video dengan voice over
           </p>
         </div>
       </div>
@@ -96,6 +100,25 @@ const EditorStep = ({
             onMediaUpdate={onMediaUpdate}
             audioDuration={audioDuration}
           />
+        </div>
+      </div>
+
+      {/* Overlay & Watermark Settings */}
+      <div className="glass-card rounded-xl p-5">
+        <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
+        
+        {/* Template Manager */}
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Template Overlay</p>
+              <p className="text-xs text-muted-foreground">Simpan atau muat pengaturan overlay</p>
+            </div>
+            <OverlayTemplateManager
+              currentSettings={overlaySettings}
+              onLoadTemplate={onOverlaySettingsChange}
+            />
+          </div>
         </div>
       </div>
 

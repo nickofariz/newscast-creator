@@ -3,8 +3,6 @@ import { ChevronRight, Image, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FootageUploader, { MediaFile } from "@/components/FootageUploader";
 import TemplateSelector from "@/components/TemplateSelector";
-import OverlaySelector, { OverlaySettings } from "@/components/OverlaySelector";
-import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
@@ -13,8 +11,6 @@ interface MediaStepProps {
   onUploadMedia: (files: MediaFile[]) => void;
   selectedTemplate: TemplateType;
   onSelectTemplate: (template: TemplateType) => void;
-  overlaySettings: OverlaySettings;
-  onOverlaySettingsChange: (settings: OverlaySettings) => void;
   onNext: () => void;
 }
 
@@ -23,8 +19,6 @@ const MediaStep = ({
   onUploadMedia,
   selectedTemplate,
   onSelectTemplate,
-  overlaySettings,
-  onOverlaySettingsChange,
   onNext,
 }: MediaStepProps) => {
   const canProceed = uploadedMedia.length > 0;
@@ -68,27 +62,6 @@ const MediaStep = ({
           </div>
         </div>
         <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
-      </div>
-
-      {/* Overlay Settings */}
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
-        </div>
-        
-        {/* Template Manager */}
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Template Overlay</p>
-              <p className="text-xs text-muted-foreground">Simpan atau muat pengaturan overlay</p>
-            </div>
-            <OverlayTemplateManager
-              currentSettings={overlaySettings}
-              onLoadTemplate={onOverlaySettingsChange}
-            />
-          </div>
-        </div>
       </div>
 
       {/* Next Button */}
