@@ -1,6 +1,7 @@
 import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { Upload, Film, X, Check, Image, Plus, GripVertical, Clock } from "lucide-react";
+import { Upload, Film, X, Check, Image, Plus, GripVertical, Clock, Maximize2 } from "lucide-react";
 import { useRef, useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ const DEFAULT_IMAGE_DURATION = 3; // seconds per image
 const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [totalDuration, setTotalDuration] = useState(0);
+  const [previewMedia, setPreviewMedia] = useState<MediaFile | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Calculate total duration whenever files change
@@ -54,6 +56,17 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
     
     setTotalDuration(duration);
   }, [uploadedFiles]);
+
+  // Handle ESC key to close preview
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && previewMedia) {
+        setPreviewMedia(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewMedia]);
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -235,7 +248,8 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                     whileDrag={{ scale: 1.05, zIndex: 50 }}
                   >
                     <div 
-                      className="relative w-20 h-20 rounded-lg overflow-hidden bg-background border border-border transition-all hover:border-primary/50"
+                      className="relative w-20 h-20 rounded-lg overflow-hidden bg-background border border-border transition-all hover:border-primary/50 cursor-pointer"
+                      onClick={() => setPreviewMedia(media)}
                       onMouseEnter={(e) => {
                         if (media.type === "video") {
                           const video = e.currentTarget.querySelector('video');
@@ -379,6 +393,82 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Media Preview Modal */}
+      <AnimatePresence>
+        {previewMedia && createPortal(
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+            onClick={() => setPreviewMedia(null)}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setPreviewMedia(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+
+            {/* Media info */}
+            <div className="absolute top-4 left-4 flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-white/10 rounded-full px-3 py-1.5">
+                {previewMedia.type === "video" ? (
+                  <Film className="w-4 h-4 text-white" />
+                ) : (
+                  <Image className="w-4 h-4 text-white" />
+                )}
+                <span className="text-white text-sm font-medium">
+                  {previewMedia.file.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1.5">
+                <Clock className="w-4 h-4 text-white/80" />
+                <span className="text-white text-sm font-mono">
+                  {previewMedia.type === "video" 
+                    ? (previewMedia.duration ? formatDuration(previewMedia.duration) : "...") 
+                    : `${DEFAULT_IMAGE_DURATION}s`
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Media content */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-[90vw] max-h-[80vh] rounded-xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {previewMedia.type === "video" ? (
+                <video
+                  src={previewMedia.previewUrl}
+                  className="max-w-full max-h-[80vh] object-contain"
+                  controls
+                  autoPlay
+                  loop
+                />
+              ) : (
+                <img
+                  src={previewMedia.previewUrl}
+                  alt={previewMedia.file.name}
+                  className="max-w-full max-h-[80vh] object-contain"
+                />
+              )}
+            </motion.div>
+
+            {/* Navigation hint */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-sm">
+              Klik di luar atau tekan ESC untuk menutup
+            </div>
+          </motion.div>,
+          document.body
         )}
       </AnimatePresence>
     </motion.div>
