@@ -445,13 +445,13 @@ const EditorStep = ({
             <TabsContent value="template" className="mt-0">
               <div className="glass-card rounded-xl p-4">
                 <p className="text-sm text-muted-foreground mb-4">Pilih layout untuk video Anda</p>
-                <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} />
+                <TemplateSelector selected={selectedTemplate} onChange={onSelectTemplate} videoFormat={videoFormat} />
               </div>
             </TabsContent>
 
             <TabsContent value="overlay" className="mt-0">
               <div className="glass-card rounded-xl p-4 space-y-4">
-                <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} />
+                <OverlaySelector settings={overlaySettings} onChange={onOverlaySettingsChange} videoFormat={videoFormat} />
                 <div className="pt-4 border-t border-border">
                   <div className="flex items-center justify-between">
                     <div>

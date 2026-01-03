@@ -89,9 +89,12 @@ export const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   },
 };
 
+type VideoFormatType = "short" | "tv";
+
 interface OverlaySelectorProps {
   settings: OverlaySettings;
   onChange: (settings: OverlaySettings) => void;
+  videoFormat?: VideoFormatType;
 }
 
 const COLOR_PRESETS = [
@@ -103,15 +106,28 @@ const COLOR_PRESETS = [
   { id: "black", color: "#171717" },
 ];
 
-// Mini phone preview component
-const MiniPreview = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn("w-10 h-16 rounded-sm bg-gray-700 relative overflow-hidden flex-shrink-0 border border-border", className)}>
+// Mini preview component - adapts to video format
+const MiniPreview = ({ 
+  children, 
+  className, 
+  isTV = false 
+}: { 
+  children: React.ReactNode; 
+  className?: string;
+  isTV?: boolean;
+}) => (
+  <div className={cn(
+    "rounded-sm bg-gray-700 relative overflow-hidden flex-shrink-0 border border-border",
+    isTV ? "w-16 h-10" : "w-10 h-16",
+    className
+  )}>
     {children}
   </div>
 );
 
-const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
+const OverlaySelector = ({ settings, onChange, videoFormat = "short" }: OverlaySelectorProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isTV = videoFormat === "tv";
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -141,14 +157,25 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
       <div className="p-3 rounded-lg bg-secondary/30">
         <div className="flex items-center gap-3">
           {/* Mini Preview */}
-          <MiniPreview>
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-600 to-gray-800" />
+          <MiniPreview isTV={isTV}>
+            <div className={cn(
+              "absolute inset-0",
+              isTV ? "bg-gradient-to-r from-gray-600 to-gray-800" : "bg-gradient-to-b from-gray-600 to-gray-800"
+            )} />
             {settings.headline.showSubtitle && (
               <div 
-                className="absolute bottom-1 left-0.5 right-0.5 h-2 rounded-sm"
+                className={cn(
+                  "absolute rounded-sm",
+                  isTV 
+                    ? "bottom-1 left-1 right-1 h-1.5" 
+                    : "bottom-1 left-0.5 right-0.5 h-2"
+                )}
                 style={{ backgroundColor: settings.headline.color }}
               >
-                <div className="w-full h-0.5 bg-white/80 mt-0.5 mx-auto" style={{ width: '80%' }} />
+                <div className={cn(
+                  "bg-white/80 mx-auto",
+                  isTV ? "w-[90%] h-0.5 mt-0.5" : "w-[80%] h-0.5 mt-0.5"
+                )} />
               </div>
             )}
           </MiniPreview>
@@ -217,19 +244,23 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
       <div className="p-3 rounded-lg bg-secondary/30">
         <div className="flex items-center gap-3">
           {/* Mini Preview */}
-          <MiniPreview>
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-600 to-gray-800" />
+          <MiniPreview isTV={isTV}>
+            <div className={cn(
+              "absolute inset-0",
+              isTV ? "bg-gradient-to-r from-gray-600 to-gray-800" : "bg-gradient-to-b from-gray-600 to-gray-800"
+            )} />
             {settings.logo.enabled && (
               <div 
                 className={cn(
-                  "absolute w-3 h-3 rounded-sm bg-purple-500/80 flex items-center justify-center",
+                  "absolute rounded-sm bg-purple-500/80 flex items-center justify-center",
+                  isTV ? "w-2.5 h-2.5" : "w-3 h-3",
                   getLogoPositionClasses(settings.logo.position)
                 )}
               >
                 {settings.logo.url ? (
                   <img src={settings.logo.url} alt="" className="w-full h-full object-contain" />
                 ) : (
-                  <Image className="w-2 h-2 text-white" />
+                  <Image className={cn(isTV ? "w-1.5 h-1.5" : "w-2 h-2", "text-white")} />
                 )}
               </div>
             )}
@@ -314,34 +345,58 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
       <div className="p-3 rounded-lg bg-secondary/30">
         <div className="flex items-center gap-3">
           {/* Mini Preview */}
-          <MiniPreview>
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-600 to-gray-800" />
+          <MiniPreview isTV={isTV}>
+            <div className={cn(
+              "absolute inset-0",
+              isTV ? "bg-gradient-to-r from-gray-600 to-gray-800" : "bg-gradient-to-b from-gray-600 to-gray-800"
+            )} />
             {settings.frame.enabled && (
               <>
                 {settings.frame.style === "border" && (
                   <div 
-                    className="absolute inset-0.5 border-2 rounded-sm"
+                    className={cn(
+                      "absolute rounded-sm",
+                      isTV ? "inset-0.5 border" : "inset-0.5 border-2"
+                    )}
                     style={{ borderColor: settings.frame.color }}
                   />
                 )}
                 {settings.frame.style === "bars" && (
                   <>
                     <div 
-                      className="absolute top-0 left-0 right-0 h-1"
+                      className={cn(
+                        "absolute top-0 left-0 right-0",
+                        isTV ? "h-0.5" : "h-1"
+                      )}
                       style={{ backgroundColor: settings.frame.color }}
                     />
                     <div 
-                      className="absolute bottom-0 left-0 right-0 h-1"
+                      className={cn(
+                        "absolute bottom-0 left-0 right-0",
+                        isTV ? "h-0.5" : "h-1"
+                      )}
                       style={{ backgroundColor: settings.frame.color }}
                     />
                   </>
                 )}
                 {settings.frame.style === "corner" && (
                   <>
-                    <div className="absolute top-0.5 left-0.5 w-2 h-2 border-t-2 border-l-2" style={{ borderColor: settings.frame.color }} />
-                    <div className="absolute top-0.5 right-0.5 w-2 h-2 border-t-2 border-r-2" style={{ borderColor: settings.frame.color }} />
-                    <div className="absolute bottom-0.5 left-0.5 w-2 h-2 border-b-2 border-l-2" style={{ borderColor: settings.frame.color }} />
-                    <div className="absolute bottom-0.5 right-0.5 w-2 h-2 border-b-2 border-r-2" style={{ borderColor: settings.frame.color }} />
+                    <div className={cn(
+                      "absolute top-0.5 left-0.5 border-t border-l",
+                      isTV ? "w-1.5 h-1.5" : "w-2 h-2 border-t-2 border-l-2"
+                    )} style={{ borderColor: settings.frame.color }} />
+                    <div className={cn(
+                      "absolute top-0.5 right-0.5 border-t border-r",
+                      isTV ? "w-1.5 h-1.5" : "w-2 h-2 border-t-2 border-r-2"
+                    )} style={{ borderColor: settings.frame.color }} />
+                    <div className={cn(
+                      "absolute bottom-0.5 left-0.5 border-b border-l",
+                      isTV ? "w-1.5 h-1.5" : "w-2 h-2 border-b-2 border-l-2"
+                    )} style={{ borderColor: settings.frame.color }} />
+                    <div className={cn(
+                      "absolute bottom-0.5 right-0.5 border-b border-r",
+                      isTV ? "w-1.5 h-1.5" : "w-2 h-2 border-b-2 border-r-2"
+                    )} style={{ borderColor: settings.frame.color }} />
                   </>
                 )}
               </>

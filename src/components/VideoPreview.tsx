@@ -1251,7 +1251,7 @@ const VideoPreview = ({
       </div>
 
       <div className="mt-3 text-center text-xs text-muted-foreground">
-        Format: 9:16 (1080x1920)
+        Format: {videoFormat === "tv" ? "16:9 (1920x1080)" : "9:16 (1080x1920)"}
       </div>
     </motion.div>
     </>
