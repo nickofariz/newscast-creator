@@ -223,6 +223,12 @@ export const useVideoExporter = () => {
 
   const loadMedia = (src: string, type: "video" | "image"): Promise<HTMLVideoElement | HTMLImageElement> => {
     return new Promise((resolve, reject) => {
+      // Validate src before loading
+      if (!src) {
+        reject(new Error("No source provided"));
+        return;
+      }
+      
       if (type === "video") {
         const video = document.createElement("video");
         video.crossOrigin = "anonymous";

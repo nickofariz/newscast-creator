@@ -121,6 +121,9 @@ const ExportDialog = ({
       for (let i = 0; i < maxThumbs; i++) {
         const media = mediaPreviews[i];
         
+        // Skip if no valid previewUrl
+        if (!media.previewUrl) continue;
+        
         if (media.type === "image") {
           thumbs.push(media.previewUrl);
         } else if (media.type === "video") {
