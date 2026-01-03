@@ -131,88 +131,6 @@ const EditorStep = ({
   }, [handleKeyDown]);
 
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
-
-  // Fullscreen Timeline Component
-  const TimelineContent = ({ inFullscreen = false }: { inFullscreen?: boolean }) => (
-    <div className={inFullscreen ? "h-full flex flex-col" : ""}>
-      {/* Fullscreen Header */}
-      {inFullscreen && (
-        <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="font-medium text-foreground">Timeline Editor</span>
-            {audioUrl && (
-              <div className="flex items-center gap-2 ml-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={isPlaying ? onPause : onPlay}
-                  className="h-8 px-3"
-                >
-                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                </Button>
-                <span className="text-sm font-mono text-muted-foreground">
-                  {formatTime(currentTime)} / {formatTime(audioDuration)}
-                </span>
-                <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-                </div>
-              </div>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" onClick={toggleFullscreen} className="h-8 px-3">
-            <Minimize2 className="w-4 h-4 mr-2" />
-            Keluar Fullscreen
-          </Button>
-        </div>
-      )}
-      
-      {/* Timeline Editor */}
-      <div className={inFullscreen ? "flex-1 p-4 overflow-auto" : ""}>
-        <VideoEditor
-          mediaFiles={mediaFiles}
-          onMediaUpdate={onMediaUpdate}
-          audioDuration={audioDuration}
-          audioUrl={audioUrl}
-          overlayText={newsText}
-          overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
-          currentTime={currentTime}
-          isPlaying={isPlaying}
-          onSeek={onSeek}
-          onClipsChange={handleClipsChange}
-        />
-      </div>
-
-      {/* Fullscreen Preview */}
-      {inFullscreen && (
-        <div className="p-4 border-t border-border bg-card/30">
-          <div className="flex items-start gap-4">
-            <div className="w-48 flex-shrink-0">
-              <VideoPreview
-                newsText={newsText}
-                template={selectedTemplate}
-                isGenerating={isGenerating}
-                mediaFiles={mediaFiles}
-                editedClips={editedClips}
-                subtitleWords={subtitleWords}
-                currentTime={currentTime}
-                isAudioPlaying={isPlaying}
-                audioDuration={audioDuration}
-                overlaySettings={overlaySettings}
-                onPlay={onPlay}
-                onPause={onPause}
-              />
-            </div>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p><kbd className="px-1 bg-muted rounded">Space</kbd> Play/Pause</p>
-              <p><kbd className="px-1 bg-muted rounded">←→</kbd> Seek</p>
-              <p><kbd className="px-1 bg-muted rounded">Esc</kbd> Keluar</p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
   
   return (
     <>
@@ -225,7 +143,83 @@ const EditorStep = ({
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-background flex flex-col"
           >
-            <TimelineContent inFullscreen />
+            {/* Fullscreen Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm flex-shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="font-medium text-foreground">Timeline Editor</span>
+                </div>
+                {audioUrl && (
+                  <div className="flex items-center gap-3 ml-4 pl-4 border-l border-border">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={isPlaying ? onPause : onPlay}
+                      className="h-8 px-3"
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </Button>
+                    <span className="text-sm font-mono text-muted-foreground">
+                      {formatTime(currentTime)} / {formatTime(audioDuration)}
+                    </span>
+                    <div className="w-40 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-xs text-muted-foreground hidden md:flex items-center gap-3 mr-4">
+                  <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Space</kbd> Play/Pause</span>
+                  <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> Keluar</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={toggleFullscreen} className="h-8">
+                  <X className="w-4 h-4 mr-2" />
+                  Tutup
+                </Button>
+              </div>
+            </div>
+
+            {/* Fullscreen Content */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* Preview Panel - Fixed width on side */}
+              <div className="w-56 flex-shrink-0 border-r border-border bg-card/30 p-3 flex flex-col">
+                <span className="text-xs text-muted-foreground mb-2">Preview</span>
+                <div className="flex-1 flex items-start">
+                  <VideoPreview
+                    newsText={newsText}
+                    template={selectedTemplate}
+                    isGenerating={isGenerating}
+                    mediaFiles={mediaFiles}
+                    editedClips={editedClips}
+                    subtitleWords={subtitleWords}
+                    currentTime={currentTime}
+                    isAudioPlaying={isPlaying}
+                    audioDuration={audioDuration}
+                    overlaySettings={overlaySettings}
+                    onPlay={onPlay}
+                    onPause={onPause}
+                  />
+                </div>
+              </div>
+
+              {/* Timeline Panel - Takes remaining space */}
+              <div className="flex-1 p-4 overflow-auto">
+                <VideoEditor
+                  mediaFiles={mediaFiles}
+                  onMediaUpdate={onMediaUpdate}
+                  audioDuration={audioDuration}
+                  audioUrl={audioUrl}
+                  overlayText={newsText}
+                  overlayImage={overlaySettings.logo.enabled ? overlaySettings.logo.url : null}
+                  currentTime={currentTime}
+                  isPlaying={isPlaying}
+                  onSeek={onSeek}
+                  onClipsChange={handleClipsChange}
+                />
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
