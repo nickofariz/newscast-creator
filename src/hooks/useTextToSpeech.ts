@@ -1,8 +1,15 @@
 import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 
+export interface VoiceSettingsValues {
+  speed: number;
+  stability: number;
+  similarity: number;
+  style: number;
+}
+
 interface UseTextToSpeechReturn {
-  generateSpeech: (text: string, voiceId: string) => Promise<string | null>;
+  generateSpeech: (text: string, voiceId: string, voiceSettings?: VoiceSettingsValues) => Promise<string | null>;
   isGenerating: boolean;
   audioUrl: string | null;
   playAudio: () => void;
@@ -20,7 +27,11 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const generateSpeech = useCallback(async (text: string, voiceId: string): Promise<string | null> => {
+  const generateSpeech = useCallback(async (
+    text: string, 
+    voiceId: string,
+    voiceSettings?: VoiceSettingsValues
+  ): Promise<string | null> => {
     if (!text.trim()) {
       toast.error("Teks tidak boleh kosong");
       return null;
@@ -38,7 +49,7 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ text, voiceId }),
+          body: JSON.stringify({ text, voiceId, voiceSettings }),
         }
       );
 

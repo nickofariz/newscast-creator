@@ -16,7 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId } = await req.json();
+    const { text, voiceId, voiceSettings } = await req.json();
 
     if (!text || text.trim().length === 0) {
       return new Response(
@@ -36,7 +36,16 @@ serve(async (req) => {
 
     const selectedVoiceId = voiceId || DEFAULT_VOICE_ID;
 
-    console.log(`Generating TTS for ${text.length} characters with voice ID: ${selectedVoiceId}`);
+    // Use provided voice settings or defaults
+    const settings = {
+      stability: voiceSettings?.stability ?? 0.5,
+      similarity_boost: voiceSettings?.similarity ?? 0.75,
+      style: voiceSettings?.style ?? 0.0,
+      use_speaker_boost: true,
+      speed: voiceSettings?.speed ?? 1.0,
+    };
+
+    console.log(`Generating TTS for ${text.length} characters with voice ID: ${selectedVoiceId}`, settings);
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}?output_format=mp3_44100_128`,
@@ -49,13 +58,7 @@ serve(async (req) => {
         body: JSON.stringify({
           text,
           model_id: "eleven_multilingual_v2",
-          voice_settings: {
-            stability: 0.6,
-            similarity_boost: 0.75,
-            style: 0.4,
-            use_speaker_boost: true,
-            speed: 1.0,
-          },
+          voice_settings: settings,
         }),
       }
     );
