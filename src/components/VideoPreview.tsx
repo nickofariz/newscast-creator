@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Volume2, Pause } from "lucide-react";
+import { Play, Volume2, Pause, Maximize2, Minimize2, X } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { OverlaySettings } from "./OverlaySelector";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "./SubtitlePreview";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
@@ -73,6 +74,7 @@ const VideoPreview = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [internalTime, setInternalTime] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -561,44 +563,216 @@ const VideoPreview = ({
     );
   };
 
+  // Escape key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
+
+  // Fullscreen preview modal
+  const renderFullscreenPreview = () => (
+    <AnimatePresence>
+      {isFullscreen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
+        >
+          {/* Close button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsFullscreen(false)}
+            className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
+          >
+            <X className="w-6 h-6" />
+          </Button>
+
+          {/* Fullscreen video container */}
+          <div 
+            className={cn(
+              "relative",
+              videoFormat === "short" ? "h-[90vh] aspect-[9/16]" : "w-[90vw] aspect-video"
+            )}
+          >
+            {/* Media content */}
+            <AnimatePresence mode="sync">
+              {currentMedia ? (
+                (() => {
+                  const variants = getTransitionVariants(currentMedia.transition);
+                  return (
+                    <motion.div
+                      key={`fs-${currentMedia.id}-${currentMediaIndex}`}
+                      initial={variants.initial}
+                      animate={variants.animate}
+                      exit={variants.exit}
+                      transition={variants.transition}
+                      className="absolute inset-0 overflow-hidden rounded-lg"
+                    >
+                      {currentMedia.type === "video" ? (
+                        <video
+                          src={currentMedia.previewUrl}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loop
+                          muted
+                          playsInline
+                          autoPlay={isAudioPlaying}
+                        />
+                      ) : (
+                        <img
+                          src={currentMedia.previewUrl}
+                          alt="Background"
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      )}
+                    </motion.div>
+                  );
+                })()
+              ) : (
+                <div className="absolute inset-0 gradient-dark rounded-lg" />
+              )}
+            </AnimatePresence>
+
+            {/* Dark overlay */}
+            {currentMedia && <div className="absolute inset-0 bg-black/30 rounded-lg" />}
+
+            {/* Overlays */}
+            {renderOverlays()}
+
+            {/* Karaoke Subtitle in fullscreen */}
+            {karaokeSubtitle && karaokeSubtitle.length > 0 && (
+              <div className={cn(
+                "absolute left-4 right-4 z-40 text-center",
+                subtitleStyle.position === "top" ? "top-[15%]" : 
+                subtitleStyle.position === "center" ? "top-1/2 -translate-y-1/2" : "bottom-[15%]"
+              )}>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="inline-block px-6 py-3 rounded-lg"
+                  style={{ 
+                    backgroundColor: `rgba(0, 0, 0, ${(subtitleStyle.backgroundOpacity || 85) / 100})` 
+                  }}
+                >
+                  <span className="text-2xl md:text-3xl font-bold tracking-wide">
+                    {karaokeSubtitle.map((word, idx) => (
+                      <span
+                        key={`fs-${word.index}-${idx}`}
+                        className={cn(
+                          "transition-colors duration-100",
+                          word.isActive ? "text-primary" : word.isPast ? "text-white/60" : "text-white"
+                        )}
+                        style={word.isActive ? { color: subtitleStyle.highlightColor } : undefined}
+                      >
+                        {word.text}{" "}
+                      </span>
+                    ))}
+                  </span>
+                </motion.div>
+              </div>
+            )}
+
+            {/* Play/Pause control */}
+            {(onPlay || onPause) && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={isAudioPlaying ? onPause : onPlay}
+                  className="rounded-full px-6"
+                >
+                  {isAudioPlaying ? (
+                    <>
+                      <Pause className="w-5 h-5 mr-2" />
+                      Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-5 h-5 mr-2" />
+                      Play
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Time indicator */}
+            <div className="absolute top-4 left-4 z-40 px-3 py-1.5 bg-black/60 rounded-full">
+              <span className="text-white font-mono text-sm">
+                {formatTime(currentTime)} / {formatTime(totalVideoDuration)}
+              </span>
+            </div>
+          </div>
+
+          {/* Keyboard hint */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs">
+            Tekan <kbd className="px-1.5 py-0.5 bg-white/20 rounded text-[10px]">Esc</kbd> untuk keluar
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
-      className="relative"
-    >
-      <div className="text-sm font-medium text-foreground mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          Preview Video
-          {mediaFiles.length > 1 && (
-            <span className="text-xs text-muted-foreground">
-              ({mediaFiles.length} media)
-            </span>
-          )}
+    <>
+      {renderFullscreenPreview()}
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="relative"
+      >
+        <div className="text-sm font-medium text-foreground mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            Preview Video
+            {mediaFiles.length > 1 && (
+              <span className="text-xs text-muted-foreground">
+                ({mediaFiles.length} media)
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Fullscreen button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsFullscreen(true)}
+              className="h-7 w-7"
+              title="Fullscreen Preview"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </Button>
+            
+            <div className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium",
+              "bg-primary/10 text-primary border border-primary/20"
+            )}>
+              {videoFormat === "short" ? (
+                <>
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="7" y="2" width="10" height="20" rx="2" />
+                  </svg>
+                  <span>9:16</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                  </svg>
+                  <span>16:9</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-        <div className={cn(
-          "flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium",
-          "bg-primary/10 text-primary border border-primary/20"
-        )}>
-          {videoFormat === "short" ? (
-            <>
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="7" y="2" width="10" height="20" rx="2" />
-              </svg>
-              <span>9:16</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="5" width="20" height="14" rx="2" />
-              </svg>
-              <span>16:9</span>
-            </>
-          )}
-        </div>
-      </div>
 
       <div 
         className={cn(
@@ -876,6 +1050,7 @@ const VideoPreview = ({
         Format: 9:16 (1080x1920)
       </div>
     </motion.div>
+    </>
   );
 };
 
