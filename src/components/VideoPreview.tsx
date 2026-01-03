@@ -25,6 +25,7 @@ interface MediaFile {
 }
 
 export type TransitionType = "none" | "fade" | "slide" | "zoom" | "blur";
+export type KenBurnsType = "none" | "zoom-in" | "zoom-out" | "pan-left" | "pan-right" | "pan-up" | "pan-down" | "random";
 
 export interface EditedClip {
   id: string;
@@ -34,6 +35,7 @@ export interface EditedClip {
   endTime: number;
   effectiveDuration: number;
   transition: TransitionType;
+  kenBurns?: KenBurnsType;
 }
 
 export type VideoFormatType = "short" | "tv";
@@ -60,6 +62,42 @@ interface VideoPreviewProps {
 }
 
 const DEFAULT_IMAGE_DURATION = 3;
+
+// Ken Burns effect presets
+const KEN_BURNS_EFFECTS: Record<Exclude<KenBurnsType, "none" | "random">, {
+  initial: { scale: number; x: string; y: string };
+  animate: { scale: number; x: string; y: string };
+}> = {
+  "zoom-in": {
+    initial: { scale: 1, x: "0%", y: "0%" },
+    animate: { scale: 1.15, x: "0%", y: "0%" },
+  },
+  "zoom-out": {
+    initial: { scale: 1.15, x: "0%", y: "0%" },
+    animate: { scale: 1, x: "0%", y: "0%" },
+  },
+  "pan-left": {
+    initial: { scale: 1.1, x: "5%", y: "0%" },
+    animate: { scale: 1.1, x: "-5%", y: "0%" },
+  },
+  "pan-right": {
+    initial: { scale: 1.1, x: "-5%", y: "0%" },
+    animate: { scale: 1.1, x: "5%", y: "0%" },
+  },
+  "pan-up": {
+    initial: { scale: 1.1, x: "0%", y: "5%" },
+    animate: { scale: 1.1, x: "0%", y: "-5%" },
+  },
+  "pan-down": {
+    initial: { scale: 1.1, x: "0%", y: "-5%" },
+    animate: { scale: 1.1, x: "0%", y: "5%" },
+  },
+};
+
+const getRandomKenBurns = (): Exclude<KenBurnsType, "none" | "random"> => {
+  const effects = Object.keys(KEN_BURNS_EFFECTS) as Exclude<KenBurnsType, "none" | "random">[];
+  return effects[Math.floor(Math.random() * effects.length)];
+};
 
 const VideoPreview = ({ 
   newsText, 
@@ -99,7 +137,11 @@ const VideoPreview = ({
     previewUrl: string;
     type: "video" | "image";
     transition: TransitionType;
+    kenBurns?: KenBurnsType;
   } | null>(null);
+
+  // Store stable Ken Burns effect per media ID to prevent random changes
+  const kenBurnsEffectsRef = useRef<Map<string, Exclude<KenBurnsType, "none" | "random">>>(new Map());
 
   // Use edited clips if available, otherwise fallback to calculated durations
   const hasEditedClips = editedClips.length > 0;
@@ -180,7 +222,8 @@ const VideoPreview = ({
         id: clip.id,
         previewUrl: clip.previewUrl, 
         type: clip.type,
-        transition: clip.transition || "none"
+        transition: clip.transition || "none",
+        kenBurns: clip.kenBurns || "random"
       };
     } else if (mediaFiles[activeMediaIndex]) {
       const file = mediaFiles[activeMediaIndex];
@@ -188,7 +231,8 @@ const VideoPreview = ({
         id: file.id,
         previewUrl: file.previewUrl,
         type: file.type,
-        transition: "none" as TransitionType
+        transition: "none" as TransitionType,
+        kenBurns: "random" as KenBurnsType
       };
     }
     
@@ -243,7 +287,35 @@ const VideoPreview = ({
     }
   };
 
-  // Calculate progress within current media segment
+  // Get Ken Burns effect - stable per media ID
+  const getKenBurnsEffect = useCallback((mediaId: string, kenBurns: KenBurnsType | undefined) => {
+    if (!kenBurns || kenBurns === "none") return null;
+    
+    let effectType: Exclude<KenBurnsType, "none" | "random">;
+    
+    if (kenBurns === "random") {
+      // Check if we already assigned an effect for this media
+      if (kenBurnsEffectsRef.current.has(mediaId)) {
+        effectType = kenBurnsEffectsRef.current.get(mediaId)!;
+      } else {
+        effectType = getRandomKenBurns();
+        kenBurnsEffectsRef.current.set(mediaId, effectType);
+      }
+    } else {
+      effectType = kenBurns;
+    }
+    
+    return KEN_BURNS_EFFECTS[effectType];
+  }, []);
+
+  // Get current clip duration for Ken Burns animation
+  const currentClipDuration = useMemo(() => {
+    if (hasEditedClips && editedClips[activeMediaIndex]) {
+      return editedClips[activeMediaIndex].effectiveDuration;
+    }
+    const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+    return totalDur / Math.max(1, mediaFiles.length);
+  }, [hasEditedClips, editedClips, activeMediaIndex, audioDuration, mediaFiles.length]);
   const segmentProgress = useMemo(() => {
     // Always use currentTime for immediate seek response
     const time = currentTime;
@@ -797,11 +869,36 @@ const VideoPreview = ({
                             autoPlay={isAudioPlaying}
                           />
                         ) : (
-                          <img
-                            src={currentMedia.previewUrl}
-                            alt="Background"
-                            className="w-full h-full object-contain bg-black"
-                          />
+                          (() => {
+                            const kenBurnsEffect = getKenBurnsEffect(currentMedia.id, currentMedia.kenBurns);
+                            return kenBurnsEffect ? (
+                              <motion.img
+                                src={currentMedia.previewUrl}
+                                alt="Background"
+                                className="w-full h-full object-contain bg-black"
+                                initial={{
+                                  scale: kenBurnsEffect.initial.scale,
+                                  x: kenBurnsEffect.initial.x,
+                                  y: kenBurnsEffect.initial.y,
+                                }}
+                                animate={{
+                                  scale: kenBurnsEffect.animate.scale,
+                                  x: kenBurnsEffect.animate.x,
+                                  y: kenBurnsEffect.animate.y,
+                                }}
+                                transition={{
+                                  duration: currentClipDuration,
+                                  ease: "linear",
+                                }}
+                              />
+                            ) : (
+                              <img
+                                src={currentMedia.previewUrl}
+                                alt="Background"
+                                className="w-full h-full object-contain bg-black"
+                              />
+                            );
+                          })()
                         )}
                       </motion.div>
                     );
@@ -1105,11 +1202,36 @@ const VideoPreview = ({
                         playsInline
                       />
                     ) : (
-                      <img
-                        src={currentMedia.previewUrl}
-                        alt="Background"
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
+                      (() => {
+                        const kenBurnsEffect = getKenBurnsEffect(currentMedia.id, currentMedia.kenBurns);
+                        return kenBurnsEffect ? (
+                          <motion.img
+                            src={currentMedia.previewUrl}
+                            alt="Background"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            initial={{
+                              scale: kenBurnsEffect.initial.scale,
+                              x: kenBurnsEffect.initial.x,
+                              y: kenBurnsEffect.initial.y,
+                            }}
+                            animate={{
+                              scale: kenBurnsEffect.animate.scale,
+                              x: kenBurnsEffect.animate.x,
+                              y: kenBurnsEffect.animate.y,
+                            }}
+                            transition={{
+                              duration: currentClipDuration,
+                              ease: "linear",
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={currentMedia.previewUrl}
+                            alt="Background"
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        );
+                      })()
                     )}
                   </motion.div>
                 );

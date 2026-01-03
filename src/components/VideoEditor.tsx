@@ -42,6 +42,7 @@ interface MediaClip extends MediaFile {
   trimEnd: number;
   clipDuration: number;
   transition?: TransitionType;
+  kenBurns?: KenBurnsType;
 }
 
 interface LayerTiming {
@@ -50,6 +51,7 @@ interface LayerTiming {
 }
 
 export type TransitionType = "none" | "fade" | "slide" | "zoom" | "blur";
+export type KenBurnsType = "none" | "zoom-in" | "zoom-out" | "pan-left" | "pan-right" | "pan-up" | "pan-down" | "random";
 
 export interface EditedClip {
   id: string;
@@ -59,6 +61,7 @@ export interface EditedClip {
   endTime: number;
   effectiveDuration: number;
   transition: TransitionType;
+  kenBurns?: KenBurnsType;
 }
 
 export type DurationMode = "longest" | "media" | "audio";
@@ -171,6 +174,7 @@ const VideoEditor = ({
         endTime,
         effectiveDuration,
         transition: clip.transition || "none",
+        kenBurns: clip.type === "image" ? (clip.kenBurns || "random") : "none",
       };
     });
     
