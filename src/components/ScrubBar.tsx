@@ -199,14 +199,14 @@ const ScrubBar = ({
                     setIsZoomed(!isZoomed);
                   }}
                 >
-                  {hoveredThumbnail.type === "video" ? (
+                  {hoveredThumbnail.type === "video" && hoveredThumbnail.previewUrl ? (
                     <video
                       src={hoveredThumbnail.previewUrl}
                       className="w-full h-full object-cover"
                       muted
                       playsInline
                     />
-                  ) : (
+                  ) : hoveredThumbnail.type === "image" && hoveredThumbnail.previewUrl ? (
                     <motion.img
                       src={hoveredThumbnail.previewUrl}
                       alt="Preview"
@@ -215,6 +215,10 @@ const ScrubBar = ({
                         scale: isZoomed ? 1 : 1
                       }}
                     />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <span className="text-[8px] text-muted-foreground">Loading...</span>
+                    </div>
                   )}
                   
                   {/* Clip number badge */}
@@ -357,19 +361,23 @@ const ScrubBar = ({
                       }
                     }}
                   >
-                    {thumb.type === "video" ? (
+                    {thumb.type === "video" && thumb.previewUrl ? (
                       <video
                         src={thumb.previewUrl}
                         className="w-full h-full object-cover pointer-events-none"
                         muted
                         playsInline
                       />
-                    ) : (
+                    ) : thumb.type === "image" && thumb.previewUrl ? (
                       <img
                         src={thumb.previewUrl}
                         alt={`Clip ${index + 1}`}
                         className="w-full h-full object-cover pointer-events-none"
                       />
+                    ) : (
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <span className="text-[8px] text-muted-foreground">...</span>
+                      </div>
                     )}
                     
                     {/* Progress overlay for active clip */}
