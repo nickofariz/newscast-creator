@@ -9,6 +9,8 @@ import TemplateSelector from "@/components/TemplateSelector";
 import VideoPreview from "@/components/VideoPreview";
 import VideoHistory, { VideoItem } from "@/components/VideoHistory";
 import FootageUploader from "@/components/FootageUploader";
+import AudioPreview from "@/components/AudioPreview";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { toast } from "sonner";
 
 type VoiceType = "male" | "female";
@@ -21,6 +23,21 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [uploadedFootage, setUploadedFootage] = useState<File | null>(null);
+  
+  const {
+    generateSpeech,
+    isGenerating: isGeneratingAudio,
+    audioUrl,
+    playAudio,
+    pauseAudio,
+    isPlaying,
+    duration,
+    currentTime,
+  } = useTextToSpeech();
+
+  const handleGenerateAudio = () => {
+    generateSpeech(newsText, selectedVoice);
+  };
 
   // Mock video history
   const [videos, setVideos] = useState<VideoItem[]>([
@@ -114,6 +131,18 @@ const Index = () => {
                 <VoiceSelector selected={selectedVoice} onChange={setSelectedVoice} />
                 <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
                 <FootageUploader onUpload={setUploadedFootage} uploadedFile={uploadedFootage} />
+                
+                <AudioPreview
+                  isGenerating={isGeneratingAudio}
+                  audioUrl={audioUrl}
+                  isPlaying={isPlaying}
+                  duration={duration}
+                  currentTime={currentTime}
+                  onPlay={playAudio}
+                  onPause={pauseAudio}
+                  onGenerate={handleGenerateAudio}
+                  disabled={!newsText.trim()}
+                />
 
                 {/* Generate Button */}
                 <motion.div
