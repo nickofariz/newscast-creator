@@ -103,6 +103,13 @@ const COLOR_PRESETS = [
   { id: "black", color: "#171717" },
 ];
 
+// Mini phone preview component
+const MiniPreview = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <div className={cn("w-10 h-16 rounded-sm bg-gray-700 relative overflow-hidden flex-shrink-0 border border-border", className)}>
+    {children}
+  </div>
+);
+
 const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -117,243 +124,298 @@ const OverlaySelector = ({ settings, onChange }: OverlaySelectorProps) => {
     }
   };
 
+  // Get logo position classes
+  const getLogoPositionClasses = (position: string) => {
+    switch (position) {
+      case "top-left": return "top-0.5 left-0.5";
+      case "top-right": return "top-0.5 right-0.5";
+      case "bottom-left": return "bottom-0.5 left-0.5";
+      case "bottom-right": return "bottom-0.5 right-0.5";
+      default: return "top-0.5 right-0.5";
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Subtitle Settings */}
-      <div className="p-3 rounded-lg bg-secondary/30 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Type className="w-4 h-4 text-yellow-500" />
-            <Label className="text-sm font-medium">Subtitle</Label>
-          </div>
-          <Switch
-            checked={settings.headline.showSubtitle}
-            onCheckedChange={(checked) =>
-              onChange({
-                ...settings,
-                headline: { ...settings.headline, showSubtitle: checked },
-              })
-            }
-          />
-        </div>
-        
-        {settings.headline.showSubtitle && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="space-y-2"
-          >
-            <Label className="text-xs text-muted-foreground">Warna Background</Label>
-            <div className="flex gap-1.5 flex-wrap">
-              {COLOR_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() =>
-                    onChange({
-                      ...settings,
-                      headline: { ...settings.headline, color: preset.color },
-                    })
-                  }
-                  className={cn(
-                    "w-7 h-7 rounded-md transition-all",
-                    settings.headline.color === preset.color
-                      ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
-                      : "hover:scale-105"
-                  )}
-                  style={{ backgroundColor: preset.color }}
-                />
-              ))}
-              <div className="relative">
-                <input
-                  type="color"
-                  value={settings.headline.color}
-                  onChange={(e) =>
-                    onChange({
-                      ...settings,
-                      headline: { ...settings.headline, color: e.target.value },
-                    })
-                  }
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <div className="w-7 h-7 rounded-md border border-dashed border-muted-foreground flex items-center justify-center">
-                  <Palette className="w-3 h-3 text-muted-foreground" />
+      <div className="p-3 rounded-lg bg-secondary/30">
+        <div className="flex items-center gap-3">
+          {/* Mini Preview */}
+          <MiniPreview>
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-600 to-gray-800" />
+            {settings.headline.showSubtitle && (
+              <div 
+                className="absolute bottom-1 left-0.5 right-0.5 h-2 rounded-sm"
+                style={{ backgroundColor: settings.headline.color }}
+              >
+                <div className="w-full h-0.5 bg-white/80 mt-0.5 mx-auto" style={{ width: '80%' }} />
+              </div>
+            )}
+          </MiniPreview>
+
+          {/* Controls */}
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Type className="w-4 h-4 text-yellow-500" />
+                <Label className="text-sm font-medium">Subtitle</Label>
+              </div>
+              <Switch
+                checked={settings.headline.showSubtitle}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    ...settings,
+                    headline: { ...settings.headline, showSubtitle: checked },
+                  })
+                }
+              />
+            </div>
+            
+            {settings.headline.showSubtitle && (
+              <div className="flex gap-1 flex-wrap">
+                {COLOR_PRESETS.slice(0, 4).map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() =>
+                      onChange({
+                        ...settings,
+                        headline: { ...settings.headline, color: preset.color },
+                      })
+                    }
+                    className={cn(
+                      "w-5 h-5 rounded transition-all",
+                      settings.headline.color === preset.color
+                        ? "ring-2 ring-offset-1 ring-offset-background ring-primary"
+                        : "hover:scale-110"
+                    )}
+                    style={{ backgroundColor: preset.color }}
+                  />
+                ))}
+                <div className="relative">
+                  <input
+                    type="color"
+                    value={settings.headline.color}
+                    onChange={(e) =>
+                      onChange({
+                        ...settings,
+                        headline: { ...settings.headline, color: e.target.value },
+                      })
+                    }
+                    className="absolute inset-0 opacity-0 cursor-pointer w-5 h-5"
+                  />
+                  <div className="w-5 h-5 rounded border border-dashed border-muted-foreground flex items-center justify-center">
+                    <Palette className="w-2.5 h-2.5 text-muted-foreground" />
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Logo Settings */}
-      <div className="p-3 rounded-lg bg-secondary/30 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image className="w-4 h-4 text-purple-500" />
-            <Label className="text-sm font-medium">Logo</Label>
-          </div>
-          <Switch
-            checked={settings.logo.enabled}
-            onCheckedChange={(checked) =>
-              onChange({
-                ...settings,
-                logo: { ...settings.logo, enabled: checked },
-              })
-            }
-          />
-        </div>
-
-        {settings.logo.enabled && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="space-y-3"
-          >
-            {/* Upload */}
-            {settings.logo.url ? (
-              <div className="flex items-center gap-2 p-2 bg-background rounded-md border border-border">
-                <img
-                  src={settings.logo.url}
-                  alt="Logo"
-                  className="w-10 h-10 object-contain rounded"
-                />
-                <span className="text-xs text-muted-foreground flex-1">Logo uploaded</span>
-                <button
-                  onClick={() => onChange({ ...settings, logo: { ...settings.logo, url: null } })}
-                  className="p-1 hover:bg-destructive/10 rounded"
-                >
-                  <X className="w-4 h-4 text-destructive" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full p-3 border border-dashed border-border rounded-md text-center hover:border-primary/50 transition-colors"
+      <div className="p-3 rounded-lg bg-secondary/30">
+        <div className="flex items-center gap-3">
+          {/* Mini Preview */}
+          <MiniPreview>
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-600 to-gray-800" />
+            {settings.logo.enabled && (
+              <div 
+                className={cn(
+                  "absolute w-3 h-3 rounded-sm bg-purple-500/80 flex items-center justify-center",
+                  getLogoPositionClasses(settings.logo.position)
+                )}
               >
-                <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Upload logo</p>
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleLogoUpload}
-            />
-
-            {/* Position */}
-            <div className="grid grid-cols-4 gap-1">
-              {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((pos) => (
-                <button
-                  key={pos}
-                  onClick={() =>
-                    onChange({
-                      ...settings,
-                      logo: { ...settings.logo, position: pos },
-                    })
-                  }
-                  className={cn(
-                    "p-2 rounded text-[10px] transition-all border",
-                    settings.logo.position === pos
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background border-border hover:border-primary/50"
-                  )}
-                >
-                  {pos.split("-").map(w => w[0].toUpperCase()).join("")}
-                </button>
-              ))}
-            </div>
-
-            {/* Size */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Ukuran</span>
-                <span>{settings.logo.size}px</span>
+                {settings.logo.url ? (
+                  <img src={settings.logo.url} alt="" className="w-full h-full object-contain" />
+                ) : (
+                  <Image className="w-2 h-2 text-white" />
+                )}
               </div>
-              <Slider
-                value={[settings.logo.size]}
-                onValueChange={([value]) =>
-                  onChange({ ...settings, logo: { ...settings.logo, size: value } })
+            )}
+          </MiniPreview>
+
+          {/* Controls */}
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Image className="w-4 h-4 text-purple-500" />
+                <Label className="text-sm font-medium">Logo</Label>
+              </div>
+              <Switch
+                checked={settings.logo.enabled}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    ...settings,
+                    logo: { ...settings.logo, enabled: checked },
+                  })
                 }
-                min={20}
-                max={80}
-                step={5}
               />
             </div>
-          </motion.div>
-        )}
+
+            {settings.logo.enabled && (
+              <div className="space-y-2">
+                {/* Upload or show uploaded */}
+                {settings.logo.url ? (
+                  <div className="flex items-center gap-2">
+                    <img src={settings.logo.url} alt="Logo" className="w-6 h-6 object-contain rounded" />
+                    <button
+                      onClick={() => onChange({ ...settings, logo: { ...settings.logo, url: null } })}
+                      className="text-[10px] text-destructive hover:underline"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                  >
+                    <Upload className="w-3 h-3" /> Upload
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
+
+                {/* Position grid */}
+                <div className="grid grid-cols-4 gap-0.5">
+                  {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((pos) => (
+                    <button
+                      key={pos}
+                      onClick={() =>
+                        onChange({
+                          ...settings,
+                          logo: { ...settings.logo, position: pos },
+                        })
+                      }
+                      className={cn(
+                        "p-1 rounded text-[8px] transition-all",
+                        settings.logo.position === pos
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                    >
+                      {pos.split("-").map(w => w[0].toUpperCase()).join("")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Frame Settings */}
-      <div className="p-3 rounded-lg bg-secondary/30 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Frame className="w-4 h-4 text-blue-500" />
-            <Label className="text-sm font-medium">Frame</Label>
+      <div className="p-3 rounded-lg bg-secondary/30">
+        <div className="flex items-center gap-3">
+          {/* Mini Preview */}
+          <MiniPreview>
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-600 to-gray-800" />
+            {settings.frame.enabled && (
+              <>
+                {settings.frame.style === "border" && (
+                  <div 
+                    className="absolute inset-0.5 border-2 rounded-sm"
+                    style={{ borderColor: settings.frame.color }}
+                  />
+                )}
+                {settings.frame.style === "bars" && (
+                  <>
+                    <div 
+                      className="absolute top-0 left-0 right-0 h-1"
+                      style={{ backgroundColor: settings.frame.color }}
+                    />
+                    <div 
+                      className="absolute bottom-0 left-0 right-0 h-1"
+                      style={{ backgroundColor: settings.frame.color }}
+                    />
+                  </>
+                )}
+                {settings.frame.style === "corner" && (
+                  <>
+                    <div className="absolute top-0.5 left-0.5 w-2 h-2 border-t-2 border-l-2" style={{ borderColor: settings.frame.color }} />
+                    <div className="absolute top-0.5 right-0.5 w-2 h-2 border-t-2 border-r-2" style={{ borderColor: settings.frame.color }} />
+                    <div className="absolute bottom-0.5 left-0.5 w-2 h-2 border-b-2 border-l-2" style={{ borderColor: settings.frame.color }} />
+                    <div className="absolute bottom-0.5 right-0.5 w-2 h-2 border-b-2 border-r-2" style={{ borderColor: settings.frame.color }} />
+                  </>
+                )}
+              </>
+            )}
+          </MiniPreview>
+
+          {/* Controls */}
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Frame className="w-4 h-4 text-blue-500" />
+                <Label className="text-sm font-medium">Frame</Label>
+              </div>
+              <Switch
+                checked={settings.frame.enabled}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    ...settings,
+                    frame: { ...settings.frame, enabled: checked },
+                  })
+                }
+              />
+            </div>
+
+            {settings.frame.enabled && (
+              <div className="space-y-2">
+                {/* Style */}
+                <div className="flex gap-1">
+                  {(["border", "bars", "corner"] as const).map((style) => (
+                    <button
+                      key={style}
+                      onClick={() =>
+                        onChange({
+                          ...settings,
+                          frame: { ...settings.frame, style },
+                        })
+                      }
+                      className={cn(
+                        "px-2 py-0.5 rounded text-[10px] capitalize transition-all",
+                        settings.frame.style === style
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Color */}
+                <div className="flex gap-1">
+                  {COLOR_PRESETS.slice(0, 4).map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() =>
+                        onChange({
+                          ...settings,
+                          frame: { ...settings.frame, color: preset.color },
+                        })
+                      }
+                      className={cn(
+                        "w-5 h-5 rounded transition-all",
+                        settings.frame.color === preset.color
+                          ? "ring-2 ring-offset-1 ring-offset-background ring-primary"
+                          : "hover:scale-110"
+                      )}
+                      style={{ backgroundColor: preset.color }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <Switch
-            checked={settings.frame.enabled}
-            onCheckedChange={(checked) =>
-              onChange({
-                ...settings,
-                frame: { ...settings.frame, enabled: checked },
-              })
-            }
-          />
         </div>
-
-        {settings.frame.enabled && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="space-y-3"
-          >
-            {/* Style */}
-            <div className="grid grid-cols-3 gap-1">
-              {(["border", "bars", "corner"] as const).map((style) => (
-                <button
-                  key={style}
-                  onClick={() =>
-                    onChange({
-                      ...settings,
-                      frame: { ...settings.frame, style },
-                    })
-                  }
-                  className={cn(
-                    "p-2 rounded text-xs capitalize transition-all border",
-                    settings.frame.style === style
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background border-border hover:border-primary/50"
-                  )}
-                >
-                  {style}
-                </button>
-              ))}
-            </div>
-
-            {/* Color */}
-            <div className="flex gap-1.5 flex-wrap">
-              {COLOR_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() =>
-                    onChange({
-                      ...settings,
-                      frame: { ...settings.frame, color: preset.color },
-                    })
-                  }
-                  className={cn(
-                    "w-7 h-7 rounded-md transition-all",
-                    settings.frame.color === preset.color
-                      ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
-                      : "hover:scale-105"
-                  )}
-                  style={{ backgroundColor: preset.color }}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );
