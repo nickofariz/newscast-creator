@@ -1,9 +1,8 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Film, X, Check, Image, Plus } from "lucide-react";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { Upload, Film, X, Check, Image, Plus, GripVertical } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface MediaFile {
   id: string;
@@ -103,6 +102,10 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
     }
   };
 
+  const handleReorder = (newOrder: MediaFile[]) => {
+    onUpload(newOrder);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -172,7 +175,7 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
         </motion.div>
       </div>
 
-      {/* Uploaded Files Preview */}
+      {/* Uploaded Files Preview with Reorder */}
       <AnimatePresence>
         {uploadedFiles.length > 0 && (
           <motion.div
@@ -181,31 +184,46 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
             exit={{ opacity: 0, height: 0 }}
             className="mt-3"
           >
-            <ScrollArea className="w-full">
-              <div className="flex gap-2 pb-2">
+            {/* Drag hint */}
+            <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1">
+              <GripVertical className="w-3 h-3" />
+              Drag untuk mengatur urutan
+            </p>
+
+            <div className="overflow-x-auto pb-2">
+              <Reorder.Group
+                axis="x"
+                values={uploadedFiles}
+                onReorder={handleReorder}
+                className="flex gap-2"
+              >
                 {uploadedFiles.map((media, index) => (
-                  <motion.div
+                  <Reorder.Item
                     key={media.id}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="relative flex-shrink-0 group"
+                    value={media}
+                    className="relative flex-shrink-0 group cursor-grab active:cursor-grabbing"
+                    whileDrag={{ scale: 1.05, zIndex: 50 }}
                   >
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-background border border-border">
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-background border border-border transition-all hover:border-primary/50">
                       {media.type === "video" ? (
                         <video
                           src={media.previewUrl}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover pointer-events-none"
                           muted
                         />
                       ) : (
                         <img
                           src={media.previewUrl}
                           alt={media.file.name}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover pointer-events-none"
+                          draggable={false}
                         />
                       )}
+                      
+                      {/* Drag handle overlay */}
+                      <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <GripVertical className="w-5 h-5 text-white opacity-0 group-hover:opacity-70 transition-opacity drop-shadow-lg" />
+                      </div>
                       
                       {/* Type indicator */}
                       <div className="absolute bottom-1 left-1 bg-black/60 rounded px-1 py-0.5">
@@ -232,7 +250,7 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                         <X className="w-3 h-3" />
                       </button>
                     </div>
-                  </motion.div>
+                  </Reorder.Item>
                 ))}
 
                 {/* Add more button */}
@@ -245,8 +263,8 @@ const FootageUploader = ({ onUpload, uploadedFiles }: FootageUploaderProps) => {
                   <Plus className="w-5 h-5 text-muted-foreground" />
                   <span className="text-[10px] text-muted-foreground">Tambah</span>
                 </motion.button>
-              </div>
-            </ScrollArea>
+              </Reorder.Group>
+            </div>
 
             {/* File count */}
             <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
