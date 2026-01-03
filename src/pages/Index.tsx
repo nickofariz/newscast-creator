@@ -11,6 +11,7 @@ import VideoHistory, { VideoItem } from "@/components/VideoHistory";
 import FootageUploader, { MediaFile } from "@/components/FootageUploader";
 import AudioPreview from "@/components/AudioPreview";
 import SubtitlePreview from "@/components/SubtitlePreview";
+import VideoEditor from "@/components/VideoEditor";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
 import { useVideoStorage } from "@/hooks/useVideoStorage";
@@ -167,6 +168,11 @@ const Index = () => {
                 />
                 <TemplateSelector selected={selectedTemplate} onChange={setSelectedTemplate} />
                 <FootageUploader onUpload={setUploadedMedia} uploadedFiles={uploadedMedia} />
+                <VideoEditor 
+                  mediaFiles={uploadedMedia} 
+                  onMediaUpdate={setUploadedMedia}
+                  audioDuration={duration}
+                />
 
                 {/* Generate Button */}
                 <motion.div
