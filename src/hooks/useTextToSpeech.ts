@@ -1,10 +1,8 @@
 import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 
-type VoiceType = "male" | "female";
-
 interface UseTextToSpeechReturn {
-  generateSpeech: (text: string, voice: VoiceType) => Promise<string | null>;
+  generateSpeech: (text: string, voiceId: string) => Promise<string | null>;
   isGenerating: boolean;
   audioUrl: string | null;
   playAudio: () => void;
@@ -22,7 +20,7 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const generateSpeech = useCallback(async (text: string, voice: VoiceType): Promise<string | null> => {
+  const generateSpeech = useCallback(async (text: string, voiceId: string): Promise<string | null> => {
     if (!text.trim()) {
       toast.error("Teks tidak boleh kosong");
       return null;
@@ -40,7 +38,7 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ text, voice }),
+          body: JSON.stringify({ text, voiceId }),
         }
       );
 

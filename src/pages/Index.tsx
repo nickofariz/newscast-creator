@@ -17,12 +17,11 @@ import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
 import { useVideoStorage } from "@/hooks/useVideoStorage";
 import { toast } from "sonner";
 
-type VoiceType = "male" | "female";
 type TemplateType = "headline-top" | "minimal" | "breaking";
 
 const Index = () => {
   const [newsText, setNewsText] = useState("");
-  const [selectedVoice, setSelectedVoice] = useState<VoiceType>("female");
+  const [selectedVoice, setSelectedVoice] = useState("EXAVITQu4vr4xnSDxMaL"); // Sarah default
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);

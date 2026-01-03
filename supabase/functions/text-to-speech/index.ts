@@ -6,11 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Voice IDs for Indonesian TTS
-const VOICE_IDS = {
-  female: "EXAVITQu4vr4xnSDxMaL", // Sarah - natural female voice
-  male: "JBFqnCBsd6RMkjVDRZzb", // George - natural male voice
-};
+// Default voice ID if not provided
+const DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // Sarah
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -19,7 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voice } = await req.json();
+    const { text, voiceId } = await req.json();
 
     if (!text || text.trim().length === 0) {
       return new Response(
@@ -37,12 +34,12 @@ serve(async (req) => {
       );
     }
 
-    const voiceId = voice === "male" ? VOICE_IDS.male : VOICE_IDS.female;
+    const selectedVoiceId = voiceId || DEFAULT_VOICE_ID;
 
-    console.log(`Generating TTS for ${text.length} characters with voice: ${voice}`);
+    console.log(`Generating TTS for ${text.length} characters with voice ID: ${selectedVoiceId}`);
 
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}?output_format=mp3_44100_128`,
       {
         method: "POST",
         headers: {
