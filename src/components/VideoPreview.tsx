@@ -214,16 +214,6 @@ const VideoPreview = ({
 
   // Get current media - use stable reference to prevent flickering
   const currentMedia = useMemo(() => {
-    // Debug log
-    console.log("VideoPreview - currentMedia calculation:", {
-      mediaFilesLength: mediaFiles.length,
-      editedClipsLength: editedClips.length,
-      activeMediaIndex,
-      isMediaEnded,
-      hasEditedClips,
-      firstMediaFile: mediaFiles[0] ? { id: mediaFiles[0].id, previewUrl: mediaFiles[0].previewUrl?.substring(0, 50), type: mediaFiles[0].type } : null,
-    });
-    
     // Show nothing (placeholder/black screen) if no valid index
     if (activeMediaIndex === -1) {
       currentMediaRef.current = null;
@@ -236,25 +226,29 @@ const VideoPreview = ({
     // Priority: editedClips first, then mediaFiles
     if (hasEditedClips && editedClips[activeMediaIndex]) {
       const clip = editedClips[activeMediaIndex];
-      newMedia = { 
-        id: clip.id,
-        previewUrl: clip.previewUrl || "", 
-        type: clip.type,
-        transition: clip.transition || "none",
-        kenBurns: clip.kenBurns || "random"
-      };
+      // Only create if we have a valid previewUrl
+      if (clip.previewUrl) {
+        newMedia = { 
+          id: clip.id,
+          previewUrl: clip.previewUrl, 
+          type: clip.type,
+          transition: clip.transition || "none",
+          kenBurns: clip.kenBurns || "random"
+        };
+      }
     } else if (mediaFiles[activeMediaIndex]) {
       const file = mediaFiles[activeMediaIndex];
-      newMedia = { 
-        id: file.id,
-        previewUrl: file.previewUrl || "",
-        type: file.type,
-        transition: "none" as TransitionType,
-        kenBurns: "random" as KenBurnsType
-      };
+      // Only create if we have a valid previewUrl
+      if (file.previewUrl) {
+        newMedia = { 
+          id: file.id,
+          previewUrl: file.previewUrl,
+          type: file.type,
+          transition: "none" as TransitionType,
+          kenBurns: "random" as KenBurnsType
+        };
+      }
     }
-    
-    console.log("VideoPreview - newMedia result:", newMedia ? { id: newMedia.id, previewUrl: newMedia.previewUrl?.substring(0, 50), type: newMedia.type } : null);
     
     // Update ref if media ID changed OR if kenBurns changed for same media
     if (newMedia) {
@@ -274,7 +268,7 @@ const VideoPreview = ({
     }
     
     return currentMediaRef.current;
-  }, [hasEditedClips, editedClips, activeMediaIndex, mediaFiles, isMediaEnded]);
+  }, [hasEditedClips, editedClips, activeMediaIndex, mediaFiles]);
 
   // Get transition animation variants based on transition type
   const getTransitionVariants = (transition: TransitionType) => {
@@ -511,8 +505,8 @@ const VideoPreview = ({
 
   // Handle play/pause and seeking for video elements
   useEffect(() => {
-    if (videoRef.current && currentMedia?.type === "video") {
-      // Always try to play video when media changes to show first frame
+    // Only try to play if we have a valid video with a valid URL
+    if (videoRef.current && currentMedia?.type === "video" && currentMedia?.previewUrl) {
       const playVideo = async () => {
         try {
           if (isPlaying || isAudioPlaying) {
@@ -532,7 +526,8 @@ const VideoPreview = ({
 
   // Seek video to correct position within clip when time changes
   useEffect(() => {
-    if (videoRef.current && currentMedia?.type === "video" && hasEditedClips) {
+    // Only seek if we have a valid video with a valid URL
+    if (videoRef.current && currentMedia?.type === "video" && currentMedia?.previewUrl && hasEditedClips) {
       const currentClip = editedClips[activeMediaIndex];
       if (currentClip) {
         const offsetInClip = currentTime - currentClip.startTime;
