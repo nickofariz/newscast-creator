@@ -10,6 +10,7 @@ import ExportStep from "@/components/steps/ExportStep";
 import { MediaFile } from "@/components/FootageUploader";
 import { VideoItem } from "@/components/VideoHistory";
 import { VoiceSettingsValues, DEFAULT_SETTINGS } from "@/components/VoiceSettings";
+import { OverlaySettings, DEFAULT_OVERLAY_SETTINGS } from "@/components/OverlaySelector";
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
 import { useVideoStorage } from "@/hooks/useVideoStorage";
@@ -25,6 +26,7 @@ const Index = () => {
   // Media state
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
+  const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(DEFAULT_OVERLAY_SETTINGS);
 
   // Voice over state
   const [newsText, setNewsText] = useState("");
@@ -200,6 +202,8 @@ const Index = () => {
                   onUploadMedia={setUploadedMedia}
                   selectedTemplate={selectedTemplate}
                   onSelectTemplate={setSelectedTemplate}
+                  overlaySettings={overlaySettings}
+                  onOverlaySettingsChange={setOverlaySettings}
                   onNext={handleMediaNext}
                 />
               )}
