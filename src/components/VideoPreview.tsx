@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Volume2, Pause, Maximize2, Minimize2, X, VolumeX, SkipBack, SkipForward } from "lucide-react";
+import { Play, Volume2, Pause, Maximize2, X, VolumeX, SkipBack, SkipForward } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { OverlaySettings } from "./OverlaySelector";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "./SubtitlePreview";
