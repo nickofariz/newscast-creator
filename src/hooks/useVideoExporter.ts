@@ -514,7 +514,7 @@ export const useVideoExporter = () => {
       setExportProgress({ status: "error", progress: 0, message });
       return null;
     }
-  }, [drawFrame]);
+  }, [drawFrame, playNotificationSound, convertToMp4]);
 
   const cancelExport = useCallback(() => {
     abortRef.current = true;
