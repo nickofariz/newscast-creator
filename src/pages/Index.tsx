@@ -246,6 +246,7 @@ const Index = () => {
                   currentTime={currentTime}
                   isPlaying={isPlaying}
                   isGenerating={isGenerating}
+                  overlaySettings={overlaySettings}
                   onGenerate={handleGenerate}
                   onNext={handleEditorNext}
                   onBack={() => setCurrentStep("voiceover")}

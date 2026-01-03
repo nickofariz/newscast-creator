@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import VideoEditor from "@/components/VideoEditor";
 import VideoPreview from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
+import { OverlaySettings } from "@/components/OverlaySelector";
 
 interface SubtitleWord {
   text: string;
@@ -23,6 +24,7 @@ interface EditorStepProps {
   currentTime: number;
   isPlaying: boolean;
   isGenerating: boolean;
+  overlaySettings?: OverlaySettings;
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -38,6 +40,7 @@ const EditorStep = ({
   currentTime,
   isPlaying,
   isGenerating,
+  overlaySettings,
   onGenerate,
   onNext,
   onBack,
@@ -81,6 +84,7 @@ const EditorStep = ({
             currentTime={currentTime}
             isAudioPlaying={isPlaying}
             audioDuration={audioDuration}
+            overlaySettings={overlaySettings}
           />
         </div>
 
