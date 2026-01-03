@@ -892,17 +892,6 @@ const VideoPreview = ({
           )}
         </AnimatePresence>
 
-        {/* Bottom controls - Timeline */}
-        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-white/80">
-          <span>{formatTime(displayTime)}</span>
-          <div className="flex-1 mx-2 h-1 bg-white/30 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-white"
-              style={{ width: `${(displayTime / totalVideoDuration) * 100}%` }}
-            />
-          </div>
-          <span>{formatTime(totalVideoDuration)}</span>
-        </div>
 
         {/* Generating overlay */}
         <AnimatePresence>
