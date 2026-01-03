@@ -1,6 +1,9 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Video } from "lucide-react";
+import { Video, X } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import OnboardingStepper, { StepId } from "@/components/OnboardingStepper";
 import MediaStep from "@/components/steps/MediaStep";
@@ -76,6 +79,7 @@ const Index = () => {
 
   const {
     exportVideo,
+    cancelExport,
     exportProgress,
     isExporting,
   } = useVideoExporter();
@@ -326,6 +330,45 @@ const Index = () => {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Rendering Progress Dialog */}
+          <Dialog open={isExporting || isGenerating} onOpenChange={() => {}}>
+            <DialogContent className="sm:max-w-md [&>button]:hidden">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Video className="w-5 h-5 animate-pulse text-primary" />
+                  Rendering Video
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{exportProgress.message || "Mempersiapkan..."}</span>
+                    <span className="font-medium">{Math.round(exportProgress.progress)}%</span>
+                  </div>
+                  <Progress value={exportProgress.progress} className="h-3" />
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Status: {exportProgress.status === "preparing" ? "Mempersiapkan" : 
+                    exportProgress.status === "rendering" ? "Merender" : 
+                    exportProgress.status === "encoding" ? "Encoding" : 
+                    exportProgress.status === "complete" ? "Selesai" : "Memulai"}</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    cancelExport();
+                    setIsGenerating(false);
+                  }}
+                  className="w-full"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Batalkan
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Features Footer */}
           <motion.div
