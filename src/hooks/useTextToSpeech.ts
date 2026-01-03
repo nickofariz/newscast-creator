@@ -100,7 +100,9 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
 
   const playAudio = useCallback(() => {
     if (audioRef.current) {
-      audioRef.current.play();
+      audioRef.current.play().catch((err) => {
+        console.error("Play error:", err);
+      });
       setIsPlaying(true);
     }
   }, []);
@@ -108,8 +110,8 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
   const pauseAudio = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
-      setIsPlaying(false);
     }
+    setIsPlaying(false);
   }, []);
 
   const seekTo = useCallback((time: number) => {
