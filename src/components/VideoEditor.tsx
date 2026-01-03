@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { 
   Scissors, 
   Film, 
@@ -8,19 +8,24 @@ import {
   Play, 
   Pause, 
   RotateCcw,
-  ChevronLeft,
-  ChevronRight,
   Trash2,
-  GripVertical
+  ZoomIn,
+  ZoomOut,
+  GripVertical,
+  Volume2,
+  Layers,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { MediaFile } from "./FootageUploader";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface MediaClip extends MediaFile {
-  trimStart: number; // 0-1 percentage
-  trimEnd: number; // 0-1 percentage
-  clipDuration: number; // Effective duration in seconds
+  trimStart: number;
+  trimEnd: number;
+  clipDuration: number;
 }
 
 interface VideoEditorProps {
@@ -29,17 +34,21 @@ interface VideoEditorProps {
   audioDuration: number;
 }
 
-const DEFAULT_CLIP_DURATION = 3; // seconds
+const DEFAULT_CLIP_DURATION = 3;
+const TIMELINE_PIXELS_PER_SECOND = 60;
 
 const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorProps) => {
   const [clips, setClips] = useState<MediaClip[]>([]);
   const [selectedClipIndex, setSelectedClipIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [isDraggingTrim, setIsDraggingTrim] = useState<{ clipIndex: number; handle: "start" | "end" } | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const playheadRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize clips from media files
   useEffect(() => {
     const newClips: MediaClip[] = mediaFiles.map((media) => ({
       ...media,
@@ -50,13 +59,11 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
     setClips(newClips);
   }, [mediaFiles]);
 
-  // Calculate total timeline duration
   const totalDuration = clips.reduce((acc, clip) => {
     const effectiveDuration = clip.clipDuration * (clip.trimEnd - clip.trimStart);
     return acc + effectiveDuration;
   }, 0);
 
-  // Get current clip based on playback time
   const getCurrentClipInfo = useCallback(() => {
     let accumulatedTime = 0;
     for (let i = 0; i < clips.length; i++) {
@@ -76,7 +83,6 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
 
   const currentClipInfo = getCurrentClipInfo();
 
-  // Playback timer
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
@@ -85,9 +91,9 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
             setIsPlaying(false);
             return 0;
           }
-          return prev + 0.1;
+          return prev + 0.05;
         });
-      }, 100);
+      }, 50);
     } else {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -101,24 +107,65 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
     };
   }, [isPlaying, totalDuration]);
 
-  // Handle trim change for selected clip
-  const handleTrimChange = (type: "start" | "end", value: number) => {
-    if (selectedClipIndex === null) return;
-
-    setClips((prev) =>
-      prev.map((clip, i) => {
-        if (i !== selectedClipIndex) return clip;
-        
-        if (type === "start") {
-          return { ...clip, trimStart: Math.min(value, clip.trimEnd - 0.1) };
-        } else {
-          return { ...clip, trimEnd: Math.max(value, clip.trimStart + 0.1) };
-        }
-      })
-    );
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current || isDraggingTrim) return;
+    
+    const rect = timelineRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left + timelineRef.current.scrollLeft;
+    const clickedTime = x / (TIMELINE_PIXELS_PER_SECOND * zoom);
+    setCurrentTime(Math.max(0, Math.min(totalDuration, clickedTime)));
   };
 
-  // Handle duration change
+  const handleTrimDrag = (e: React.MouseEvent, clipIndex: number, handle: "start" | "end") => {
+    e.stopPropagation();
+    setIsDraggingTrim({ clipIndex, handle });
+    setSelectedClipIndex(clipIndex);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!timelineRef.current) return;
+      
+      const rect = timelineRef.current.getBoundingClientRect();
+      const x = moveEvent.clientX - rect.left + timelineRef.current.scrollLeft;
+      
+      // Calculate clip start position in pixels
+      let clipStartPx = 0;
+      for (let i = 0; i < clipIndex; i++) {
+        clipStartPx += clips[i].clipDuration * (clips[i].trimEnd - clips[i].trimStart) * TIMELINE_PIXELS_PER_SECOND * zoom;
+      }
+      
+      const clipWidthPx = clips[clipIndex].clipDuration * TIMELINE_PIXELS_PER_SECOND * zoom;
+      const relativeX = (x - clipStartPx) / clipWidthPx;
+      
+      setClips((prev) =>
+        prev.map((clip, i) => {
+          if (i !== clipIndex) return clip;
+          
+          if (handle === "start") {
+            const newStart = Math.max(0, Math.min(clip.trimEnd - 0.1, relativeX));
+            return { ...clip, trimStart: newStart };
+          } else {
+            const newEnd = Math.max(clip.trimStart + 0.1, Math.min(1, relativeX));
+            return { ...clip, trimEnd: newEnd };
+          }
+        })
+      );
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingTrim(null);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleClipReorder = (newOrder: MediaClip[]) => {
+    setClips(newOrder);
+    onMediaUpdate(newOrder);
+  };
+
   const handleDurationChange = (duration: number) => {
     if (selectedClipIndex === null) return;
 
@@ -129,7 +176,6 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
     );
   };
 
-  // Delete clip
   const handleDeleteClip = (index: number) => {
     const newClips = clips.filter((_, i) => i !== index);
     setClips(newClips);
@@ -139,7 +185,6 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
     }
   };
 
-  // Reset trim
   const handleResetTrim = () => {
     if (selectedClipIndex === null) return;
 
@@ -153,8 +198,35 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 10);
-    return `${mins}:${secs.toString().padStart(2, "0")}.${ms}`;
+    const ms = Math.floor((seconds % 1) * 100);
+    return `${mins}:${secs.toString().padStart(2, "0")}.${ms.toString().padStart(2, "0")}`;
+  };
+
+  const getTimelineWidth = () => {
+    return Math.max(totalDuration * TIMELINE_PIXELS_PER_SECOND * zoom, 600);
+  };
+
+  const renderTimeRuler = () => {
+    const width = getTimelineWidth();
+    const secondsVisible = width / (TIMELINE_PIXELS_PER_SECOND * zoom);
+    const marks = [];
+    
+    const interval = zoom >= 1.5 ? 0.5 : zoom >= 0.75 ? 1 : 2;
+    
+    for (let i = 0; i <= secondsVisible; i += interval) {
+      marks.push(
+        <div
+          key={i}
+          className="absolute flex flex-col items-center"
+          style={{ left: `${i * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
+        >
+          <div className="h-2 w-px bg-muted-foreground/40" />
+          <span className="text-[9px] text-muted-foreground mt-0.5">{i}s</span>
+        </div>
+      );
+    }
+    
+    return marks;
   };
 
   if (mediaFiles.length === 0) {
@@ -168,9 +240,9 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
           <Scissors className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-foreground">Video Editor</span>
         </div>
-        <div className="flex flex-col items-center gap-2 py-6 text-center">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <Film className="w-6 h-6 text-muted-foreground" />
+        <div className="flex flex-col items-center gap-2 py-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Layers className="w-7 h-7 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">
             Upload media untuk memulai editing
@@ -184,265 +256,377 @@ const VideoEditor = ({ mediaFiles, onMediaUpdate, audioDuration }: VideoEditorPr
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
+      className="space-y-3"
     >
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Scissors className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Video Editor</span>
+          <span className="text-sm font-medium text-foreground">Timeline Editor</span>
         </div>
-        <span className="text-xs text-muted-foreground">
-          Total: {formatTime(totalDuration)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-mono">
+            {formatTime(currentTime)} / {formatTime(totalDuration)}
+          </span>
+        </div>
       </div>
 
-      {/* Preview Area */}
-      <div className="relative aspect-[9/16] max-w-[180px] mx-auto rounded-xl overflow-hidden bg-background border border-border">
-        {currentClipInfo ? (
-          currentClipInfo.clip.type === "video" ? (
-            <video
-              ref={videoRef}
-              src={currentClipInfo.clip.previewUrl}
-              className="w-full h-full object-cover"
-              muted
-              playsInline
-            />
+      {/* Preview & Controls */}
+      <div className="flex gap-4">
+        {/* Mini Preview */}
+        <div className="relative w-24 aspect-[9/16] rounded-lg overflow-hidden bg-background border border-border flex-shrink-0">
+          {currentClipInfo ? (
+            currentClipInfo.clip.type === "video" ? (
+              <video
+                ref={videoRef}
+                src={currentClipInfo.clip.previewUrl}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+              />
+            ) : (
+              <img
+                src={currentClipInfo.clip.previewUrl}
+                alt="Preview"
+                className="w-full h-full object-cover"
+              />
+            )
+          ) : clips[0] ? (
+            clips[0].type === "video" ? (
+              <video
+                src={clips[0].previewUrl}
+                className="w-full h-full object-cover"
+                muted
+              />
+            ) : (
+              <img
+                src={clips[0].previewUrl}
+                alt="Preview"
+                className="w-full h-full object-cover"
+              />
+            )
           ) : (
-            <img
-              src={currentClipInfo.clip.previewUrl}
-              alt="Preview"
-              className="w-full h-full object-cover"
-            />
-          )
-        ) : clips[0] ? (
-          clips[0].type === "video" ? (
-            <video
-              src={clips[0].previewUrl}
-              className="w-full h-full object-cover"
-              muted
-            />
-          ) : (
-            <img
-              src={clips[0].previewUrl}
-              alt="Preview"
-              className="w-full h-full object-cover"
-            />
-          )
-        ) : (
-          <div className="w-full h-full gradient-dark" />
+            <div className="w-full h-full gradient-dark" />
+          )}
+        </div>
+
+        {/* Controls */}
+        <div className="flex-1 flex flex-col justify-center gap-2">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsPlaying(!isPlaying)}
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+            </Button>
+            
+            <div className="h-6 w-px bg-border" />
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setZoom(Math.max(0.25, zoom - 0.25))}
+            >
+              <ZoomOut className="w-4 h-4" />
+            </Button>
+            <span className="text-xs text-muted-foreground w-12 text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setZoom(Math.min(3, zoom + 0.25))}
+            >
+              <ZoomIn className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <p className="text-[10px] text-muted-foreground">
+            Drag handles kiri/kanan pada clip untuk trim • Drag clip untuk reorder
+          </p>
+        </div>
+      </div>
+
+      {/* Timeline Container */}
+      <div className="rounded-xl bg-secondary/50 border border-border overflow-hidden">
+        {/* Time Ruler */}
+        <div className="h-6 bg-card/80 border-b border-border relative overflow-hidden">
+          <ScrollArea className="w-full">
+            <div 
+              className="relative h-6" 
+              style={{ width: `${getTimelineWidth()}px` }}
+            >
+              {renderTimeRuler()}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
+
+        {/* Audio Track (if available) */}
+        {audioDuration > 0 && (
+          <div className="h-8 bg-card/40 border-b border-border px-2 py-1">
+            <div className="flex items-center gap-2 h-full">
+              <Volume2 className="w-3 h-3 text-primary flex-shrink-0" />
+              <div 
+                className="h-full rounded bg-primary/20 border border-primary/40 flex items-center px-2"
+                style={{ width: `${audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
+              >
+                <div className="flex-1 h-3 flex items-center gap-px">
+                  {Array.from({ length: 30 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-0.5 bg-primary/60 rounded-full"
+                      style={{ height: `${20 + Math.random() * 80}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Playback controls overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center"
-          >
-            {isPlaying ? (
-              <Pause className="w-5 h-5 text-white" />
-            ) : (
-              <Play className="w-5 h-5 text-white ml-0.5" />
-            )}
-          </motion.button>
-        </div>
+        {/* Media Track */}
+        <div 
+          ref={timelineRef}
+          className="relative min-h-[100px] bg-card/20 cursor-pointer"
+          onClick={handleTimelineClick}
+        >
+          <ScrollArea className="w-full">
+            <div 
+              className="relative py-2 px-2" 
+              style={{ width: `${getTimelineWidth()}px`, minHeight: "96px" }}
+            >
+              {/* Layer Label */}
+              <div className="absolute left-2 top-2 flex items-center gap-1 text-[10px] text-muted-foreground bg-card/80 px-1.5 py-0.5 rounded z-10">
+                <Layers className="w-3 h-3" />
+                Media
+              </div>
 
-        {/* Time indicator */}
-        <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 text-[10px] text-white">
-          <span className="bg-black/50 px-1.5 py-0.5 rounded">
-            {formatTime(currentTime)}
-          </span>
-          <div className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all"
-              style={{ width: `${(currentTime / totalDuration) * 100}%` }}
-            />
-          </div>
-          <span className="bg-black/50 px-1.5 py-0.5 rounded">
-            {formatTime(totalDuration)}
-          </span>
-        </div>
-      </div>
+              {/* Clips Track */}
+              <div className="flex items-center pt-6 gap-0.5">
+                <Reorder.Group
+                  axis="x"
+                  values={clips}
+                  onReorder={handleClipReorder}
+                  className="flex items-center gap-0.5"
+                >
+                  {clips.map((clip, index) => {
+                    const clipWidth = clip.clipDuration * TIMELINE_PIXELS_PER_SECOND * zoom;
+                    const trimmedWidth = clipWidth * (clip.trimEnd - clip.trimStart);
+                    const isSelected = selectedClipIndex === index;
+                    const isCurrent = currentClipInfo?.index === index;
 
-      {/* Timeline */}
-      <div className="p-3 rounded-xl bg-card/50 border border-border/50">
-        <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-          <GripVertical className="w-3 h-3" />
-          Klik clip untuk edit trim
-        </p>
-        
-        <div className="flex gap-1 overflow-x-auto pb-2">
-          {clips.map((clip, index) => {
-            const clipEffectiveDuration = clip.clipDuration * (clip.trimEnd - clip.trimStart);
-            const widthPercent = (clipEffectiveDuration / totalDuration) * 100;
-            const isSelected = selectedClipIndex === index;
-            const isCurrent = currentClipInfo?.index === index;
+                    return (
+                      <Reorder.Item
+                        key={clip.id}
+                        value={clip}
+                        className="relative"
+                        style={{ width: `${trimmedWidth}px` }}
+                      >
+                        <motion.div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedClipIndex(index);
+                          }}
+                          className={`relative h-16 rounded-md overflow-hidden cursor-pointer group ${
+                            isSelected
+                              ? "ring-2 ring-primary shadow-lg"
+                              : isCurrent
+                              ? "ring-2 ring-accent"
+                              : "ring-1 ring-border hover:ring-muted-foreground"
+                          }`}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          {/* Thumbnail */}
+                          <div className="absolute inset-0">
+                            {clip.type === "video" ? (
+                              <video
+                                src={clip.previewUrl}
+                                className="w-full h-full object-cover"
+                                muted
+                              />
+                            ) : (
+                              <img
+                                src={clip.previewUrl}
+                                alt={clip.file.name}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+                          </div>
 
-            return (
-              <motion.div
-                key={clip.id}
-                onClick={() => setSelectedClipIndex(index)}
-                className={`relative flex-shrink-0 h-16 rounded-lg overflow-hidden cursor-pointer transition-all ${
-                  isSelected
-                    ? "ring-2 ring-primary"
-                    : isCurrent
-                    ? "ring-2 ring-accent"
-                    : "ring-1 ring-border"
-                }`}
-                style={{ width: `${Math.max(60, widthPercent * 3)}px` }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                          {/* Drag Handle */}
+                          <div className="absolute top-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <GripVertical className="w-3 h-3 text-white/80" />
+                          </div>
+
+                          {/* Type badge */}
+                          <div className="absolute top-1 left-1 bg-black/60 rounded p-0.5">
+                            {clip.type === "video" ? (
+                              <Film className="w-2.5 h-2.5 text-white" />
+                            ) : (
+                              <Image className="w-2.5 h-2.5 text-white" />
+                            )}
+                          </div>
+
+                          {/* Index & Duration */}
+                          <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
+                            <span className="text-[8px] text-white bg-black/60 px-1 rounded">
+                              {formatTime(clip.clipDuration * (clip.trimEnd - clip.trimStart))}
+                            </span>
+                            <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] flex items-center justify-center font-medium">
+                              {index + 1}
+                            </span>
+                          </div>
+
+                          {/* Trim Handles */}
+                          <div
+                            onMouseDown={(e) => handleTrimDrag(e, index, "start")}
+                            className="absolute inset-y-0 left-0 w-2 bg-primary/80 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-primary"
+                          >
+                            <div className="w-0.5 h-6 bg-white rounded-full" />
+                          </div>
+                          <div
+                            onMouseDown={(e) => handleTrimDrag(e, index, "end")}
+                            className="absolute inset-y-0 right-0 w-2 bg-primary/80 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-primary"
+                          >
+                            <div className="w-0.5 h-6 bg-white rounded-full" />
+                          </div>
+                        </motion.div>
+                      </Reorder.Item>
+                    );
+                  })}
+                </Reorder.Group>
+              </div>
+
+              {/* Playhead */}
+              <div
+                ref={playheadRef}
+                className="absolute top-0 bottom-0 w-0.5 bg-primary z-20 pointer-events-none"
+                style={{ left: `${currentTime * TIMELINE_PIXELS_PER_SECOND * zoom + 8}px` }}
               >
-                {/* Thumbnail */}
-                {clip.type === "video" ? (
-                  <video
-                    src={clip.previewUrl}
-                    className="w-full h-full object-cover"
-                    muted
-                  />
-                ) : (
-                  <img
-                    src={clip.previewUrl}
-                    alt={clip.file.name}
-                    className="w-full h-full object-cover"
-                  />
-                )}
-
-                {/* Trim overlay */}
-                <div
-                  className="absolute inset-y-0 left-0 bg-black/60"
-                  style={{ width: `${clip.trimStart * 100}%` }}
-                />
-                <div
-                  className="absolute inset-y-0 right-0 bg-black/60"
-                  style={{ width: `${(1 - clip.trimEnd) * 100}%` }}
-                />
-
-                {/* Type badge */}
-                <div className="absolute top-1 left-1 bg-black/60 rounded p-0.5">
-                  {clip.type === "video" ? (
-                    <Film className="w-2.5 h-2.5 text-white" />
-                  ) : (
-                    <Image className="w-2.5 h-2.5 text-white" />
-                  )}
-                </div>
-
-                {/* Duration */}
-                <div className="absolute bottom-1 left-1 text-[8px] text-white bg-black/60 px-1 rounded">
-                  {formatTime(clipEffectiveDuration)}
-                </div>
-
-                {/* Index */}
-                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] flex items-center justify-center font-medium">
-                  {index + 1}
-                </div>
-              </motion.div>
-            );
-          })}
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full border-2 border-primary-foreground shadow-lg" />
+              </div>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </div>
       </div>
 
-      {/* Trim Controls */}
+      {/* Clip Properties Panel */}
       <AnimatePresence>
         {selectedClipIndex !== null && clips[selectedClipIndex] && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="p-4 rounded-xl bg-card border border-border space-y-4"
+            className="overflow-hidden"
           >
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-foreground">
-                Clip {selectedClipIndex + 1} - Trim
-              </h4>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={handleResetTrim}
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  onClick={() => handleDeleteClip(selectedClipIndex)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+            <div className="p-4 rounded-xl bg-card border border-border space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-md overflow-hidden">
+                    {clips[selectedClipIndex].type === "video" ? (
+                      <video
+                        src={clips[selectedClipIndex].previewUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
+                    ) : (
+                      <img
+                        src={clips[selectedClipIndex].previewUrl}
+                        alt="Selected"
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-foreground">
+                      Clip {selectedClipIndex + 1}
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                      {clips[selectedClipIndex].file.name}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={handleResetTrim}
+                    title="Reset Trim"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => handleDeleteClip(selectedClipIndex)}
+                    title="Delete Clip"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setSelectedClipIndex(null)}
+                    title="Close"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            {/* Clip Duration */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  Durasi Clip
-                </span>
-                <span className="font-mono">{clips[selectedClipIndex].clipDuration}s</span>
-              </div>
-              <Slider
-                value={[clips[selectedClipIndex].clipDuration]}
-                onValueChange={([value]) => handleDurationChange(value)}
-                min={1}
-                max={10}
-                step={0.5}
-                className="w-full"
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Duration */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      Durasi
+                    </span>
+                    <span className="font-mono">{clips[selectedClipIndex].clipDuration}s</span>
+                  </div>
+                  <Slider
+                    value={[clips[selectedClipIndex].clipDuration]}
+                    onValueChange={([value]) => handleDurationChange(value)}
+                    min={1}
+                    max={15}
+                    step={0.5}
+                    className="w-full"
+                  />
+                </div>
 
-            {/* Trim Start */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <ChevronLeft className="w-3 h-3" />
-                  Trim Start
-                </span>
-                <span className="font-mono">{Math.round(clips[selectedClipIndex].trimStart * 100)}%</span>
-              </div>
-              <Slider
-                value={[clips[selectedClipIndex].trimStart]}
-                onValueChange={([value]) => handleTrimChange("start", value)}
-                min={0}
-                max={0.9}
-                step={0.01}
-                className="w-full"
-              />
-            </div>
-
-            {/* Trim End */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <ChevronRight className="w-3 h-3" />
-                  Trim End
-                </span>
-                <span className="font-mono">{Math.round(clips[selectedClipIndex].trimEnd * 100)}%</span>
-              </div>
-              <Slider
-                value={[clips[selectedClipIndex].trimEnd]}
-                onValueChange={([value]) => handleTrimChange("end", value)}
-                min={0.1}
-                max={1}
-                step={0.01}
-                className="w-full"
-              />
-            </div>
-
-            {/* Effective Duration */}
-            <div className="pt-2 border-t border-border">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Durasi Efektif</span>
-                <span className="font-medium text-primary">
-                  {formatTime(
-                    clips[selectedClipIndex].clipDuration *
-                      (clips[selectedClipIndex].trimEnd - clips[selectedClipIndex].trimStart)
-                  )}
-                </span>
+                {/* Trim Info */}
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground">Trim Range</p>
+                  <div className="flex items-center gap-2 text-xs font-mono">
+                    <span className="bg-secondary px-2 py-1 rounded">
+                      {Math.round(clips[selectedClipIndex].trimStart * 100)}%
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="bg-secondary px-2 py-1 rounded">
+                      {Math.round(clips[selectedClipIndex].trimEnd * 100)}%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-primary">
+                    Durasi efektif: {formatTime(
+                      clips[selectedClipIndex].clipDuration *
+                        (clips[selectedClipIndex].trimEnd - clips[selectedClipIndex].trimStart)
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
           </motion.div>
