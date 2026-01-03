@@ -75,11 +75,13 @@ const VideoEditor = ({
   const [textTiming, setTextTiming] = useState<LayerTiming>({ startTime: 0, duration: 10 });
   const [imageTiming, setImageTiming] = useState<LayerTiming>({ startTime: 0, duration: 10 });
   const [isDragging, setIsDragging] = useState<{
-    type: 'media-start' | 'media-end' | 'text-start' | 'text-end' | 'text-move' | 'image-start' | 'image-end' | 'image-move';
+    type: 'media-trim-start' | 'media-trim-end' | 'media-end' | 'text-start' | 'text-end' | 'text-move' | 'image-start' | 'image-end' | 'image-move';
     index?: number;
     startX: number;
     originalValue: number;
     originalStart?: number;
+    originalTrimStart?: number;
+    originalTrimEnd?: number;
   } | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   
@@ -154,7 +156,25 @@ const VideoEditor = ({
       const deltaX = e.clientX - isDragging.startX;
       const deltaTime = deltaX / (TIMELINE_PIXELS_PER_SECOND * zoom);
 
-      if (isDragging.type === 'media-end' && isDragging.index !== undefined) {
+      if (isDragging.type === 'media-trim-start' && isDragging.index !== undefined) {
+        // Trim dari awal video - geser trimStart (0-1 range)
+        const clip = clips[isDragging.index];
+        const originalTrimStart = isDragging.originalTrimStart ?? 0;
+        const trimDelta = deltaTime / clip.clipDuration;
+        const newTrimStart = Math.max(0, Math.min(clip.trimEnd - 0.1, originalTrimStart + trimDelta));
+        setClips(prev => prev.map((c, i) => 
+          i === isDragging.index ? { ...c, trimStart: newTrimStart } : c
+        ));
+      } else if (isDragging.type === 'media-trim-end' && isDragging.index !== undefined) {
+        // Trim dari akhir video - geser trimEnd (0-1 range)
+        const clip = clips[isDragging.index];
+        const originalTrimEnd = isDragging.originalTrimEnd ?? 1;
+        const trimDelta = deltaTime / clip.clipDuration;
+        const newTrimEnd = Math.max(clip.trimStart + 0.1, Math.min(1, originalTrimEnd + trimDelta));
+        setClips(prev => prev.map((c, i) => 
+          i === isDragging.index ? { ...c, trimEnd: newTrimEnd } : c
+        ));
+      } else if (isDragging.type === 'media-end' && isDragging.index !== undefined) {
         const newDuration = Math.max(MIN_DURATION, isDragging.originalValue + deltaTime);
         setClips(prev => prev.map((clip, i) => 
           i === isDragging.index ? { ...clip, clipDuration: newDuration } : clip
@@ -259,11 +279,13 @@ const VideoEditor = ({
     type: typeof isDragging extends null ? never : NonNullable<typeof isDragging>['type'],
     originalValue: number,
     index?: number,
-    originalStart?: number
+    originalStart?: number,
+    originalTrimStart?: number,
+    originalTrimEnd?: number
   ) => {
     e.stopPropagation();
     e.preventDefault();
-    setIsDragging({ type, index, startX: e.clientX, originalValue, originalStart });
+    setIsDragging({ type, index, startX: e.clientX, originalValue, originalStart, originalTrimStart, originalTrimEnd });
   };
 
   const formatTime = (seconds: number) => {
@@ -404,7 +426,7 @@ const VideoEditor = ({
       {/* Drag hint */}
       <p className="text-[10px] text-muted-foreground flex items-center gap-1">
         <GripHorizontal className="w-3 h-3" />
-        Drag tepi layer untuk mengatur durasi
+        Drag tepi clip untuk trim video/gambar, drag layer overlay untuk atur durasi
       </p>
 
       {/* Multi-Layer Timeline */}
@@ -507,11 +529,18 @@ const VideoEditor = ({
                             </span>
                           </div>
 
-                          {/* Resize handle - right side */}
+                          {/* Trim handle - left side (trim start) */}
+                          <ResizeHandle
+                            side="left"
+                            color="text-blue-400"
+                            onMouseDown={(e) => startDrag(e, 'media-trim-start', clip.clipDuration, index, undefined, clip.trimStart, clip.trimEnd)}
+                          />
+                          
+                          {/* Trim handle - right side (trim end) */}
                           <ResizeHandle
                             side="right"
                             color="text-blue-400"
-                            onMouseDown={(e) => startDrag(e, 'media-end', clip.clipDuration, index)}
+                            onMouseDown={(e) => startDrag(e, 'media-trim-end', clip.clipDuration, index, undefined, clip.trimStart, clip.trimEnd)}
                           />
 
                           {/* Delete button on hover */}
