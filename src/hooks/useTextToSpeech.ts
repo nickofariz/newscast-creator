@@ -17,6 +17,7 @@ interface UseTextToSpeechReturn {
   isPlaying: boolean;
   duration: number;
   currentTime: number;
+  seekTo: (time: number) => void;
 }
 
 export function useTextToSpeech(): UseTextToSpeechReturn {
@@ -111,6 +112,13 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     }
   }, []);
 
+  const seekTo = useCallback((time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  }, []);
+
   return {
     generateSpeech,
     isGenerating,
@@ -120,5 +128,6 @@ export function useTextToSpeech(): UseTextToSpeechReturn {
     isPlaying,
     duration,
     currentTime,
+    seekTo,
   };
 }
