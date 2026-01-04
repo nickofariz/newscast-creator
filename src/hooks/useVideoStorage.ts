@@ -90,9 +90,9 @@ export function useVideoStorage(): UseVideoStorageReturn {
       let audioUrl: string | null = null;
       let subtitleUrl: string | null = null;
 
-      // Upload video if provided (WebM format from MediaRecorder)
+      // Upload video if provided
       if (params.videoBlob) {
-        const uploadedUrl = await uploadFile(params.videoBlob, `${basePath}/video.webm`);
+        const uploadedUrl = await uploadFile(params.videoBlob, `${basePath}/video.mp4`);
         if (uploadedUrl) {
           videoUrl = uploadedUrl;
         }
@@ -116,6 +116,11 @@ export function useVideoStorage(): UseVideoStorageReturn {
         if (uploadedSubtitleUrl) {
           subtitleUrl = uploadedSubtitleUrl;
         }
+      }
+
+      // If no video was uploaded, use audio URL as video URL placeholder
+      if (!videoUrl && audioUrl) {
+        videoUrl = audioUrl;
       }
 
       // Save metadata to database

@@ -109,42 +109,27 @@ const VoiceOverStep = ({
       </div>
 
       {/* Navigation Buttons */}
-      <div className="pt-4 flex flex-col gap-3">
-        <div className="flex gap-3">
-          <Button variant="glass" size="lg" onClick={onBack} className="flex-shrink-0">
-            <ChevronLeft className="w-5 h-5" />
-            Kembali
-          </Button>
-          <Button
-            variant="news"
-            size="lg"
-            className="flex-1"
-            onClick={onNext}
-            disabled={!hasAudio}
-          >
-            {hasAudio ? (
-              <>
-                Lanjut ke Editor
-                <ChevronRight className="w-5 h-5" />
-              </>
-            ) : (
-              <>Generate Audio Terlebih Dahulu</>
-            )}
-          </Button>
-        </div>
-        
-        {/* Skip Voice Over Option */}
-        {!hasAudio && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onNext}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Skip Voice Over - Lanjut tanpa audio
-            <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
-        )}
+      <div className="pt-4 flex gap-3">
+        <Button variant="glass" size="lg" onClick={onBack} className="flex-shrink-0">
+          <ChevronLeft className="w-5 h-5" />
+          Kembali
+        </Button>
+        <Button
+          variant="news"
+          size="lg"
+          className="flex-1"
+          onClick={onNext}
+          disabled={!hasAudio}
+        >
+          {hasAudio ? (
+            <>
+              Lanjut ke Editor
+              <ChevronRight className="w-5 h-5" />
+            </>
+          ) : (
+            <>Generate Audio Terlebih Dahulu</>
+          )}
+        </Button>
       </div>
     </motion.div>
   );

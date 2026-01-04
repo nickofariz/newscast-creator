@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, X, Loader2, CheckCircle, AlertCircle, Film, ImageIcon } from "lucide-react";
-import confetti from "canvas-confetti";
+import { Download, X, Loader2, CheckCircle, AlertCircle, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -20,15 +19,9 @@ import {
 } from "@/components/ui/select";
 
 interface ExportProgress {
-  status: "idle" | "preparing" | "rendering" | "encoding" | "converting" | "complete" | "error";
+  status: "idle" | "preparing" | "rendering" | "encoding" | "complete" | "error";
   progress: number;
   message: string;
-  estimatedTimeRemaining?: number;
-}
-
-interface MediaPreview {
-  previewUrl: string;
-  type: "video" | "image";
 }
 
 interface ExportDialogProps {
@@ -37,14 +30,13 @@ interface ExportDialogProps {
   exportProgress: ExportProgress;
   exportedVideoUrl: string | null;
   isExporting: boolean;
-  onStartExport: (quality: "720p" | "1080p", format: "webm" | "mp4") => void;
+  onStartExport: (quality: "720p" | "1080p") => void;
   onCancel: () => void;
   onDownload: () => void;
   onReset: () => void;
   hasSubtitles: boolean;
   hasAudio: boolean;
   hasMedia: boolean;
-  mediaPreviews?: MediaPreview[];
 }
 
 const ExportDialog = ({
@@ -60,109 +52,8 @@ const ExportDialog = ({
   hasSubtitles,
   hasAudio,
   hasMedia,
-  mediaPreviews = [],
 }: ExportDialogProps) => {
   const [quality, setQuality] = useState<"720p" | "1080p">("720p");
-  const [format, setFormat] = useState<"webm" | "mp4">("mp4");
-  const [thumbnails, setThumbnails] = useState<string[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Trigger confetti when export is complete
-  useEffect(() => {
-    if (exportProgress.status === "complete") {
-      // Fire confetti from both sides
-      const duration = 2000;
-      const end = Date.now() + duration;
-
-      const frame = () => {
-        confetti({
-          particleCount: 3,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0, y: 0.6 },
-          colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7']
-        });
-        confetti({
-          particleCount: 3,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1, y: 0.6 },
-          colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7']
-        });
-
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      };
-
-      // Initial burst
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7']
-      });
-
-      frame();
-    }
-  }, [exportProgress.status]);
-
-  // Generate thumbnails from media previews
-  useEffect(() => {
-    if (!open || mediaPreviews.length === 0) {
-      setThumbnails([]);
-      return;
-    }
-
-    const generateThumbnails = async () => {
-      const thumbs: string[] = [];
-      const maxThumbs = Math.min(4, mediaPreviews.length);
-
-      for (let i = 0; i < maxThumbs; i++) {
-        const media = mediaPreviews[i];
-        
-        // Skip if no valid previewUrl
-        if (!media.previewUrl) continue;
-        
-        if (media.type === "image") {
-          thumbs.push(media.previewUrl);
-        } else if (media.type === "video") {
-          // Generate thumbnail from video
-          try {
-            const video = document.createElement("video");
-            video.src = media.previewUrl;
-            video.crossOrigin = "anonymous";
-            video.muted = true;
-            video.preload = "metadata";
-            
-            await new Promise<void>((resolve) => {
-              video.onloadeddata = () => {
-                video.currentTime = 0.1;
-              };
-              video.onseeked = () => {
-                const canvas = document.createElement("canvas");
-                canvas.width = 160;
-                canvas.height = 90;
-                const ctx = canvas.getContext("2d");
-                if (ctx) {
-                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                  thumbs.push(canvas.toDataURL("image/jpeg", 0.7));
-                }
-                resolve();
-              };
-              video.onerror = () => resolve();
-            });
-          } catch {
-            // Skip failed thumbnails
-          }
-        }
-      }
-      
-      setThumbnails(thumbs);
-    };
-
-    generateThumbnails();
-  }, [open, mediaPreviews]);
 
   const handleClose = () => {
     if (isExporting) {
@@ -179,7 +70,6 @@ const ExportDialog = ({
       case "preparing":
       case "rendering":
       case "encoding":
-      case "converting":
         return <Loader2 className="w-8 h-8 text-primary animate-spin" />;
       case "complete":
         return <CheckCircle className="w-8 h-8 text-green-500" />;
@@ -239,52 +129,6 @@ const ExportDialog = ({
                   </Select>
                 </div>
 
-                {/* Format Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Format Video</label>
-                  <Select value={format} onValueChange={(v) => setFormat(v as "webm" | "mp4")}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mp4">MP4 (Kompatibel luas)</SelectItem>
-                      <SelectItem value="webm">WebM (Lebih cepat)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Thumbnail Preview */}
-                {thumbnails.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                      <label className="text-sm font-medium">Preview Media</label>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 p-3 bg-muted/30 rounded-lg">
-                      {thumbnails.map((thumb, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="aspect-video rounded-md overflow-hidden border border-border bg-black"
-                        >
-                          <img
-                            src={thumb}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </motion.div>
-                      ))}
-                      {mediaPreviews.length > 4 && (
-                        <div className="aspect-video rounded-md overflow-hidden border border-border bg-muted flex items-center justify-center">
-                          <span className="text-xs text-muted-foreground">+{mediaPreviews.length - 4}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Checklist */}
                 <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
                   <p className="text-sm font-medium mb-2">Status:</p>
@@ -319,7 +163,7 @@ const ExportDialog = ({
                   <p className="text-xs text-muted-foreground">
                     <strong>Catatan:</strong> Proses render berjalan real-time. 
                     Video 30 detik membutuhkan sekitar 30 detik untuk di-render.
-                    {format === "mp4" && " Konversi ke MP4 memerlukan waktu tambahan."}
+                    Format output: WebM.
                   </p>
                 </div>
               </motion.div>
@@ -364,7 +208,7 @@ const ExportDialog = ({
               <Button variant="outline" onClick={handleClose}>
                 Batal
               </Button>
-              <Button onClick={() => onStartExport(quality, format)} disabled={!canExport}>
+              <Button onClick={() => onStartExport(quality)} disabled={!canExport}>
                 <Film className="w-4 h-4 mr-2" />
                 Mulai Export
               </Button>

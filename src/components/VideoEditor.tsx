@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, forwardRef, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, forwardRef } from "react";
 import { motion, Reorder } from "framer-motion";
 import { 
   Film, 
@@ -42,7 +42,6 @@ interface MediaClip extends MediaFile {
   trimEnd: number;
   clipDuration: number;
   transition?: TransitionType;
-  kenBurns?: KenBurnsType;
 }
 
 interface LayerTiming {
@@ -51,7 +50,6 @@ interface LayerTiming {
 }
 
 export type TransitionType = "none" | "fade" | "slide" | "zoom" | "blur";
-export type KenBurnsType = "none" | "zoom-in" | "zoom-out" | "pan-left" | "pan-right" | "pan-up" | "pan-down" | "random";
 
 export interface EditedClip {
   id: string;
@@ -61,10 +59,7 @@ export interface EditedClip {
   endTime: number;
   effectiveDuration: number;
   transition: TransitionType;
-  kenBurns?: KenBurnsType;
 }
-
-export type DurationMode = "longest" | "media" | "audio";
 
 interface VideoEditorProps {
   mediaFiles: MediaFile[];
@@ -77,7 +72,6 @@ interface VideoEditorProps {
   isPlaying: boolean;
   onSeek?: (time: number) => void;
   onClipsChange?: (clips: EditedClip[]) => void;
-  durationMode?: DurationMode;
 }
 
 const DEFAULT_CLIP_DURATION = 3;
@@ -94,8 +88,7 @@ const VideoEditor = ({
   currentTime,
   isPlaying,
   onSeek,
-  onClipsChange,
-  durationMode = "longest"
+  onClipsChange
 }: VideoEditorProps) => {
   const [clips, setClips] = useState<MediaClip[]>([]);
   const [selectedClipIndex, setSelectedClipIndex] = useState<number | null>(null);
@@ -122,24 +115,15 @@ const VideoEditor = ({
       return;
     }
 
-    // Calculate duration per clip based on audio duration OR use actual media durations
-    let targetDuration: number;
-    if (audioDuration > 0) {
-      targetDuration = audioDuration;
-    } else {
-      // Use actual media durations if available, otherwise default
-      targetDuration = mediaFiles.reduce((acc, m) => acc + (m.duration || DEFAULT_CLIP_DURATION), 0);
-    }
+    // Calculate duration per clip based on audio duration
+    const targetDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_CLIP_DURATION;
     const durationPerClip = targetDuration / mediaFiles.length;
 
     const newClips: MediaClip[] = mediaFiles.map((media) => ({
       ...media,
       trimStart: 0,
       trimEnd: 1,
-      // For videos, use their actual duration if longer than calculated duration
-      clipDuration: media.type === "video" && media.duration && media.duration > durationPerClip 
-        ? media.duration 
-        : durationPerClip,
+      clipDuration: durationPerClip,
     }));
     setClips(newClips);
   }, [mediaFiles, audioDuration]);
@@ -149,20 +133,7 @@ const VideoEditor = ({
     return acc + effectiveDuration;
   }, 0);
 
-  // Calculate total duration based on duration mode
-  const totalDuration = useMemo(() => {
-    const layerMax = Math.max(textTiming.startTime + textTiming.duration, imageTiming.startTime + imageTiming.duration);
-    
-    switch (durationMode) {
-      case "media":
-        return Math.max(mediaDuration, layerMax);
-      case "audio":
-        return Math.max(audioDuration || 0, layerMax);
-      case "longest":
-      default:
-        return Math.max(mediaDuration, audioDuration || 0, layerMax);
-    }
-  }, [durationMode, mediaDuration, audioDuration, textTiming, imageTiming]);
+  const totalDuration = Math.max(mediaDuration, audioDuration || 0, textTiming.startTime + textTiming.duration, imageTiming.startTime + imageTiming.duration);
 
   // Calculate and expose edited clips data for VideoPreview
   useEffect(() => {
@@ -183,7 +154,6 @@ const VideoEditor = ({
         endTime,
         effectiveDuration,
         transition: clip.transition || "none",
-        kenBurns: clip.type === "image" ? (clip.kenBurns || "random") : "none",
       };
     });
     
@@ -566,13 +536,12 @@ const VideoEditor = ({
         </div>
       </div>
 
-      {/* Transition & Ken Burns Selector - show when clip is selected */}
+      {/* Transition Selector - show when clip is selected */}
       {selectedClipIndex !== null && clips[selectedClipIndex] && (
         <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg border border-border flex-wrap">
-          {/* Transition Selector */}
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-medium text-foreground">Transisi:</span>
+            <span className="text-xs font-medium text-foreground">Transisi Masuk:</span>
           </div>
           <Select
             value={clips[selectedClipIndex].transition || "none"}
@@ -582,51 +551,52 @@ const VideoEditor = ({
               ));
             }}
           >
-            <SelectTrigger className="w-[130px] h-8 text-xs">
+            <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-popover border border-border shadow-lg z-50 min-w-[160px]">
-              <SelectItem value="none">Tanpa Transisi</SelectItem>
-              <SelectItem value="fade">Fade In</SelectItem>
-              <SelectItem value="slide">Slide</SelectItem>
-              <SelectItem value="zoom">Zoom In</SelectItem>
-              <SelectItem value="blur">Blur In</SelectItem>
+            <SelectContent className="bg-popover border border-border shadow-lg z-50 min-w-[180px]">
+              <SelectItem value="none" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center">
+                    <div className="w-3 h-3 bg-muted-foreground/40 rounded-sm" />
+                  </div>
+                  <span>Tanpa Transisi</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="fade" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <div className="w-3 h-3 bg-primary rounded-sm animate-transition-fade" />
+                  </div>
+                  <span>Fade In</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="slide" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <div className="w-3 h-3 bg-blue-500 rounded-sm animate-transition-slide" />
+                  </div>
+                  <span>Slide</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="zoom" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <div className="w-3 h-3 bg-green-500 rounded-sm animate-transition-zoom" />
+                  </div>
+                  <span>Zoom In</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="blur" className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden">
+                    <div className="w-3 h-3 bg-purple-500 rounded-sm animate-transition-blur" />
+                  </div>
+                  <span>Blur In</span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
-
-          {/* Ken Burns Selector - only for images */}
-          {clips[selectedClipIndex].type === "image" && (
-            <>
-              <div className="w-px h-6 bg-border" />
-              <div className="flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-medium text-foreground">Ken Burns:</span>
-              </div>
-              <Select
-                value={clips[selectedClipIndex].kenBurns || "random"}
-                onValueChange={(value: KenBurnsType) => {
-                  setClips(prev => prev.map((c, i) => 
-                    i === selectedClipIndex ? { ...c, kenBurns: value } : c
-                  ));
-                }}
-              >
-                <SelectTrigger className="w-[130px] h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border border-border shadow-lg z-50 min-w-[160px]">
-                  <SelectItem value="random">🎲 Random</SelectItem>
-                  <SelectItem value="none">Tanpa Efek</SelectItem>
-                  <SelectItem value="zoom-in">🔍 Zoom In</SelectItem>
-                  <SelectItem value="zoom-out">🔎 Zoom Out</SelectItem>
-                  <SelectItem value="pan-left">⬅️ Pan Kiri</SelectItem>
-                  <SelectItem value="pan-right">➡️ Pan Kanan</SelectItem>
-                  <SelectItem value="pan-up">⬆️ Pan Atas</SelectItem>
-                  <SelectItem value="pan-down">⬇️ Pan Bawah</SelectItem>
-                </SelectContent>
-              </Select>
-            </>
-          )}
-
           <span className="text-[10px] text-muted-foreground">
             Clip {selectedClipIndex + 1} dari {clips.length}
           </span>
@@ -638,14 +608,8 @@ const VideoEditor = ({
               size="sm"
               className="h-7 text-xs ml-auto"
               onClick={() => {
-                const currentClip = clips[selectedClipIndex];
-                const currentTransition = currentClip.transition || "none";
-                const currentKenBurns = currentClip.kenBurns || "random";
-                setClips(prev => prev.map(c => ({ 
-                  ...c, 
-                  transition: currentTransition,
-                  kenBurns: c.type === "image" ? currentKenBurns : c.kenBurns
-                })));
+                const currentTransition = clips[selectedClipIndex].transition || "none";
+                setClips(prev => prev.map(c => ({ ...c, transition: currentTransition })));
               }}
             >
               Terapkan ke Semua ({clips.length})
@@ -675,33 +639,6 @@ const VideoEditor = ({
                 onClick={handleRulerClick}
               >
                 {renderTimeRuler()}
-                
-                {/* Duration Markers on Ruler */}
-                {/* Audio Duration Marker */}
-                {audioDuration > 0 && mediaDuration !== audioDuration && (
-                  <div
-                    className="absolute top-0 bottom-0 flex flex-col items-center z-20"
-                    style={{ left: `${audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
-                  >
-                    <div className="w-px h-full bg-orange-500" />
-                    <div className="absolute -top-0.5 -translate-x-1/2 bg-orange-500 text-white text-[6px] px-1 rounded-sm font-medium whitespace-nowrap">
-                      🔊 {formatTime(audioDuration)}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Media Duration Marker */}
-                {mediaDuration > 0 && mediaDuration !== audioDuration && (
-                  <div
-                    className="absolute top-0 bottom-0 flex flex-col items-center z-20"
-                    style={{ left: `${mediaDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px` }}
-                  >
-                    <div className="w-px h-full bg-blue-500" />
-                    <div className="absolute -top-0.5 -translate-x-1/2 bg-blue-500 text-white text-[6px] px-1 rounded-sm font-medium whitespace-nowrap">
-                      🎬 {formatTime(mediaDuration)}
-                    </div>
-                  </div>
-                )}
               </div>
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
@@ -714,39 +651,6 @@ const VideoEditor = ({
           onClick={handleTimelineClick}
           className="relative cursor-crosshair"
         >
-          {/* Duration Zone Indicators - Background shading */}
-          <div className="absolute inset-0 pointer-events-none z-0">
-            {/* Show area where only audio plays (media ended) */}
-            {mediaDuration > 0 && audioDuration > mediaDuration && (
-              <div
-                className="absolute top-0 bottom-0 bg-orange-500/5 border-l border-orange-500/30"
-                style={{ 
-                  left: `${80 + mediaDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px`,
-                  width: `${(audioDuration - mediaDuration) * TIMELINE_PIXELS_PER_SECOND * zoom}px`
-                }}
-              >
-                <div className="absolute top-1 left-1 text-[8px] text-orange-500/70 font-medium">
-                  Audio saja
-                </div>
-              </div>
-            )}
-            
-            {/* Show area where only media plays (audio ended) */}
-            {audioDuration > 0 && mediaDuration > audioDuration && (
-              <div
-                className="absolute top-0 bottom-0 bg-blue-500/5 border-l border-blue-500/30"
-                style={{ 
-                  left: `${80 + audioDuration * TIMELINE_PIXELS_PER_SECOND * zoom}px`,
-                  width: `${(mediaDuration - audioDuration) * TIMELINE_PIXELS_PER_SECOND * zoom}px`
-                }}
-              >
-                <div className="absolute top-1 left-1 text-[8px] text-blue-500/70 font-medium">
-                  Media saja
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Layer 1: Media (Video/Photo) */}
           <LayerRow icon={Film} label="Media" color="text-blue-500" isEmpty={clips.length === 0}>
             <ScrollArea className="w-full h-full">
@@ -785,31 +689,19 @@ const VideoEditor = ({
                         >
                           {/* Thumbnail */}
                           <div className="absolute inset-0">
-                            {/* Fallback background */}
-                            <div className="absolute inset-0 bg-muted flex items-center justify-center">
-                              {clip.type === "video" ? (
-                                <Film className="w-3 h-3 text-muted-foreground" />
-                              ) : (
-                                <Image className="w-3 h-3 text-muted-foreground" />
-                              )}
-                            </div>
-                            
-                            {/* Actual media */}
-                            {clip.type === "video" && clip.previewUrl ? (
+                            {clip.type === "video" ? (
                               <video
                                 src={clip.previewUrl}
-                                className="absolute inset-0 w-full h-full object-cover"
+                                className="w-full h-full object-cover"
                                 muted
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
-                            ) : clip.type === "image" && clip.previewUrl ? (
+                            ) : (
                               <img
                                 src={clip.previewUrl}
                                 alt={clip.file.name}
-                                className="absolute inset-0 w-full h-full object-cover"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                className="w-full h-full object-cover"
                               />
-                            ) : null}
+                            )}
                             <div className="absolute inset-0 bg-black/20" />
                           </div>
 

@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef } from "react";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
 interface SubtitleWord {
   text: string;
@@ -34,51 +32,13 @@ interface ExportOptions {
   audioDuration: number;
   subtitleStyle?: SubtitleStyleSettings;
   quality?: "720p" | "1080p";
-  format?: "webm" | "mp4";
 }
 
 interface ExportProgress {
-  status: "idle" | "preparing" | "rendering" | "encoding" | "converting" | "complete" | "error";
+  status: "idle" | "preparing" | "rendering" | "encoding" | "complete" | "error";
   progress: number; // 0-100
   message: string;
-  estimatedTimeRemaining?: number; // in seconds
 }
-
-// Helper function outside hook to avoid dependency issues
-const getActiveSubtitle = (
-  subtitleWords: SubtitleWord[],
-  currentTime: number
-): { text: string; isActive: boolean }[] => {
-  const contextSize = 4;
-  const currentIndex = subtitleWords.findIndex(
-    (word) => currentTime >= word.start && currentTime <= word.end
-  );
-
-  let startIdx: number;
-  let endIdx: number;
-
-  if (currentIndex === -1) {
-    const nextWordIndex = subtitleWords.findIndex((word) => word.start > currentTime);
-    if (nextWordIndex === -1) {
-      startIdx = Math.max(0, subtitleWords.length - contextSize);
-      endIdx = subtitleWords.length;
-    } else if (nextWordIndex === 0) {
-      startIdx = 0;
-      endIdx = Math.min(subtitleWords.length, contextSize);
-    } else {
-      startIdx = Math.max(0, nextWordIndex - 2);
-      endIdx = Math.min(subtitleWords.length, nextWordIndex + contextSize - 2);
-    }
-  } else {
-    startIdx = Math.max(0, currentIndex - 2);
-    endIdx = Math.min(subtitleWords.length, currentIndex + contextSize);
-  }
-
-  return subtitleWords.slice(startIdx, endIdx).map((w) => {
-    const isActive = currentTime >= w.start && currentTime <= w.end;
-    return { text: w.text, isActive };
-  });
-};
 
 export const useVideoExporter = () => {
   const [exportProgress, setExportProgress] = useState<ExportProgress>({
@@ -87,50 +47,46 @@ export const useVideoExporter = () => {
     message: "",
   });
   const [exportedVideoUrl, setExportedVideoUrl] = useState<string | null>(null);
-  const [exportedBlob, setExportedBlob] = useState<Blob | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const abortRef = useRef(false);
-  const ffmpegRef = useRef<FFmpeg | null>(null);
-  const ffmpegLoadedRef = useRef(false);
 
-  // Play notification sound when export completes
-  const playNotificationSound = useCallback(() => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Create a pleasant two-tone notification
-      const playTone = (frequency: number, startTime: number, duration: number) => {
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        
-        oscillator.frequency.value = frequency;
-        oscillator.type = "sine";
-        
-        // Fade in and out for smooth sound
-        gainNode.gain.setValueAtTime(0, audioCtx.currentTime + startTime);
-        gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + startTime + 0.05);
-        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + startTime + duration);
-        
-        oscillator.start(audioCtx.currentTime + startTime);
-        oscillator.stop(audioCtx.currentTime + startTime + duration);
-      };
+  const getActiveSubtitle = useCallback((
+    subtitleWords: SubtitleWord[],
+    currentTime: number,
+    subtitleStyle: SubtitleStyleSettings
+  ): { text: string; isActive: boolean }[] => {
+    const contextSize = 4;
+    const currentIndex = subtitleWords.findIndex(
+      (word) => currentTime >= word.start && currentTime <= word.end
+    );
 
-      // Play ascending tones (success sound)
-      playTone(523.25, 0, 0.15);     // C5
-      playTone(659.25, 0.12, 0.15);  // E5
-      playTone(783.99, 0.24, 0.25);  // G5
+    let startIdx: number;
+    let endIdx: number;
 
-      // Close audio context after sounds finish
-      setTimeout(() => audioCtx.close(), 1000);
-    } catch (error) {
-      console.log("Could not play notification sound:", error);
+    if (currentIndex === -1) {
+      const nextWordIndex = subtitleWords.findIndex((word) => word.start > currentTime);
+      if (nextWordIndex === -1) {
+        startIdx = Math.max(0, subtitleWords.length - contextSize);
+        endIdx = subtitleWords.length;
+      } else if (nextWordIndex === 0) {
+        startIdx = 0;
+        endIdx = Math.min(subtitleWords.length, contextSize);
+      } else {
+        startIdx = Math.max(0, nextWordIndex - 2);
+        endIdx = Math.min(subtitleWords.length, nextWordIndex + contextSize - 2);
+      }
+    } else {
+      startIdx = Math.max(0, currentIndex - 2);
+      endIdx = Math.min(subtitleWords.length, currentIndex + contextSize);
     }
+
+    return subtitleWords.slice(startIdx, endIdx).map((w) => {
+      const isActive = currentTime >= w.start && currentTime <= w.end;
+      return { text: w.text, isActive };
+    });
   }, []);
 
   const drawFrame = useCallback((
@@ -160,7 +116,7 @@ export const useVideoExporter = () => {
 
     // Draw subtitles
     if (subtitleWords.length > 0) {
-      const activeWords = getActiveSubtitle(subtitleWords, currentTime);
+      const activeWords = getActiveSubtitle(subtitleWords, currentTime, subtitleStyle);
       
       if (activeWords.length > 0) {
         // Map fontSize setting to pixel value
@@ -219,16 +175,10 @@ export const useVideoExporter = () => {
         });
       }
     }
-  }, []);
+  }, [getActiveSubtitle]);
 
   const loadMedia = (src: string, type: "video" | "image"): Promise<HTMLVideoElement | HTMLImageElement> => {
     return new Promise((resolve, reject) => {
-      // Validate src before loading
-      if (!src) {
-        reject(new Error("No source provided"));
-        return;
-      }
-      
       if (type === "video") {
         const video = document.createElement("video");
         video.crossOrigin = "anonymous";
@@ -247,56 +197,7 @@ export const useVideoExporter = () => {
     });
   };
 
-  // Load FFmpeg
-  const loadFFmpeg = useCallback(async () => {
-    if (ffmpegLoadedRef.current && ffmpegRef.current) return ffmpegRef.current;
-    
-    const ffmpeg = new FFmpeg();
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
-    
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    });
-    
-    ffmpegRef.current = ffmpeg;
-    ffmpegLoadedRef.current = true;
-    return ffmpeg;
-  }, []);
-
-  // Convert WebM to MP4
-  const convertToMp4 = useCallback(async (webmBlob: Blob): Promise<Blob> => {
-    setExportProgress({ status: "converting", progress: 92, message: "Memuat FFmpeg..." });
-    
-    const ffmpeg = await loadFFmpeg();
-    
-    setExportProgress({ status: "converting", progress: 94, message: "Mengkonversi ke MP4..." });
-    
-    const webmData = await fetchFile(webmBlob);
-    await ffmpeg.writeFile("input.webm", webmData);
-    
-    await ffmpeg.exec([
-      "-i", "input.webm",
-      "-c:v", "libx264",
-      "-preset", "fast",
-      "-crf", "23",
-      "-c:a", "aac",
-      "-b:a", "128k",
-      "-movflags", "+faststart",
-      "output.mp4"
-    ]);
-    
-    const mp4Data = await ffmpeg.readFile("output.mp4");
-    const mp4Blob = new Blob([new Uint8Array(mp4Data as Uint8Array)], { type: "video/mp4" });
-    
-    // Cleanup
-    await ffmpeg.deleteFile("input.webm");
-    await ffmpeg.deleteFile("output.mp4");
-    
-    return mp4Blob;
-  }, [loadFFmpeg]);
-
-  const exportVideo = useCallback(async (options: ExportOptions): Promise<{ url: string; blob: Blob } | null> => {
+  const exportVideo = useCallback(async (options: ExportOptions): Promise<string | null> => {
     const {
       mediaFiles,
       editedClips,
@@ -305,13 +206,11 @@ export const useVideoExporter = () => {
       audioDuration,
       subtitleStyle = DEFAULT_SUBTITLE_STYLE,
       quality = "720p",
-      format = "webm",
     } = options;
 
     abortRef.current = false;
     recordedChunksRef.current = [];
     setExportedVideoUrl(null);
-    setExportedBlob(null);
 
     try {
       setExportProgress({ status: "preparing", progress: 0, message: "Mempersiapkan canvas..." });
@@ -421,7 +320,6 @@ export const useVideoExporter = () => {
       const frameInterval = 1000 / fps;
       let currentTime = 0;
       const startRenderTime = Date.now();
-      let lastProgressUpdate = Date.now();
 
       while (currentTime < totalDuration) {
         if (abortRef.current) {
@@ -448,23 +346,13 @@ export const useVideoExporter = () => {
         // Draw frame
         drawFrame(ctx, mediaElement, subtitleWords, currentTime, subtitleStyle, canvasWidth, canvasHeight);
 
-        // Update progress with ETA (throttle to every 500ms)
-        const now = Date.now();
-        if (now - lastProgressUpdate > 500 || currentTime >= totalDuration - 0.1) {
-          lastProgressUpdate = now;
-          const elapsed = (now - startRenderTime) / 1000; // seconds
-          const progressRatio = currentTime / totalDuration;
-          const estimatedTotal = progressRatio > 0 ? elapsed / progressRatio : 0;
-          const estimatedRemaining = Math.max(0, estimatedTotal - elapsed);
-          
-          const progress = 20 + (currentTime / totalDuration) * 70;
-          setExportProgress({
-            status: "rendering",
-            progress: Math.min(90, progress),
-            message: `Rendering ${Math.floor(currentTime)}s / ${Math.floor(totalDuration)}s`,
-            estimatedTimeRemaining: Math.round(estimatedRemaining),
-          });
-        }
+        // Update progress
+        const progress = 20 + (currentTime / totalDuration) * 70;
+        setExportProgress({
+          status: "rendering",
+          progress: Math.min(90, progress),
+          message: `Rendering ${Math.floor(currentTime)}s / ${Math.floor(totalDuration)}s`,
+        });
 
         currentTime += 1 / fps;
         
@@ -492,35 +380,20 @@ export const useVideoExporter = () => {
       if (audioSource) audioSource.disconnect();
       if (audioContext) audioContext.close();
 
-      // Create blob
-      let finalBlob = new Blob(recordedChunksRef.current, { type: selectedMimeType });
-      
-      // Convert to MP4 if requested
-      if (format === "mp4") {
-        try {
-          finalBlob = await convertToMp4(finalBlob);
-        } catch (conversionError) {
-          console.error("MP4 conversion failed, using WebM:", conversionError);
-          // Fall back to WebM if conversion fails
-        }
-      }
-      
-      const url = URL.createObjectURL(finalBlob);
+      // Create blob and URL
+      const blob = new Blob(recordedChunksRef.current, { type: selectedMimeType });
+      const url = URL.createObjectURL(blob);
       
       setExportedVideoUrl(url);
-      setExportedBlob(finalBlob);
       setExportProgress({ status: "complete", progress: 100, message: "Export selesai!" });
       
-      // Play notification sound
-      playNotificationSound();
-      
-      return { url, blob: finalBlob };
+      return url;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Export failed";
       setExportProgress({ status: "error", progress: 0, message });
       return null;
     }
-  }, [drawFrame, playNotificationSound, convertToMp4]);
+  }, [drawFrame]);
 
   const cancelExport = useCallback(() => {
     abortRef.current = true;
@@ -546,7 +419,6 @@ export const useVideoExporter = () => {
       URL.revokeObjectURL(exportedVideoUrl);
     }
     setExportedVideoUrl(null);
-    setExportedBlob(null);
     setExportProgress({ status: "idle", progress: 0, message: "" });
     recordedChunksRef.current = [];
   }, [exportedVideoUrl]);
@@ -558,7 +430,6 @@ export const useVideoExporter = () => {
     resetExport,
     exportProgress,
     exportedVideoUrl,
-    exportedBlob,
     isExporting: exportProgress.status !== "idle" && exportProgress.status !== "complete" && exportProgress.status !== "error",
   };
 };

@@ -1,11 +1,8 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone, Timer, ImageIcon, Clapperboard } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Slider } from "@/components/ui/slider";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
 import VideoPreview, { VideoFormatType } from "@/components/VideoPreview";
 import { MediaFile } from "@/components/FootageUploader";
@@ -13,11 +10,11 @@ import { OverlaySettings } from "@/components/OverlaySelector";
 import OverlaySelector from "@/components/OverlaySelector";
 import OverlayTemplateManager from "@/components/OverlayTemplateManager";
 import TemplateSelector from "@/components/TemplateSelector";
+import ScrubBar from "@/components/ScrubBar";
+import MiniTimeline from "@/components/MiniTimeline";
 import SubtitlePreview, { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
 import ExportDialog from "@/components/ExportDialog";
 import { useVideoExporter } from "@/hooks/useVideoExporter";
-
-export type DurationMode = "longest" | "media" | "audio";
 
 interface SubtitleWord {
   text: string;
@@ -42,10 +39,6 @@ interface EditorStepProps {
   onOverlaySettingsChange: (settings: OverlaySettings) => void;
   videoFormat?: VideoFormatType;
   onVideoFormatChange?: (format: VideoFormatType) => void;
-  durationMode?: DurationMode;
-  onDurationModeChange?: (mode: DurationMode) => void;
-  freezeLastFrame?: boolean;
-  onFreezeLastFrameChange?: (freeze: boolean) => void;
   onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
@@ -58,14 +51,6 @@ interface EditorStepProps {
   isGeneratingSubtitles?: boolean;
   onGenerateSubtitles?: () => void;
   onDownloadSRT?: () => void;
-  // Expose edited clips to parent
-  onClipsUpdate?: (clips: EditedClip[]) => void;
-  // Export quality
-  exportQuality?: "720p" | "1080p";
-  onExportQualityChange?: (quality: "720p" | "1080p") => void;
-  // Export format
-  exportFormat?: "webm" | "mp4";
-  onExportFormatChange?: (format: "webm" | "mp4") => void;
 }
 
 const SEEK_STEP = 5; // seconds
@@ -85,10 +70,6 @@ const EditorStep = ({
   onOverlaySettingsChange,
   videoFormat = "short",
   onVideoFormatChange,
-  durationMode = "longest",
-  onDurationModeChange,
-  freezeLastFrame = true,
-  onFreezeLastFrameChange,
   onGenerate,
   onNext,
   onBack,
@@ -99,11 +80,6 @@ const EditorStep = ({
   isGeneratingSubtitles = false,
   onGenerateSubtitles,
   onDownloadSRT,
-  onClipsUpdate,
-  exportQuality = "720p",
-  onExportQualityChange,
-  exportFormat = "mp4",
-  onExportFormatChange,
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -122,7 +98,7 @@ const EditorStep = ({
   } = useVideoExporter();
 
   // Handle export start
-  const handleStartExport = useCallback((quality: "720p" | "1080p", format: "webm" | "mp4") => {
+  const handleStartExport = useCallback((quality: "720p" | "1080p") => {
     exportVideo({
       mediaFiles,
       editedClips,
@@ -131,7 +107,6 @@ const EditorStep = ({
       audioDuration,
       subtitleStyle,
       quality,
-      format,
     });
   }, [exportVideo, mediaFiles, editedClips, subtitleWords, audioUrl, audioDuration, subtitleStyle]);
 
@@ -159,16 +134,30 @@ const EditorStep = ({
 
   const handleClipsChange = useCallback((clips: EditedClip[]) => {
     setEditedClips(clips);
-    onClipsUpdate?.(clips);
-  }, [onClipsUpdate]);
+  }, []);
 
-  // Simple seek handler for slider
-  const handleSliderSeek = useCallback((values: number[]) => {
-    if (onSeek && audioDuration > 0) {
-      const time = (values[0] / 100) * audioDuration;
-      onSeek(time);
+  // Convert editedClips to thumbnail sources for ScrubBar
+  const thumbnailSources = useMemo(() => {
+    return editedClips.map(clip => ({
+      id: clip.id,
+      previewUrl: clip.previewUrl,
+      type: clip.type,
+      startTime: clip.startTime,
+      endTime: clip.endTime
+    }));
+  }, [editedClips]);
+
+  // Handle reorder from mini timeline
+  const handleThumbnailReorder = useCallback((reorderedIds: string[]) => {
+    // Reorder mediaFiles based on the new order
+    const reorderedMedia = reorderedIds
+      .map(id => mediaFiles.find(m => m.id === id))
+      .filter((m): m is MediaFile => m !== undefined);
+    
+    if (reorderedMedia.length === mediaFiles.length) {
+      onMediaUpdate(reorderedMedia);
     }
-  }, [onSeek, audioDuration]);
+  }, [mediaFiles, onMediaUpdate]);
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -240,12 +229,14 @@ const EditorStep = ({
                       {formatTime(currentTime)} / {formatTime(audioDuration)}
                     </span>
                     {onSeek && (
-                      <Slider
-                        value={[progress]}
-                        onValueChange={handleSliderSeek}
-                        max={100}
-                        step={0.1}
+                      <ScrubBar
+                        progress={progress}
+                        duration={audioDuration}
+                        onSeek={onSeek}
                         className="w-40"
+                        height="sm"
+                        thumbnails={thumbnailSources}
+                        showThumbnailPreview={thumbnailSources.length > 0}
                       />
                     )}
                   </div>
@@ -282,8 +273,6 @@ const EditorStep = ({
                     overlaySettings={overlaySettings}
                     videoFormat={videoFormat}
                     subtitleStyle={subtitleStyle}
-                    durationMode={durationMode}
-                    freezeLastFrame={freezeLastFrame}
                     onPlay={onPlay}
                     onPause={onPause}
                     onSeek={onSeek}
@@ -304,7 +293,6 @@ const EditorStep = ({
                   isPlaying={isPlaying}
                   onSeek={onSeek}
                   onClipsChange={handleClipsChange}
-                  durationMode={durationMode}
                 />
               </div>
             </div>
@@ -361,51 +349,6 @@ const EditorStep = ({
               )}
             </div>
 
-            {/* Duration Mode Selector */}
-            {onDurationModeChange && (
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Timer className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground">Mode Durasi</span>
-                </div>
-                <ToggleGroup
-                  type="single"
-                  value={durationMode}
-                  onValueChange={(value) => value && onDurationModeChange(value as DurationMode)}
-                  className="justify-start gap-1"
-                >
-                  <ToggleGroupItem value="longest" size="sm" className="text-[10px] px-2 py-1 h-6">
-                    <Maximize2 className="w-3 h-3 mr-1" />
-                    Terpanjang
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="media" size="sm" className="text-[10px] px-2 py-1 h-6">
-                    <Film className="w-3 h-3 mr-1" />
-                    Media
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="audio" size="sm" className="text-[10px] px-2 py-1 h-6">
-                    <Volume2 className="w-3 h-3 mr-1" />
-                    Audio
-                  </ToggleGroupItem>
-                </ToggleGroup>
-                
-                {/* Show Black Screen Toggle */}
-                {onFreezeLastFrameChange && (
-                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!freezeLastFrame}
-                      onChange={(e) => onFreezeLastFrameChange(!e.target.checked)}
-                      className="w-3 h-3 rounded border-border accent-primary"
-                    />
-                    <div className="flex items-center gap-1">
-                      <ImageIcon className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground">Layar hitam jika media habis</span>
-                    </div>
-                  </label>
-                )}
-              </div>
-            )}
-
             {/* Audio Player - now below header */}
             {audioUrl && onPlay && onPause && (
               <div className="flex items-center justify-between mb-3 px-2 py-1.5 bg-muted/50 rounded-lg">
@@ -445,8 +388,6 @@ const EditorStep = ({
               overlaySettings={overlaySettings}
               videoFormat={videoFormat}
               subtitleStyle={subtitleStyle}
-              durationMode={durationMode}
-              freezeLastFrame={freezeLastFrame}
               onPlay={onPlay}
               onPause={onPause}
               onSeek={onSeek}
@@ -502,9 +443,20 @@ const EditorStep = ({
                   isPlaying={isPlaying}
                   onSeek={onSeek}
                   onClipsChange={handleClipsChange}
-                  durationMode={durationMode}
                 />
               </div>
+
+              {/* Mini Timeline - Quick navigation */}
+              {thumbnailSources.length > 0 && onSeek && (
+                <MiniTimeline
+                  thumbnails={thumbnailSources}
+                  currentTime={currentTime}
+                  duration={audioDuration}
+                  onSeek={onSeek}
+                  onReorder={handleThumbnailReorder}
+                  className="mt-3"
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="subtitle" className="mt-0">
@@ -563,11 +515,13 @@ const EditorStep = ({
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </Button>
             <div className="flex-1">
-              <Slider
-                value={[progress]}
-                onValueChange={handleSliderSeek}
-                max={100}
-                step={0.1}
+              <ScrubBar
+                progress={progress}
+                duration={audioDuration}
+                onSeek={onSeek}
+                thumbnails={thumbnailSources}
+                showThumbnailPreview={thumbnailSources.length > 0}
+                showMiniTimeline={false}
               />
             </div>
             <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
@@ -583,40 +537,6 @@ const EditorStep = ({
           <ChevronLeft className="w-5 h-5" />
           Kembali
         </Button>
-
-        {/* Quality Selector */}
-        {onExportQualityChange && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
-            <Clapperboard className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground hidden sm:inline">Kualitas:</span>
-            <Select value={exportQuality} onValueChange={(v) => onExportQualityChange(v as "720p" | "1080p")}>
-              <SelectTrigger className="w-24 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="720p">720p HD</SelectItem>
-                <SelectItem value="1080p">1080p Full HD</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Format Selector */}
-        {onExportFormatChange && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
-            <Film className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground hidden sm:inline">Format:</span>
-            <Select value={exportFormat} onValueChange={(v) => onExportFormatChange(v as "webm" | "mp4")}>
-              <SelectTrigger className="w-20 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mp4">MP4</SelectItem>
-                <SelectItem value="webm">WebM</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
         
         {/* Export Video Button */}
         <Button
@@ -669,7 +589,6 @@ const EditorStep = ({
         hasSubtitles={subtitleWords.length > 0}
         hasAudio={!!audioUrl}
         hasMedia={mediaFiles.length > 0}
-        mediaPreviews={mediaFiles.map(m => ({ previewUrl: m.previewUrl, type: m.type }))}
       />
     </motion.div>
     </>

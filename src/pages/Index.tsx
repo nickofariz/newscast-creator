@@ -1,9 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Video, X } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Video } from "lucide-react";
 import Header from "@/components/Header";
 import OnboardingStepper, { StepId } from "@/components/OnboardingStepper";
 import MediaStep from "@/components/steps/MediaStep";
@@ -17,14 +14,10 @@ import { OverlaySettings, DEFAULT_OVERLAY_SETTINGS } from "@/components/OverlayS
 import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 import { useSubtitleGenerator } from "@/hooks/useSubtitleGenerator";
 import { useVideoStorage } from "@/hooks/useVideoStorage";
-import { useVideoExporter } from "@/hooks/useVideoExporter";
-import { EditedClip } from "@/components/VideoEditor";
-import { DEFAULT_SUBTITLE_STYLE, SubtitleStyleSettings } from "@/components/SubtitlePreview";
 import { toast } from "sonner";
 
 type TemplateType = "headline-top" | "minimal" | "breaking";
 export type VideoFormatType = "short" | "tv";
-export type DurationMode = "longest" | "media" | "audio";
 
 const Index = () => {
   // Step navigation
@@ -34,8 +27,6 @@ const Index = () => {
   // Media state
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
   const [videoFormat, setVideoFormat] = useState<VideoFormatType>("short");
-  const [durationMode, setDurationMode] = useState<DurationMode>("longest");
-  const [freezeLastFrame, setFreezeLastFrame] = useState(false); // Default to black screen
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>("headline-top");
   const [overlaySettings, setOverlaySettings] = useState<OverlaySettings>(DEFAULT_OVERLAY_SETTINGS);
 
@@ -46,10 +37,6 @@ const Index = () => {
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
-  const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
-  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyleSettings>(DEFAULT_SUBTITLE_STYLE);
-  const [exportQuality, setExportQuality] = useState<"720p" | "1080p">("720p");
-  const [exportFormat, setExportFormat] = useState<"webm" | "mp4">("mp4");
 
   // Hooks
   const {
@@ -78,13 +65,6 @@ const Index = () => {
     saveVideo,
     deleteVideo: deleteStoredVideo,
   } = useVideoStorage();
-
-  const {
-    exportVideo,
-    cancelExport,
-    exportProgress,
-    isExporting,
-  } = useVideoExporter();
 
   // Convert stored videos to VideoItem format
   const videos: VideoItem[] = storedVideos.map((v) => ({
@@ -133,7 +113,7 @@ const Index = () => {
     }
   }, [audioUrl, generateSubtitles]);
 
-  // Video generation - now renders video first, then saves
+  // Video generation
   const handleGenerate = useCallback(async () => {
     if (!newsText.trim()) {
       toast.error("Masukkan teks berita terlebih dahulu");
@@ -146,49 +126,21 @@ const Index = () => {
     }
 
     setIsGenerating(true);
-    toast.info("Memulai render video...");
+    toast.info("Menyimpan ke cloud...");
 
-    try {
-      // First, render the video using useVideoExporter
-      const result = await exportVideo({
-        mediaFiles: uploadedMedia,
-        editedClips: editedClips,
-        subtitleWords: subtitleWords,
-        audioUrl: audioUrl || null,
-        audioDuration: duration,
-        subtitleStyle: subtitleStyle,
-        quality: exportQuality,
-        format: exportFormat,
-      });
+    await saveVideo({
+      title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
+      audioUrl: audioUrl || undefined,
+      subtitleWords: subtitleWords,
+      duration: Math.round(duration) || Math.round((newsText.split(/\s+/).length / 150) * 60),
+      template: selectedTemplate,
+      voice: selectedVoice,
+    });
 
-      if (!result) {
-        toast.error("Gagal render video");
-        setIsGenerating(false);
-        return;
-      }
-
-      toast.info("Menyimpan ke cloud...");
-
-      // Now save the rendered video blob to storage
-      await saveVideo({
-        title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
-        videoBlob: result.blob, // Pass the actual video blob
-        audioUrl: audioUrl || undefined,
-        subtitleWords: subtitleWords,
-        duration: Math.round(duration) || Math.round((newsText.split(/\s+/).length / 150) * 60),
-        template: selectedTemplate,
-        voice: selectedVoice,
-      });
-
-      markStepComplete("editor");
-      setCurrentStep("export");
-    } catch (error) {
-      console.error("Error generating video:", error);
-      toast.error("Gagal membuat video");
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [newsText, uploadedMedia, editedClips, subtitleWords, audioUrl, duration, subtitleStyle, selectedTemplate, selectedVoice, saveVideo, markStepComplete, exportVideo, exportQuality, exportFormat]);
+    setIsGenerating(false);
+    markStepComplete("editor");
+    setCurrentStep("export");
+  }, [newsText, audioUrl, subtitleWords, duration, selectedTemplate, selectedVoice, saveVideo, markStepComplete]);
 
   // Download handler
   const handleDownload = useCallback((id: string, url?: string) => {
@@ -209,7 +161,6 @@ const Index = () => {
     setCurrentStep("media");
     setCompletedSteps([]);
     setUploadedMedia([]);
-    setEditedClips([]);
     setNewsText("");
   }, []);
 
@@ -302,10 +253,6 @@ const Index = () => {
                   onOverlaySettingsChange={setOverlaySettings}
                   videoFormat={videoFormat}
                   onVideoFormatChange={setVideoFormat}
-                  durationMode={durationMode}
-                  onDurationModeChange={setDurationMode}
-                  freezeLastFrame={freezeLastFrame}
-                  onFreezeLastFrameChange={setFreezeLastFrame}
                   onGenerate={handleGenerate}
                   onNext={handleEditorNext}
                   onBack={() => setCurrentStep("voiceover")}
@@ -316,11 +263,6 @@ const Index = () => {
                   isGeneratingSubtitles={isGeneratingSubtitles}
                   onGenerateSubtitles={handleGenerateSubtitles}
                   onDownloadSRT={downloadSRT}
-                  onClipsUpdate={setEditedClips}
-                  exportQuality={exportQuality}
-                  onExportQualityChange={setExportQuality}
-                  exportFormat={exportFormat}
-                  onExportFormatChange={setExportFormat}
                 />
               )}
 
@@ -337,53 +279,6 @@ const Index = () => {
               )}
             </AnimatePresence>
           </div>
-
-          {/* Rendering Progress Dialog */}
-          <Dialog open={isExporting || isGenerating} onOpenChange={() => {}}>
-            <DialogContent className="sm:max-w-md [&>button]:hidden">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Video className="w-5 h-5 animate-pulse text-primary" />
-                  Rendering Video
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{exportProgress.message || "Mempersiapkan..."}</span>
-                    <span className="font-medium">{Math.round(exportProgress.progress)}%</span>
-                  </div>
-                  <Progress value={exportProgress.progress} className="h-3" />
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Status: {exportProgress.status === "preparing" ? "Mempersiapkan" : 
-                    exportProgress.status === "rendering" ? "Merender" : 
-                    exportProgress.status === "encoding" ? "Encoding" : 
-                    exportProgress.status === "converting" ? "Konversi MP4" :
-                    exportProgress.status === "complete" ? "Selesai" : "Memulai"}</span>
-                  {exportProgress.estimatedTimeRemaining !== undefined && exportProgress.estimatedTimeRemaining > 0 && (
-                    <span className="font-medium">
-                      ~{exportProgress.estimatedTimeRemaining < 60 
-                        ? `${exportProgress.estimatedTimeRemaining}s` 
-                        : `${Math.floor(exportProgress.estimatedTimeRemaining / 60)}m ${exportProgress.estimatedTimeRemaining % 60}s`} tersisa
-                    </span>
-                  )}
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    cancelExport();
-                    setIsGenerating(false);
-                  }}
-                  className="w-full"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Batalkan
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
 
           {/* Features Footer */}
           <motion.div

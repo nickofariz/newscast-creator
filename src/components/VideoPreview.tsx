@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Volume2, Pause, Maximize2, X, VolumeX, SkipBack, SkipForward, Loader2 } from "lucide-react";
+import { Play, Volume2, Pause, Maximize2, X, VolumeX, SkipBack, SkipForward } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { OverlaySettings } from "./OverlaySelector";
@@ -25,7 +25,6 @@ interface MediaFile {
 }
 
 export type TransitionType = "none" | "fade" | "slide" | "zoom" | "blur";
-export type KenBurnsType = "none" | "zoom-in" | "zoom-out" | "pan-left" | "pan-right" | "pan-up" | "pan-down" | "random";
 
 export interface EditedClip {
   id: string;
@@ -35,11 +34,9 @@ export interface EditedClip {
   endTime: number;
   effectiveDuration: number;
   transition: TransitionType;
-  kenBurns?: KenBurnsType;
 }
 
 export type VideoFormatType = "short" | "tv";
-export type DurationMode = "longest" | "media" | "audio";
 
 interface VideoPreviewProps {
   newsText: string;
@@ -54,50 +51,12 @@ interface VideoPreviewProps {
   overlaySettings?: OverlaySettings;
   videoFormat?: VideoFormatType;
   subtitleStyle?: SubtitleStyleSettings;
-  durationMode?: DurationMode;
-  freezeLastFrame?: boolean;
   onPlay?: () => void;
   onPause?: () => void;
   onSeek?: (time: number) => void;
 }
 
 const DEFAULT_IMAGE_DURATION = 3;
-
-// Ken Burns effect presets
-const KEN_BURNS_EFFECTS: Record<Exclude<KenBurnsType, "none" | "random">, {
-  initial: { scale: number; x: string; y: string };
-  animate: { scale: number; x: string; y: string };
-}> = {
-  "zoom-in": {
-    initial: { scale: 1, x: "0%", y: "0%" },
-    animate: { scale: 1.15, x: "0%", y: "0%" },
-  },
-  "zoom-out": {
-    initial: { scale: 1.15, x: "0%", y: "0%" },
-    animate: { scale: 1, x: "0%", y: "0%" },
-  },
-  "pan-left": {
-    initial: { scale: 1.1, x: "5%", y: "0%" },
-    animate: { scale: 1.1, x: "-5%", y: "0%" },
-  },
-  "pan-right": {
-    initial: { scale: 1.1, x: "-5%", y: "0%" },
-    animate: { scale: 1.1, x: "5%", y: "0%" },
-  },
-  "pan-up": {
-    initial: { scale: 1.1, x: "0%", y: "5%" },
-    animate: { scale: 1.1, x: "0%", y: "-5%" },
-  },
-  "pan-down": {
-    initial: { scale: 1.1, x: "0%", y: "-5%" },
-    animate: { scale: 1.1, x: "0%", y: "5%" },
-  },
-};
-
-const getRandomKenBurns = (): Exclude<KenBurnsType, "none" | "random"> => {
-  const effects = Object.keys(KEN_BURNS_EFFECTS) as Exclude<KenBurnsType, "none" | "random">[];
-  return effects[Math.floor(Math.random() * effects.length)];
-};
 
 const VideoPreview = ({ 
   newsText, 
@@ -112,8 +71,6 @@ const VideoPreview = ({
   overlaySettings,
   videoFormat = "short",
   subtitleStyle = DEFAULT_SUBTITLE_STYLE,
-  durationMode = "longest",
-  freezeLastFrame = true,
   onPlay,
   onPause,
   onSeek,
@@ -126,7 +83,6 @@ const VideoPreview = ({
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
-  const [isVideoLoading, setIsVideoLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
@@ -138,11 +94,7 @@ const VideoPreview = ({
     previewUrl: string;
     type: "video" | "image";
     transition: TransitionType;
-    kenBurns?: KenBurnsType;
   } | null>(null);
-
-  // Store stable Ken Burns effect per media ID to prevent random changes
-  const kenBurnsEffectsRef = useRef<Map<string, Exclude<KenBurnsType, "none" | "random">>>(new Map());
 
   // Use edited clips if available, otherwise fallback to calculated durations
   const hasEditedClips = editedClips.length > 0;
@@ -151,120 +103,63 @@ const VideoPreview = ({
   // Use refs to prevent unnecessary re-renders that cause flickering
   const prevMediaIdRef = useRef<string>("");
   
-  // Check if we're beyond media duration (should show black screen)
-  const isMediaEnded = useMemo(() => {
-    if (freezeLastFrame) return false; // Never show black if freeze is enabled
-    
-    const time = currentTime;
-    
-    if (hasEditedClips && editedClips.length > 0) {
-      const lastClipEnd = editedClips[editedClips.length - 1].endTime;
-      return time >= lastClipEnd;
-    }
-    
-    if (mediaFiles.length > 0) {
-      const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-      const durationPerMedia = totalDur / Math.max(1, mediaFiles.length);
-      const totalMediaDur = mediaFiles.length * durationPerMedia;
-      return time >= totalMediaDur;
-    }
-    
-    return false;
-  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, freezeLastFrame]);
-
   const activeMediaIndex = useMemo(() => {
-    // No media at all - return -1 to show placeholder
-    if (mediaFiles.length === 0 && editedClips.length === 0) return -1;
-    
-    // If media ended and not freezing, return -1 (will show black)
-    if (isMediaEnded) return -1;
+    if (mediaFiles.length === 0 && editedClips.length === 0) return 0;
     
     const time = currentTime;
     
     // Use edited clips if available - this is the primary logic
-    if (hasEditedClips && editedClips.length > 0) {
+    if (hasEditedClips) {
       for (let i = 0; i < editedClips.length; i++) {
         if (time >= editedClips[i].startTime && time < editedClips[i].endTime) {
           return i;
         }
       }
-      // If time exceeds all clips, show last (freeze)
-      return editedClips.length - 1;
+      // If time exceeds all clips, show last
+      return editedClips.length > 0 ? editedClips.length - 1 : 0;
     }
     
-    // Fallback: distribute audio duration evenly for mediaFiles
-    if (mediaFiles.length > 0) {
-      const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-      const durationPerMedia = totalDur / mediaFiles.length;
-      
-      for (let i = 0; i < mediaFiles.length; i++) {
-        const start = i * durationPerMedia;
-        const end = (i + 1) * durationPerMedia;
-        if (time >= start && time < end) {
-          return i;
-        }
+    // Fallback: distribute audio duration evenly
+    const totalDuration = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+    const durationPerMedia = totalDuration / Math.max(1, mediaFiles.length);
+    
+    for (let i = 0; i < mediaFiles.length; i++) {
+      const start = i * durationPerMedia;
+      const end = (i + 1) * durationPerMedia;
+      if (time >= start && time < end) {
+        return i;
       }
-      
-      // Default to first media if time is 0 or before first clip
-      return 0;
     }
     
-    return -1;
-  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration, isMediaEnded]);
+    return Math.max(0, mediaFiles.length - 1);
+  }, [currentTime, editedClips, mediaFiles.length, hasEditedClips, audioDuration]);
 
   // Get current media - use stable reference to prevent flickering
   const currentMedia = useMemo(() => {
-    // Show nothing (placeholder/black screen) if no valid index
-    if (activeMediaIndex === -1) {
-      currentMediaRef.current = null;
-      prevMediaIdRef.current = "";
-      return null;
-    }
-    
     let newMedia: typeof currentMediaRef.current = null;
     
-    // Priority: editedClips first, then mediaFiles
     if (hasEditedClips && editedClips[activeMediaIndex]) {
       const clip = editedClips[activeMediaIndex];
-      // Only create if we have a valid previewUrl
-      if (clip.previewUrl) {
-        newMedia = { 
-          id: clip.id,
-          previewUrl: clip.previewUrl, 
-          type: clip.type,
-          transition: clip.transition || "none",
-          kenBurns: clip.kenBurns || "random"
-        };
-      }
+      newMedia = { 
+        id: clip.id,
+        previewUrl: clip.previewUrl, 
+        type: clip.type,
+        transition: clip.transition || "none"
+      };
     } else if (mediaFiles[activeMediaIndex]) {
       const file = mediaFiles[activeMediaIndex];
-      // Only create if we have a valid previewUrl
-      if (file.previewUrl) {
-        newMedia = { 
-          id: file.id,
-          previewUrl: file.previewUrl,
-          type: file.type,
-          transition: "none" as TransitionType,
-          kenBurns: "random" as KenBurnsType
-        };
-      }
+      newMedia = { 
+        id: file.id,
+        previewUrl: file.previewUrl,
+        type: file.type,
+        transition: "none" as TransitionType
+      };
     }
     
-    // Update ref if media ID changed OR if kenBurns changed for same media
-    if (newMedia) {
-      const idChanged = newMedia.id !== prevMediaIdRef.current;
-      const kenBurnsChanged = currentMediaRef.current && 
-        newMedia.id === currentMediaRef.current.id && 
-        newMedia.kenBurns !== currentMediaRef.current.kenBurns;
-      
-      if (idChanged || kenBurnsChanged) {
-        prevMediaIdRef.current = newMedia.id;
-        currentMediaRef.current = newMedia;
-      }
-    } else {
-      // Reset refs when no media
-      currentMediaRef.current = null;
-      prevMediaIdRef.current = "";
+    // Only update ref if media ID actually changed
+    if (newMedia && newMedia.id !== prevMediaIdRef.current) {
+      prevMediaIdRef.current = newMedia.id;
+      currentMediaRef.current = newMedia;
     }
     
     return currentMediaRef.current;
@@ -312,35 +207,7 @@ const VideoPreview = ({
     }
   };
 
-  // Get Ken Burns effect - stable per media ID
-  const getKenBurnsEffect = useCallback((mediaId: string, kenBurns: KenBurnsType | undefined) => {
-    if (!kenBurns || kenBurns === "none") return null;
-    
-    let effectType: Exclude<KenBurnsType, "none" | "random">;
-    
-    if (kenBurns === "random") {
-      // Check if we already assigned an effect for this media
-      if (kenBurnsEffectsRef.current.has(mediaId)) {
-        effectType = kenBurnsEffectsRef.current.get(mediaId)!;
-      } else {
-        effectType = getRandomKenBurns();
-        kenBurnsEffectsRef.current.set(mediaId, effectType);
-      }
-    } else {
-      effectType = kenBurns;
-    }
-    
-    return KEN_BURNS_EFFECTS[effectType];
-  }, []);
-
-  // Get current clip duration for Ken Burns animation
-  const currentClipDuration = useMemo(() => {
-    if (hasEditedClips && editedClips[activeMediaIndex]) {
-      return editedClips[activeMediaIndex].effectiveDuration;
-    }
-    const totalDur = audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
-    return totalDur / Math.max(1, mediaFiles.length);
-  }, [hasEditedClips, editedClips, activeMediaIndex, audioDuration, mediaFiles.length]);
+  // Calculate progress within current media segment
   const segmentProgress = useMemo(() => {
     // Always use currentTime for immediate seek response
     const time = currentTime;
@@ -359,25 +226,13 @@ const VideoPreview = ({
     return Math.min(100, Math.max(0, progress));
   }, [currentTime, audioDuration, editedClips, activeMediaIndex, hasEditedClips, mediaFiles.length]);
 
-  // Calculate total duration based on duration mode
-  const mediaDuration = useMemo(() => {
+  // Calculate total duration for internal timer
+  const totalDuration = useMemo(() => {
     if (hasEditedClips && editedClips.length > 0) {
       return editedClips[editedClips.length - 1].endTime;
     }
-    return mediaFiles.length * DEFAULT_IMAGE_DURATION;
-  }, [hasEditedClips, editedClips, mediaFiles.length]);
-
-  const totalDuration = useMemo(() => {
-    switch (durationMode) {
-      case "media":
-        return mediaDuration;
-      case "audio":
-        return audioDuration > 0 ? audioDuration : mediaDuration;
-      case "longest":
-      default:
-        return Math.max(mediaDuration, audioDuration || 0);
-    }
-  }, [durationMode, mediaDuration, audioDuration]);
+    return audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
+  }, [hasEditedClips, editedClips, audioDuration, mediaFiles.length]);
 
   // Internal timer for preview playback when audio is not playing
   useEffect(() => {
@@ -505,35 +360,18 @@ const VideoPreview = ({
 
   // Handle play/pause and seeking for video elements
   useEffect(() => {
-    // Only try to play if we have a valid video with a valid URL
-    const video = videoRef.current;
-    if (!video || !currentMedia?.type || currentMedia.type !== "video" || !currentMedia.previewUrl) {
-      return;
-    }
-    
-    const playVideo = async () => {
-      try {
-        // Double check video has valid src before playing
-        if (!video.src || video.src === window.location.href) return;
-        
-        if (isPlaying || isAudioPlaying) {
-          await video.play();
-        } else {
-          // Play briefly to show first frame, then pause
-          await video.play();
-          video.pause();
-        }
-      } catch {
-        // Silently ignore autoplay errors
+    if (videoRef.current && currentMedia?.type === "video") {
+      if (isPlaying || isAudioPlaying) {
+        videoRef.current.play();
+      } else {
+        videoRef.current.pause();
       }
-    };
-    playVideo();
+    }
   }, [isPlaying, isAudioPlaying, currentMedia]);
 
   // Seek video to correct position within clip when time changes
   useEffect(() => {
-    // Only seek if we have a valid video with a valid URL
-    if (videoRef.current && currentMedia?.type === "video" && currentMedia?.previewUrl && hasEditedClips) {
+    if (videoRef.current && currentMedia?.type === "video" && hasEditedClips) {
       const currentClip = editedClips[activeMediaIndex];
       if (currentClip) {
         const offsetInClip = currentTime - currentClip.startTime;
@@ -901,54 +739,22 @@ const VideoPreview = ({
                         transition={variants.transition}
                         className="absolute inset-0"
                       >
-                        {/* Show loading if no previewUrl yet */}
-                        {!currentMedia.previewUrl ? (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                          </div>
-                        ) : currentMedia.type === "video" && currentMedia.previewUrl ? (
+                        {currentMedia.type === "video" ? (
                           <video
-                            key={currentMedia.previewUrl}
                             src={currentMedia.previewUrl}
                             className="w-full h-full object-contain bg-black"
                             loop
                             muted
                             playsInline
                             autoPlay={isAudioPlaying}
-                            onError={(e) => e.stopPropagation()}
                           />
-                        ) : currentMedia.type === "image" ? (
-                          (() => {
-                            const kenBurnsEffect = getKenBurnsEffect(currentMedia.id, currentMedia.kenBurns);
-                            return kenBurnsEffect ? (
-                              <motion.img
-                                src={currentMedia.previewUrl}
-                                alt="Background"
-                                className="w-full h-full object-contain bg-black"
-                                initial={{
-                                  scale: kenBurnsEffect.initial.scale,
-                                  x: kenBurnsEffect.initial.x,
-                                  y: kenBurnsEffect.initial.y,
-                                }}
-                                animate={{
-                                  scale: kenBurnsEffect.animate.scale,
-                                  x: kenBurnsEffect.animate.x,
-                                  y: kenBurnsEffect.animate.y,
-                                }}
-                                transition={{
-                                  duration: currentClipDuration,
-                                  ease: "linear",
-                                }}
-                              />
-                            ) : (
-                              <img
-                                src={currentMedia.previewUrl}
-                                alt="Background"
-                                className="w-full h-full object-contain bg-black"
-                              />
-                            );
-                          })()
-                        ) : null}
+                        ) : (
+                          <img
+                            src={currentMedia.previewUrl}
+                            alt="Background"
+                            className="w-full h-full object-contain bg-black"
+                          />
+                        )}
                       </motion.div>
                     );
                   })()}
@@ -1226,11 +1032,11 @@ const VideoPreview = ({
           )}
         </AnimatePresence>
 
-        {/* Background - Media or Black Screen with Fade */}
-        <div className="absolute inset-0 overflow-hidden">
-          <AnimatePresence mode="wait" initial={false}>
-            {currentMedia ? (
-              (() => {
+        {/* Background - Media or Gradient */}
+        {currentMedia ? (
+          <div className="absolute inset-0 overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              {(() => {
                 const variants = getTransitionVariants(currentMedia.transition || "none");
                 return (
                   <motion.div
@@ -1241,97 +1047,39 @@ const VideoPreview = ({
                     transition={variants.transition}
                     className="absolute inset-0"
                   >
-                    {/* Show loading if no previewUrl yet */}
-                    {!currentMedia.previewUrl ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                      </div>
-                    ) : currentMedia.type === "video" && currentMedia.previewUrl ? (
-                      <>
-                        {isVideoLoading && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
-                            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                          </div>
-                        )}
-                        <video
-                          ref={videoRef}
-                          key={currentMedia.previewUrl}
-                          src={currentMedia.previewUrl}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          loop
-                          muted
-                          playsInline
-                          autoPlay
-                          onLoadStart={() => setIsVideoLoading(true)}
-                          onLoadedData={() => setIsVideoLoading(false)}
-                          onCanPlay={() => setIsVideoLoading(false)}
-                          onError={(e) => {
-                            e.stopPropagation();
-                            setIsVideoLoading(false);
-                          }}
-                        />
-                      </>
+                    {currentMedia.type === "video" ? (
+                      <video
+                        ref={videoRef}
+                        src={currentMedia.previewUrl}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loop
+                        muted
+                        playsInline
+                      />
                     ) : (
-                      (() => {
-                        const kenBurnsEffect = getKenBurnsEffect(currentMedia.id, currentMedia.kenBurns);
-                        return kenBurnsEffect ? (
-                          <motion.img
-                            src={currentMedia.previewUrl}
-                            alt="Background"
-                            className="absolute inset-0 w-full h-full object-cover"
-                            initial={{
-                              scale: kenBurnsEffect.initial.scale,
-                              x: kenBurnsEffect.initial.x,
-                              y: kenBurnsEffect.initial.y,
-                            }}
-                            animate={{
-                              scale: kenBurnsEffect.animate.scale,
-                              x: kenBurnsEffect.animate.x,
-                              y: kenBurnsEffect.animate.y,
-                            }}
-                            transition={{
-                              duration: currentClipDuration,
-                              ease: "linear",
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src={currentMedia.previewUrl}
-                            alt="Background"
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                        );
-                      })()
+                      <img
+                        src={currentMedia.previewUrl}
+                        alt="Background"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
                     )}
                   </motion.div>
                 );
-              })()
-            ) : (
-              <motion.div
-                key="black-screen"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5, ease: "easeInOut" }}
-                className="absolute inset-0 bg-black"
-              />
-            )}
-          </AnimatePresence>
-          
-          {/* Fallback gradient when no media at all */}
-          {!currentMedia && mediaFiles.length === 0 && (
-            <div className="absolute inset-0">
-              <div className="absolute inset-0 gradient-dark" />
-              <div 
-                className="absolute inset-0 opacity-5"
-                style={{
-                  backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
-                  backgroundSize: '20px 20px'
-                }}
-              />
-            </div>
-          )}
-        </div>
+              })()}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="absolute inset-0">
+            <div className="absolute inset-0 gradient-dark" />
+            <div 
+              className="absolute inset-0 opacity-5"
+              style={{
+                backgroundImage: `radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)`,
+                backgroundSize: '20px 20px'
+              }}
+            />
+          </div>
+        )}
         
         {/* Dark overlay for text readability */}
         {currentMedia && <div className="absolute inset-0 bg-black/40" />}
