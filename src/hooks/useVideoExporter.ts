@@ -41,6 +41,7 @@ interface ExportProgress {
   status: "idle" | "preparing" | "rendering" | "encoding" | "complete" | "error";
   progress: number; // 0-100
   message: string;
+  eta?: string; // Estimated time remaining
 }
 
 export const useVideoExporter = () => {
@@ -48,8 +49,30 @@ export const useVideoExporter = () => {
     status: "idle",
     progress: 0,
     message: "",
+    eta: undefined,
   });
   const [exportedVideoUrl, setExportedVideoUrl] = useState<string | null>(null);
+  const exportStartTimeRef = useRef<number>(0);
+
+  // Helper to format seconds to mm:ss
+  const formatEta = (seconds: number): string => {
+    if (seconds <= 0 || !isFinite(seconds)) return "";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    if (mins > 0) {
+      return `~${mins}m ${secs}s remaining`;
+    }
+    return `~${secs}s remaining`;
+  };
+
+  // Calculate ETA based on progress and elapsed time
+  const calculateEta = (progress: number): string => {
+    if (progress <= 0 || exportStartTimeRef.current === 0) return "";
+    const elapsed = (Date.now() - exportStartTimeRef.current) / 1000;
+    const totalEstimate = (elapsed / progress) * 100;
+    const remaining = totalEstimate - elapsed;
+    return formatEta(remaining);
+  };
   
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -236,9 +259,10 @@ export const useVideoExporter = () => {
     abortRef.current = false;
     recordedChunksRef.current = [];
     setExportedVideoUrl(null);
+    exportStartTimeRef.current = Date.now();
 
     try {
-      setExportProgress({ status: "preparing", progress: 0, message: "Mempersiapkan canvas..." });
+      setExportProgress({ status: "preparing", progress: 0, message: "Mempersiapkan canvas...", eta: undefined });
 
       // Create canvas
       const canvasWidth = quality === "1080p" ? 1080 : 720;
@@ -265,7 +289,7 @@ export const useVideoExporter = () => {
 
       const totalDuration = audioDuration || clips.reduce((acc, c) => acc + c.effectiveDuration, 0);
 
-      setExportProgress({ status: "preparing", progress: 10, message: "Memuat media..." });
+      setExportProgress({ status: "preparing", progress: 10, message: "Memuat media...", eta: calculateEta(10) });
 
       // Preload all media
       const mediaElements: (HTMLVideoElement | HTMLImageElement)[] = [];
@@ -275,7 +299,7 @@ export const useVideoExporter = () => {
         mediaElements.push(element);
       }
 
-      setExportProgress({ status: "rendering", progress: 20, message: "Memulai render..." });
+      setExportProgress({ status: "rendering", progress: 20, message: "Memulai render...", eta: calculateEta(20) });
 
       // Setup MediaRecorder
       const stream = canvas.captureStream(30);
@@ -371,12 +395,14 @@ export const useVideoExporter = () => {
         // Draw frame
         drawFrame(ctx, mediaElement, subtitleWords, currentTime, subtitleStyle, canvasWidth, canvasHeight);
 
-        // Update progress
+        // Update progress with ETA
         const progress = 20 + (currentTime / totalDuration) * 70;
+        const clampedProgress = Math.min(90, progress);
         setExportProgress({
           status: "rendering",
-          progress: Math.min(90, progress),
+          progress: clampedProgress,
           message: `Rendering ${Math.floor(currentTime)}s / ${Math.floor(totalDuration)}s`,
+          eta: calculateEta(clampedProgress),
         });
 
         currentTime += 1 / fps;
@@ -390,7 +416,7 @@ export const useVideoExporter = () => {
       }
 
       // Stop recording
-      setExportProgress({ status: "encoding", progress: 90, message: "Finishing recording..." });
+      setExportProgress({ status: "encoding", progress: 90, message: "Finishing recording...", eta: calculateEta(90) });
       
       if (audioElement) {
         audioElement.pause();
@@ -412,7 +438,7 @@ export const useVideoExporter = () => {
       let finalMimeType: string;
 
       if (format === "mp4") {
-        setExportProgress({ status: "encoding", progress: 90, message: "Loading FFmpeg..." });
+        setExportProgress({ status: "encoding", progress: 90, message: "Loading FFmpeg...", eta: calculateEta(90) });
         
         const ffmpeg = await loadFFmpeg();
         
@@ -424,7 +450,8 @@ export const useVideoExporter = () => {
           setExportProgress({ 
             status: "encoding", 
             progress: ffmpegProgress, 
-            message: `Converting to MP4... ${Math.round(progress * 100)}% (${timeInSeconds.toFixed(1)}s processed)` 
+            message: `Converting to MP4... ${Math.round(progress * 100)}% (${timeInSeconds.toFixed(1)}s processed)`,
+            eta: calculateEta(ffmpegProgress),
           });
         });
 
@@ -432,13 +459,13 @@ export const useVideoExporter = () => {
           console.log("[FFmpeg]", message);
         });
         
-        setExportProgress({ status: "encoding", progress: 91, message: "Preparing conversion..." });
+        setExportProgress({ status: "encoding", progress: 91, message: "Preparing conversion...", eta: calculateEta(91) });
         
         // Write WebM to FFmpeg virtual filesystem
         const webmData = new Uint8Array(await webmBlob.arrayBuffer());
         await ffmpeg.writeFile("input.webm", webmData);
         
-        setExportProgress({ status: "encoding", progress: 92, message: "Converting to MP4... 0%" });
+        setExportProgress({ status: "encoding", progress: 92, message: "Converting to MP4... 0%", eta: calculateEta(92) });
         
         // Convert to MP4
         await ffmpeg.exec([
@@ -452,7 +479,7 @@ export const useVideoExporter = () => {
           "output.mp4"
         ]);
         
-        setExportProgress({ status: "encoding", progress: 99, message: "Finalizing MP4..." });
+        setExportProgress({ status: "encoding", progress: 99, message: "Finalizing MP4...", eta: "Almost done!" });
         
         // Read the output file
         const mp4Data = await ffmpeg.readFile("output.mp4");

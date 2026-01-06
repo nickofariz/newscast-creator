@@ -22,6 +22,7 @@ interface ExportProgress {
   status: "idle" | "preparing" | "rendering" | "encoding" | "complete" | "error";
   progress: number;
   message: string;
+  eta?: string;
 }
 
 interface ExportDialogProps {
@@ -194,11 +195,19 @@ const ExportDialog = ({
                 <div className="flex flex-col items-center gap-3 py-4">
                   {getStatusIcon()}
                   <p className="text-sm font-medium text-center">{exportProgress.message}</p>
+                  {exportProgress.eta && (
+                    <p className="text-xs text-muted-foreground text-center">{exportProgress.eta}</p>
+                  )}
                 </div>
 
                 {/* Progress Bar */}
                 {(isExporting || exportProgress.status === "complete") && (
-                  <Progress value={exportProgress.progress} className={getStatusColor()} />
+                  <div className="space-y-1">
+                    <Progress value={exportProgress.progress} className={getStatusColor()} />
+                    <p className="text-xs text-muted-foreground text-center">
+                      {Math.round(exportProgress.progress)}%
+                    </p>
+                  </div>
                 )}
 
                 {/* Video Preview */}
