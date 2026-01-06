@@ -30,7 +30,7 @@ interface ExportDialogProps {
   exportProgress: ExportProgress;
   exportedVideoUrl: string | null;
   isExporting: boolean;
-  onStartExport: (quality: "720p" | "1080p") => void;
+  onStartExport: (quality: "720p" | "1080p", format: "mp4" | "webm") => void;
   onCancel: () => void;
   onDownload: () => void;
   onReset: () => void;
@@ -54,6 +54,7 @@ const ExportDialog = ({
   hasMedia,
 }: ExportDialogProps) => {
   const [quality, setQuality] = useState<"720p" | "1080p">("720p");
+  const [format, setFormat] = useState<"mp4" | "webm">("mp4");
 
   const handleClose = () => {
     if (isExporting) {
@@ -129,6 +130,20 @@ const ExportDialog = ({
                   </Select>
                 </div>
 
+                {/* Format Selection */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Format Output</label>
+                  <Select value={format} onValueChange={(v) => setFormat(v as "mp4" | "webm")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mp4">MP4 (Kompatibel semua device)</SelectItem>
+                      <SelectItem value="webm">WebM (Lebih cepat, lebih kecil)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Checklist */}
                 <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
                   <p className="text-sm font-medium mb-2">Status:</p>
@@ -163,7 +178,7 @@ const ExportDialog = ({
                   <p className="text-xs text-muted-foreground">
                     <strong>Catatan:</strong> Proses render berjalan real-time. 
                     Video 30 detik membutuhkan sekitar 30 detik untuk di-render.
-                    Format output: WebM.
+                    {format === "mp4" && " Konversi ke MP4 membutuhkan waktu tambahan."}
                   </p>
                 </div>
               </motion.div>
@@ -208,9 +223,9 @@ const ExportDialog = ({
               <Button variant="outline" onClick={handleClose}>
                 Batal
               </Button>
-              <Button onClick={() => onStartExport(quality)} disabled={!canExport}>
+              <Button onClick={() => onStartExport(quality, format)} disabled={!canExport}>
                 <Film className="w-4 h-4 mr-2" />
-                Mulai Export
+                Export ke {format.toUpperCase()}
               </Button>
             </>
           )}
