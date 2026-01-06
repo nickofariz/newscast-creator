@@ -412,15 +412,33 @@ export const useVideoExporter = () => {
       let finalMimeType: string;
 
       if (format === "mp4") {
-        setExportProgress({ status: "encoding", progress: 92, message: "Loading FFmpeg..." });
+        setExportProgress({ status: "encoding", progress: 90, message: "Loading FFmpeg..." });
         
         const ffmpeg = await loadFFmpeg();
         
-        setExportProgress({ status: "encoding", progress: 94, message: "Converting to MP4..." });
+        // Setup progress handler for FFmpeg conversion
+        ffmpeg.on("progress", ({ progress, time }) => {
+          // progress is 0-1, we map it to 92-99 range
+          const ffmpegProgress = Math.min(99, 92 + (progress * 7));
+          const timeInSeconds = time / 1000000; // time is in microseconds
+          setExportProgress({ 
+            status: "encoding", 
+            progress: ffmpegProgress, 
+            message: `Converting to MP4... ${Math.round(progress * 100)}% (${timeInSeconds.toFixed(1)}s processed)` 
+          });
+        });
+
+        ffmpeg.on("log", ({ message }) => {
+          console.log("[FFmpeg]", message);
+        });
+        
+        setExportProgress({ status: "encoding", progress: 91, message: "Preparing conversion..." });
         
         // Write WebM to FFmpeg virtual filesystem
         const webmData = new Uint8Array(await webmBlob.arrayBuffer());
         await ffmpeg.writeFile("input.webm", webmData);
+        
+        setExportProgress({ status: "encoding", progress: 92, message: "Converting to MP4... 0%" });
         
         // Convert to MP4
         await ffmpeg.exec([
@@ -434,7 +452,7 @@ export const useVideoExporter = () => {
           "output.mp4"
         ]);
         
-        setExportProgress({ status: "encoding", progress: 98, message: "Finalizing..." });
+        setExportProgress({ status: "encoding", progress: 99, message: "Finalizing MP4..." });
         
         // Read the output file
         const mp4Data = await ffmpeg.readFile("output.mp4");
