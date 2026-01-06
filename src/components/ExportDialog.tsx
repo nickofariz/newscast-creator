@@ -31,7 +31,7 @@ interface ExportDialogProps {
   exportProgress: ExportProgress;
   exportedVideoUrl: string | null;
   isExporting: boolean;
-  onStartExport: (quality: "720p" | "1080p", format: "mp4" | "webm") => void;
+  onStartExport: (quality: "720p" | "1080p", format: "mp4" | "webm", bitrate: "low" | "medium" | "high") => void;
   onCancel: () => void;
   onDownload: () => void;
   onReset: () => void;
@@ -56,6 +56,7 @@ const ExportDialog = ({
 }: ExportDialogProps) => {
   const [quality, setQuality] = useState<"720p" | "1080p">("720p");
   const [format, setFormat] = useState<"mp4" | "webm">("mp4");
+  const [bitrate, setBitrate] = useState<"low" | "medium" | "high">("medium");
 
   const handleClose = () => {
     if (isExporting) {
@@ -141,6 +142,21 @@ const ExportDialog = ({
                     <SelectContent>
                       <SelectItem value="mp4">MP4 (Kompatibel semua device)</SelectItem>
                       <SelectItem value="webm">WebM (Lebih cepat, lebih kecil)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Bitrate Selection */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Kualitas Encoding</label>
+                  <Select value={bitrate} onValueChange={(v) => setBitrate(v as "low" | "medium" | "high")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low (File kecil, cepat)</SelectItem>
+                      <SelectItem value="medium">Medium (Seimbang)</SelectItem>
+                      <SelectItem value="high">High (Kualitas terbaik)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -232,7 +248,7 @@ const ExportDialog = ({
               <Button variant="outline" onClick={handleClose}>
                 Batal
               </Button>
-              <Button onClick={() => onStartExport(quality, format)} disabled={!canExport}>
+              <Button onClick={() => onStartExport(quality, format, bitrate)} disabled={!canExport}>
                 <Film className="w-4 h-4 mr-2" />
                 Export ke {format.toUpperCase()}
               </Button>
