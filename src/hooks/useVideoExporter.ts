@@ -35,6 +35,7 @@ interface ExportOptions {
   subtitleStyle?: SubtitleStyleSettings;
   quality?: "720p" | "1080p";
   format?: "webm" | "mp4";
+  bitrate?: "low" | "medium" | "high";
 }
 
 interface ExportProgress {
@@ -277,7 +278,14 @@ export const useVideoExporter = () => {
         subtitleStyle = DEFAULT_SUBTITLE_STYLE,
         quality = "720p",
         format = "mp4",
+        bitrate = "medium",
       } = options;
+
+      // Bitrate/CRF settings - lower CRF = higher quality
+      const crfMap = { low: "32", medium: "23", high: "18" };
+      const audioBitrateMap = { low: "96k", medium: "128k", high: "192k" };
+      const crf = crfMap[bitrate];
+      const audioBitrate = audioBitrateMap[bitrate];
 
       abortRef.current = false;
       setExportedVideoUrl(null);
@@ -472,13 +480,13 @@ export const useVideoExporter = () => {
               "-preset",
               "ultrafast",
               "-crf",
-              "23",
+              crf,
               "-pix_fmt",
               "yuv420p",
               "-c:a",
               "aac",
               "-b:a",
-              "128k",
+              audioBitrate,
               "-shortest",
               "-movflags",
               "+faststart",
@@ -495,7 +503,7 @@ export const useVideoExporter = () => {
               "-preset",
               "ultrafast",
               "-crf",
-              "23",
+              crf,
               "-pix_fmt",
               "yuv420p",
               "-movflags",
@@ -504,7 +512,10 @@ export const useVideoExporter = () => {
             ]);
           }
         } else {
-          // WebM format
+          // WebM format - CRF mapping for VP9
+          const webmCrfMap = { low: "40", medium: "30", high: "20" };
+          const webmCrf = webmCrfMap[bitrate];
+          
           if (hasAudioFile) {
             await ffmpeg.exec([
               "-framerate",
@@ -516,11 +527,13 @@ export const useVideoExporter = () => {
               "-c:v",
               "libvpx-vp9",
               "-crf",
-              "30",
+              webmCrf,
               "-b:v",
               "0",
               "-c:a",
               "libopus",
+              "-b:a",
+              audioBitrate,
               "-shortest",
               outputFile,
             ]);
@@ -533,7 +546,7 @@ export const useVideoExporter = () => {
               "-c:v",
               "libvpx-vp9",
               "-crf",
-              "30",
+              webmCrf,
               "-b:v",
               "0",
               outputFile,
