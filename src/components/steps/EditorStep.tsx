@@ -98,7 +98,7 @@ const EditorStep = ({
   } = useVideoExporter();
 
   // Handle export start
-  const handleStartExport = useCallback((quality: "720p" | "1080p") => {
+  const handleStartExport = useCallback((quality: "720p" | "1080p", format: "mp4" | "webm") => {
     exportVideo({
       mediaFiles,
       editedClips,
@@ -107,6 +107,7 @@ const EditorStep = ({
       audioDuration,
       subtitleStyle,
       quality,
+      format,
     });
   }, [exportVideo, mediaFiles, editedClips, subtitleWords, audioUrl, audioDuration, subtitleStyle]);
 

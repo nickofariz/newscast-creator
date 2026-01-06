@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
 interface SubtitleWord {
   text: string;
@@ -32,6 +34,7 @@ interface ExportOptions {
   audioDuration: number;
   subtitleStyle?: SubtitleStyleSettings;
   quality?: "720p" | "1080p";
+  format?: "webm" | "mp4";
 }
 
 interface ExportProgress {
@@ -52,6 +55,27 @@ export const useVideoExporter = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const abortRef = useRef(false);
+  const ffmpegRef = useRef<FFmpeg | null>(null);
+  const ffmpegLoadedRef = useRef(false);
+
+  const loadFFmpeg = useCallback(async () => {
+    if (ffmpegLoadedRef.current && ffmpegRef.current) {
+      return ffmpegRef.current;
+    }
+
+    const ffmpeg = new FFmpeg();
+    ffmpegRef.current = ffmpeg;
+
+    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+    
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+
+    ffmpegLoadedRef.current = true;
+    return ffmpeg;
+  }, []);
 
   const getActiveSubtitle = useCallback((
     subtitleWords: SubtitleWord[],
@@ -206,6 +230,7 @@ export const useVideoExporter = () => {
       audioDuration,
       subtitleStyle = DEFAULT_SUBTITLE_STYLE,
       quality = "720p",
+      format = "mp4",
     } = options;
 
     abortRef.current = false;
@@ -365,7 +390,7 @@ export const useVideoExporter = () => {
       }
 
       // Stop recording
-      setExportProgress({ status: "encoding", progress: 95, message: "Finishing encoding..." });
+      setExportProgress({ status: "encoding", progress: 90, message: "Finishing recording..." });
       
       if (audioElement) {
         audioElement.pause();
@@ -380,9 +405,62 @@ export const useVideoExporter = () => {
       if (audioSource) audioSource.disconnect();
       if (audioContext) audioContext.close();
 
-      // Create blob and URL
-      const blob = new Blob(recordedChunksRef.current, { type: selectedMimeType });
-      const url = URL.createObjectURL(blob);
+      // Create WebM blob
+      const webmBlob = new Blob(recordedChunksRef.current, { type: selectedMimeType });
+
+      let finalBlob: Blob;
+      let finalMimeType: string;
+
+      if (format === "mp4") {
+        setExportProgress({ status: "encoding", progress: 92, message: "Loading FFmpeg..." });
+        
+        const ffmpeg = await loadFFmpeg();
+        
+        setExportProgress({ status: "encoding", progress: 94, message: "Converting to MP4..." });
+        
+        // Write WebM to FFmpeg virtual filesystem
+        const webmData = new Uint8Array(await webmBlob.arrayBuffer());
+        await ffmpeg.writeFile("input.webm", webmData);
+        
+        // Convert to MP4
+        await ffmpeg.exec([
+          "-i", "input.webm",
+          "-c:v", "libx264",
+          "-preset", "ultrafast",
+          "-crf", "23",
+          "-c:a", "aac",
+          "-b:a", "128k",
+          "-movflags", "+faststart",
+          "output.mp4"
+        ]);
+        
+        setExportProgress({ status: "encoding", progress: 98, message: "Finalizing..." });
+        
+        // Read the output file
+        const mp4Data = await ffmpeg.readFile("output.mp4");
+        // Handle both Uint8Array and string returns
+        let mp4Bytes: Uint8Array;
+        if (typeof mp4Data === 'string') {
+          const encoder = new TextEncoder();
+          mp4Bytes = encoder.encode(mp4Data);
+        } else {
+          // Copy to a new ArrayBuffer to avoid SharedArrayBuffer issues
+          const buffer = new ArrayBuffer(mp4Data.byteLength);
+          new Uint8Array(buffer).set(mp4Data);
+          mp4Bytes = new Uint8Array(buffer);
+        }
+        finalBlob = new Blob([mp4Bytes.buffer as ArrayBuffer], { type: "video/mp4" });
+        finalMimeType = "video/mp4";
+        
+        // Cleanup FFmpeg files
+        await ffmpeg.deleteFile("input.webm");
+        await ffmpeg.deleteFile("output.mp4");
+      } else {
+        finalBlob = webmBlob;
+        finalMimeType = selectedMimeType;
+      }
+
+      const url = URL.createObjectURL(finalBlob);
       
       setExportedVideoUrl(url);
       setExportProgress({ status: "complete", progress: 100, message: "Export selesai!" });
@@ -403,7 +481,7 @@ export const useVideoExporter = () => {
     setExportProgress({ status: "idle", progress: 0, message: "" });
   }, []);
 
-  const downloadVideo = useCallback((filename: string = "video-with-subtitle.webm") => {
+  const downloadVideo = useCallback((filename: string = "video-with-subtitle.mp4") => {
     if (!exportedVideoUrl) return;
     
     const a = document.createElement("a");
