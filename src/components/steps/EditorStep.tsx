@@ -1,6 +1,23 @@
-import { useEffect, useCallback, useState, useMemo } from "react";
+import { useEffect, useCallback, useState, useMemo, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Sparkles, Play, Pause, Settings2, Palette, Volume2, Maximize2, X, Subtitles, Film, Monitor, Smartphone } from "lucide-react";
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  Save, 
+  Play, 
+  Pause, 
+  Layers, 
+  Type as TypeIcon, 
+  Image as ImageIcon, 
+  Settings, 
+  Expand, 
+  X, 
+  Captions, 
+  Video, 
+  Monitor, 
+  Smartphone,
+  Volume2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoEditor, { EditedClip } from "@/components/VideoEditor";
@@ -246,11 +263,11 @@ const EditorStep = ({
                       variant="outline"
                       size="sm"
                       onClick={isPlaying ? onPause : onPlay}
-                      className="h-8 px-3"
+                      className="h-8 w-8 p-0"
                     >
-                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                     </Button>
-                    <span className="text-sm font-mono text-muted-foreground">
+                    <span className="text-xs font-mono text-muted-foreground tabular-nums">
                       {formatTime(currentTime)} / {formatTime(audioDuration)}
                     </span>
                     {onSeek && (
@@ -424,22 +441,22 @@ const EditorStep = ({
         <div className="lg:col-span-3 xl:col-span-4 space-y-3">
           {/* Tabbed Controls */}
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-3">
-              <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-sm">
-                <Play className="w-3.5 h-3.5" />
-                <span>Timeline</span>
+            <TabsList className="grid w-full grid-cols-4 mb-3 h-9">
+              <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-xs">
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Timeline</span>
               </TabsTrigger>
-              <TabsTrigger value="subtitle" className="flex items-center gap-1.5 text-sm">
-                <Subtitles className="w-3.5 h-3.5" />
-                <span>Subtitle</span>
+              <TabsTrigger value="subtitle" className="flex items-center gap-1.5 text-xs">
+                <Captions className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Subtitle</span>
               </TabsTrigger>
-              <TabsTrigger value="template" className="flex items-center gap-1.5 text-sm">
-                <Palette className="w-3.5 h-3.5" />
-                <span>Template</span>
+              <TabsTrigger value="template" className="flex items-center gap-1.5 text-xs">
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Template</span>
               </TabsTrigger>
-              <TabsTrigger value="overlay" className="flex items-center gap-1.5 text-sm">
-                <Settings2 className="w-3.5 h-3.5" />
-                <span>Overlay</span>
+              <TabsTrigger value="overlay" className="flex items-center gap-1.5 text-xs">
+                <Settings className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Overlay</span>
               </TabsTrigger>
             </TabsList>
 
@@ -453,7 +470,7 @@ const EditorStep = ({
                     onClick={toggleFullscreen}
                     className="h-7 px-2 text-xs"
                   >
-                    <Maximize2 className="w-3.5 h-3.5 mr-1" />
+                    <Expand className="w-3.5 h-3.5 mr-1" />
                     Fullscreen
                   </Button>
                 </div>
@@ -557,48 +574,48 @@ const EditorStep = ({
       )}
 
       {/* Generate & Navigation */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-        <Button variant="glass" size="lg" onClick={onBack} className="sm:w-auto">
-          <ChevronLeft className="w-5 h-5" />
+      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <Button variant="ghost" size="default" onClick={onBack} className="sm:w-auto gap-2">
+          <ArrowLeft className="w-4 h-4" />
           Kembali
         </Button>
         
         {/* Export Video Button - Renders full MP4 with burned subtitles */}
         <Button
-          variant="news"
-          size="lg"
+          variant="default"
+          size="default"
           onClick={() => setIsExportDialogOpen(true)}
           disabled={isGenerating || isExporting || mediaFiles.length === 0}
-          className="flex-1"
+          className="flex-1 gap-2"
         >
-          <Film className="w-5 h-5 mr-2" />
-          Export Video MP4
+          <Video className="w-4 h-4" />
+          Export MP4
         </Button>
 
         {/* Quick save - saves audio and metadata only */}
         <Button
           variant="outline"
-          size="lg"
+          size="default"
           onClick={onGenerate}
           disabled={isGenerating}
-          className="sm:w-auto"
+          className="sm:w-auto gap-2"
         >
           {isGenerating ? (
             <>
-              <div className="w-5 h-5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
-              Menyimpan...
+              <div className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+              Saving...
             </>
           ) : (
             <>
-              <Sparkles className="w-5 h-5 mr-2" />
-              Simpan Draft
+              <Save className="w-4 h-4" />
+              Draft
             </>
           )}
         </Button>
         
-        <Button variant="glass" size="lg" onClick={onNext} className="sm:w-auto">
+        <Button variant="ghost" size="default" onClick={onNext} className="sm:w-auto gap-2">
           Lanjut
-          <ChevronRight className="w-5 h-5" />
+          <ArrowRight className="w-4 h-4" />
         </Button>
       </div>
 

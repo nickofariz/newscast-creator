@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Volume2, Pause, Maximize2, X, VolumeX, SkipBack, SkipForward } from "lucide-react";
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Play, Pause, Maximize2, X, Volume2, VolumeX, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { OverlaySettings } from "./OverlaySelector";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "./SubtitlePreview";
@@ -234,28 +234,37 @@ const VideoPreview = ({
     return audioDuration > 0 ? audioDuration : mediaFiles.length * DEFAULT_IMAGE_DURATION;
   }, [hasEditedClips, editedClips, audioDuration, mediaFiles.length]);
 
-  // Internal timer for preview playback when audio is not playing
+  // Internal timer for preview playback using requestAnimationFrame for smoother updates
   useEffect(() => {
-    if (isPlaying && !isAudioPlaying && (mediaFiles.length > 0 || editedClips.length > 0)) {
-      timerRef.current = setInterval(() => {
+    let animationId: number;
+    let lastTimestamp: number;
+
+    const tick = (timestamp: number) => {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const deltaMs = timestamp - lastTimestamp;
+      
+      // Update every ~33ms (30fps) for smoother playback
+      if (deltaMs >= 33) {
+        lastTimestamp = timestamp;
         setInternalTime((prev) => {
-          const newTime = prev + 0.1;
+          const newTime = prev + deltaMs / 1000;
           if (newTime >= totalDuration) {
             return 0; // Loop
           }
           return newTime;
         });
-      }, 100);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
       }
+      
+      animationId = requestAnimationFrame(tick);
+    };
+
+    if (isPlaying && !isAudioPlaying && (mediaFiles.length > 0 || editedClips.length > 0)) {
+      animationId = requestAnimationFrame(tick);
     }
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
       }
     };
   }, [isPlaying, isAudioPlaying, mediaFiles.length, editedClips.length, totalDuration]);
@@ -858,7 +867,7 @@ const VideoPreview = ({
                     className="text-white hover:bg-white/20"
                     title="10 detik mundur"
                   >
-                    <SkipBack className="w-5 h-5" />
+                    <ChevronLeft className="w-5 h-5" />
                   </Button>
                 )}
                 
@@ -885,7 +894,7 @@ const VideoPreview = ({
                     className="text-white hover:bg-white/20"
                     title="10 detik maju"
                   >
-                    <SkipForward className="w-5 h-5" />
+                    <ChevronRight className="w-5 h-5" />
                   </Button>
                 )}
 
