@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Input validation constants
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/webm", "audio/ogg", "audio/m4a", "audio/mp4"];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -14,9 +18,27 @@ serve(async (req) => {
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File;
 
+    // Validate file is provided
     if (!audioFile) {
       return new Response(
         JSON.stringify({ error: "Audio file is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate file size
+    if (audioFile.size > MAX_FILE_SIZE) {
+      return new Response(
+        JSON.stringify({ error: "Audio file exceeds 25MB limit" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate file type
+    const fileType = audioFile.type || "";
+    if (!fileType.startsWith("audio/") && !ALLOWED_AUDIO_TYPES.includes(fileType)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid file type, must be audio" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -48,25 +70,26 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("ElevenLabs STT error:", response.status, errorText);
+      // Log only status code, not full error text to avoid leaking sensitive info
+      console.error(`Transcription API request failed with status: ${response.status}`);
       return new Response(
-        JSON.stringify({ error: "Failed to transcribe audio" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Service temporarily unavailable" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const transcription = await response.json();
-    console.log("Transcription completed:", transcription.text?.substring(0, 100));
+    console.log("Transcription completed successfully");
 
     return new Response(
       JSON.stringify(transcription),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Transcription error:", error);
+    // Log error type only, not full message to prevent information leakage
+    console.error("Transcription processing error:", error instanceof Error ? error.constructor.name : "Unknown");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "An error occurred processing your request" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
