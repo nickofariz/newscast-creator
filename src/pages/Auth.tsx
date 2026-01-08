@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Video, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { z } from "zod";
@@ -15,9 +15,10 @@ const passwordSchema = z.string().min(6, "Password minimal 6 karakter").max(128,
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading, signIn, signUp } = useAuth();
   
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(searchParams.get("mode") !== "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -27,7 +28,7 @@ const Auth = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      navigate("/", { replace: true });
+      navigate("/editor", { replace: true });
     }
   }, [user, navigate]);
 
@@ -69,7 +70,7 @@ const Auth = () => {
           return;
         }
         toast.success("Berhasil masuk!");
-        navigate("/", { replace: true });
+        navigate("/editor", { replace: true });
       } else {
         const { error } = await signUp(email, password);
         if (error) {
