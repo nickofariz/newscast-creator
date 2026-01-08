@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, X, Loader2, CheckCircle, AlertCircle, Film, Cloud } from "lucide-react";
+import { Download, X, CheckCircle, AlertCircle, Video, Cloud, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +41,125 @@ interface ExportDialogProps {
   hasMedia: boolean;
 }
 
+// Animated progress ring component
+const ProgressRing = ({ progress, status }: { progress: number; status: string }) => {
+  const circumference = 2 * Math.PI * 45;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  
+  const getColor = () => {
+    if (status === "complete") return "stroke-green-500";
+    if (status === "error") return "stroke-destructive";
+    return "stroke-primary";
+  };
+
+  return (
+    <div className="relative w-28 h-28">
+      {/* Background ring */}
+      <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+        <circle
+          cx="50"
+          cy="50"
+          r="45"
+          className="fill-none stroke-muted/30"
+          strokeWidth="6"
+        />
+        <motion.circle
+          cx="50"
+          cy="50"
+          r="45"
+          className={`fill-none ${getColor()}`}
+          strokeWidth="6"
+          strokeLinecap="round"
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          style={{ strokeDasharray: circumference }}
+        />
+      </svg>
+      
+      {/* Center content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        {status === "complete" ? (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
+            <CheckCircle className="w-10 h-10 text-green-500" />
+          </motion.div>
+        ) : status === "error" ? (
+          <AlertCircle className="w-10 h-10 text-destructive" />
+        ) : (
+          <motion.span 
+            className="text-2xl font-bold tabular-nums"
+            key={Math.floor(progress)}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.15 }}
+          >
+            {Math.round(progress)}%
+          </motion.span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Status step indicator
+const ExportSteps = ({ status }: { status: string }) => {
+  const steps = [
+    { id: "preparing", label: "Prepare", icon: "⚙️" },
+    { id: "rendering", label: "Render", icon: "🎬" },
+    { id: "encoding", label: "Encode", icon: "📦" },
+    { id: "complete", label: "Done", icon: "✓" },
+  ];
+
+  const getStepState = (stepId: string) => {
+    const statusOrder = ["preparing", "rendering", "encoding", "complete"];
+    const currentIndex = statusOrder.indexOf(status);
+    const stepIndex = statusOrder.indexOf(stepId);
+    
+    if (status === "error") return "error";
+    if (stepIndex < currentIndex) return "complete";
+    if (stepIndex === currentIndex) return "active";
+    return "pending";
+  };
+
+  return (
+    <div className="flex justify-between w-full px-2">
+      {steps.map((step, index) => {
+        const state = getStepState(step.id);
+        return (
+          <div key={step.id} className="flex flex-col items-center gap-1">
+            <motion.div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                state === "complete" ? "bg-green-500/20 text-green-500" :
+                state === "active" ? "bg-primary/20 text-primary" :
+                state === "error" ? "bg-destructive/20 text-destructive" :
+                "bg-muted/50 text-muted-foreground"
+              }`}
+              animate={state === "active" ? { scale: [1, 1.1, 1] } : {}}
+              transition={{ repeat: state === "active" ? Infinity : 0, duration: 1.5 }}
+            >
+              {state === "complete" ? "✓" : step.icon}
+            </motion.div>
+            <span className={`text-[10px] ${
+              state === "active" ? "text-primary font-medium" :
+              state === "complete" ? "text-green-500" :
+              "text-muted-foreground"
+            }`}>
+              {step.label}
+            </span>
+            {index < steps.length - 1 && (
+              <div className="hidden" /> // Connector handled by parent layout
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const ExportDialog = ({
   open,
   onOpenChange,
@@ -61,58 +179,55 @@ const ExportDialog = ({
   const [quality, setQuality] = useState<"720p" | "1080p">("720p");
   const [format, setFormat] = useState<"mp4" | "webm">("mp4");
   const [bitrate, setBitrate] = useState<"low" | "medium" | "high">("medium");
+  const [displayProgress, setDisplayProgress] = useState(0);
+
+  // Smooth progress animation
+  useEffect(() => {
+    const target = exportProgress.progress;
+    const step = (target - displayProgress) * 0.1;
+    
+    if (Math.abs(target - displayProgress) > 0.5) {
+      const timer = requestAnimationFrame(() => {
+        setDisplayProgress(prev => prev + step);
+      });
+      return () => cancelAnimationFrame(timer);
+    } else {
+      setDisplayProgress(target);
+    }
+  }, [exportProgress.progress, displayProgress]);
+
+  // Reset display progress when dialog opens
+  useEffect(() => {
+    if (open && exportProgress.status === "idle") {
+      setDisplayProgress(0);
+    }
+  }, [open, exportProgress.status]);
 
   const handleClose = () => {
     if (isExporting) {
       onCancel();
     }
     onReset();
+    setDisplayProgress(0);
     onOpenChange(false);
   };
 
   const canExport = hasMedia && (hasSubtitles || hasAudio);
-
-  const getStatusIcon = () => {
-    switch (exportProgress.status) {
-      case "preparing":
-      case "rendering":
-      case "encoding":
-        return <Loader2 className="w-8 h-8 text-primary animate-spin" />;
-      case "complete":
-        return <CheckCircle className="w-8 h-8 text-green-500" />;
-      case "error":
-        return <AlertCircle className="w-8 h-8 text-destructive" />;
-      default:
-        return <Film className="w-8 h-8 text-primary" />;
-    }
-  };
-
-  const getStatusColor = () => {
-    switch (exportProgress.status) {
-      case "complete":
-        return "bg-green-500";
-      case "error":
-        return "bg-destructive";
-      default:
-        return "";
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Film className="w-5 h-5" />
-            Export Video dengan Subtitle
+            <Video className="w-5 h-5" />
+            Export Video
           </DialogTitle>
           <DialogDescription>
-            Render video dengan subtitle yang sudah di-burn langsung ke dalam file.
+            Render video dengan subtitle burned-in.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Status Display */}
           <AnimatePresence mode="wait">
             {exportProgress.status === "idle" ? (
               <motion.div
@@ -122,86 +237,99 @@ const ExportDialog = ({
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-4"
               >
-                {/* Quality Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Kualitas Video</label>
-                  <Select value={quality} onValueChange={(v) => setQuality(v as "720p" | "1080p")}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="720p">720p HD (Lebih cepat)</SelectItem>
-                      <SelectItem value="1080p">1080p Full HD (Lebih lama)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Quick preset buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={quality === "720p" && bitrate === "low" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => { setQuality("720p"); setBitrate("low"); }}
+                    className="h-auto py-3 flex flex-col gap-1"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span className="text-xs font-medium">Fast</span>
+                    <span className="text-[10px] text-muted-foreground">720p Low</span>
+                  </Button>
+                  <Button
+                    variant={quality === "1080p" && bitrate === "high" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => { setQuality("1080p"); setBitrate("high"); }}
+                    className="h-auto py-3 flex flex-col gap-1"
+                  >
+                    <Video className="w-4 h-4" />
+                    <span className="text-xs font-medium">Quality</span>
+                    <span className="text-[10px] text-muted-foreground">1080p High</span>
+                  </Button>
                 </div>
 
-                {/* Format Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Format Output</label>
-                  <Select value={format} onValueChange={(v) => setFormat(v as "mp4" | "webm")}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mp4">MP4 (Kompatibel semua device)</SelectItem>
-                      <SelectItem value="webm">WebM (Lebih cepat, lebih kecil)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Advanced options */}
+                <details className="group">
+                  <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                    Advanced options
+                  </summary>
+                  <div className="mt-3 space-y-3 pl-2 border-l-2 border-border">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Resolution</label>
+                      <Select value={quality} onValueChange={(v) => setQuality(v as "720p" | "1080p")}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="720p">720p HD</SelectItem>
+                          <SelectItem value="1080p">1080p Full HD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                {/* Bitrate Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Kualitas Encoding</label>
-                  <Select value={bitrate} onValueChange={(v) => setBitrate(v as "low" | "medium" | "high")}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low (File kecil, cepat)</SelectItem>
-                      <SelectItem value="medium">Medium (Seimbang)</SelectItem>
-                      <SelectItem value="high">High (Kualitas terbaik)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Format</label>
+                      <Select value={format} onValueChange={(v) => setFormat(v as "mp4" | "webm")}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mp4">MP4</SelectItem>
+                          <SelectItem value="webm">WebM (faster)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                {/* Checklist */}
-                <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                  <p className="text-sm font-medium mb-2">Status:</p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className={`w-2 h-2 rounded-full ${hasMedia ? "bg-green-500" : "bg-muted-foreground"}`} />
-                    <span className={hasMedia ? "text-foreground" : "text-muted-foreground"}>
-                      Media {hasMedia ? "✓" : "(belum ada)"}
-                    </span>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Bitrate</label>
+                      <Select value={bitrate} onValueChange={(v) => setBitrate(v as "low" | "medium" | "high")}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low (fastest)</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High (best quality)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className={`w-2 h-2 rounded-full ${hasAudio ? "bg-green-500" : "bg-muted-foreground"}`} />
-                    <span className={hasAudio ? "text-foreground" : "text-muted-foreground"}>
-                      Audio {hasAudio ? "✓" : "(opsional)"}
-                    </span>
+                </details>
+
+                {/* Status indicators */}
+                <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${hasMedia ? "bg-green-500" : "bg-muted-foreground/50"}`} />
+                    <span className="text-xs">Media</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className={`w-2 h-2 rounded-full ${hasSubtitles ? "bg-green-500" : "bg-muted-foreground"}`} />
-                    <span className={hasSubtitles ? "text-foreground" : "text-muted-foreground"}>
-                      Subtitle {hasSubtitles ? "✓" : "(belum ada)"}
-                    </span>
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${hasAudio ? "bg-green-500" : "bg-muted-foreground/50"}`} />
+                    <span className="text-xs">Audio</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${hasSubtitles ? "bg-green-500" : "bg-muted-foreground/50"}`} />
+                    <span className="text-xs">Subtitle</span>
                   </div>
                 </div>
 
                 {!canExport && (
-                  <p className="text-sm text-muted-foreground">
-                    Tambahkan media dan subtitle terlebih dahulu untuk export.
+                  <p className="text-xs text-muted-foreground text-center">
+                    Add media and subtitle/audio first.
                   </p>
                 )}
-
-                {/* Info */}
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <p className="text-xs text-muted-foreground">
-                    <strong>Catatan:</strong> Proses render berjalan real-time. 
-                    Video 30 detik membutuhkan sekitar 30 detik untuk di-render.
-                    {format === "mp4" && " Konversi ke MP4 membutuhkan waktu tambahan."}
-                  </p>
-                </div>
               </motion.div>
             ) : (
               <motion.div
@@ -209,36 +337,45 @@ const ExportDialog = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
+                className="space-y-6"
               >
-                {/* Status Icon */}
-                <div className="flex flex-col items-center gap-3 py-4">
-                  {getStatusIcon()}
-                  <p className="text-sm font-medium text-center">{exportProgress.message}</p>
-                  {exportProgress.eta && (
-                    <p className="text-xs text-muted-foreground text-center">{exportProgress.eta}</p>
+                {/* Progress Ring */}
+                <div className="flex justify-center">
+                  <ProgressRing progress={displayProgress} status={exportProgress.status} />
+                </div>
+
+                {/* Status message */}
+                <div className="text-center space-y-1">
+                  <motion.p 
+                    className="text-sm font-medium"
+                    key={exportProgress.message}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    {exportProgress.message}
+                  </motion.p>
+                  {exportProgress.eta && exportProgress.status !== "complete" && (
+                    <p className="text-xs text-muted-foreground">{exportProgress.eta}</p>
                   )}
                 </div>
 
-                {/* Progress Bar */}
-                {(isExporting || exportProgress.status === "complete") && (
-                  <div className="space-y-1">
-                    <Progress value={exportProgress.progress} className={getStatusColor()} />
-                    <p className="text-xs text-muted-foreground text-center">
-                      {Math.round(exportProgress.progress)}%
-                    </p>
-                  </div>
-                )}
+                {/* Step indicators */}
+                {isExporting && <ExportSteps status={exportProgress.status} />}
 
                 {/* Video Preview */}
                 {exportProgress.status === "complete" && exportedVideoUrl && (
-                  <div className="rounded-lg overflow-hidden border border-border">
+                  <motion.div 
+                    className="rounded-lg overflow-hidden border border-border"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
                     <video
                       src={exportedVideoUrl}
                       controls
-                      className="w-full max-h-[300px] object-contain bg-black"
+                      className="w-full max-h-[250px] object-contain bg-black"
                     />
-                  </div>
+                  </motion.div>
                 )}
               </motion.div>
             )}
@@ -249,56 +386,57 @@ const ExportDialog = ({
         <div className="flex gap-2 justify-end">
           {exportProgress.status === "idle" && (
             <>
-              <Button variant="outline" onClick={handleClose}>
-                Batal
+              <Button variant="ghost" size="sm" onClick={handleClose}>
+                Cancel
               </Button>
-              <Button onClick={() => onStartExport(quality, format, bitrate)} disabled={!canExport}>
-                <Film className="w-4 h-4 mr-2" />
-                Export ke {format.toUpperCase()}
+              <Button size="sm" onClick={() => onStartExport(quality, format, bitrate)} disabled={!canExport}>
+                <Video className="w-4 h-4 mr-1.5" />
+                Export
               </Button>
             </>
           )}
 
           {isExporting && (
-            <Button variant="destructive" onClick={onCancel}>
-              <X className="w-4 h-4 mr-2" />
-              Batalkan
+            <Button variant="destructive" size="sm" onClick={onCancel}>
+              <X className="w-4 h-4 mr-1.5" />
+              Cancel
             </Button>
           )}
 
           {exportProgress.status === "complete" && (
             <>
-              <Button variant="outline" onClick={handleClose}>
-                Tutup
+              <Button variant="ghost" size="sm" onClick={handleClose}>
+                Close
               </Button>
               {onSaveToCloud && (
                 <Button 
                   variant="outline" 
+                  size="sm"
                   onClick={onSaveToCloud}
                   disabled={isSavingToCloud}
                 >
                   {isSavingToCloud ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <div className="w-4 h-4 mr-1.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <Cloud className="w-4 h-4 mr-2" />
+                    <Cloud className="w-4 h-4 mr-1.5" />
                   )}
-                  {isSavingToCloud ? "Menyimpan..." : "Simpan ke Cloud"}
+                  Save to Cloud
                 </Button>
               )}
-              <Button onClick={onDownload}>
-                <Download className="w-4 h-4 mr-2" />
-                Download Video
+              <Button size="sm" onClick={onDownload}>
+                <Download className="w-4 h-4 mr-1.5" />
+                Download
               </Button>
             </>
           )}
 
           {exportProgress.status === "error" && (
             <>
-              <Button variant="outline" onClick={handleClose}>
-                Tutup
+              <Button variant="ghost" size="sm" onClick={handleClose}>
+                Close
               </Button>
-              <Button onClick={onReset}>
-                Coba Lagi
+              <Button size="sm" onClick={onReset}>
+                Retry
               </Button>
             </>
           )}

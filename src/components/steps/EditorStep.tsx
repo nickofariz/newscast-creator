@@ -113,10 +113,16 @@ const EditorStep = ({
     cancelExport,
     downloadVideo,
     resetExport,
+    preloadFFmpeg,
     exportProgress,
     exportedVideoUrl,
     isExporting,
   } = useVideoExporter();
+
+  // Preload FFmpeg when editor opens for faster export
+  useEffect(() => {
+    preloadFFmpeg();
+  }, [preloadFFmpeg]);
 
   // Handle export start
   const handleStartExport = useCallback(async (quality: "720p" | "1080p", format: "mp4" | "webm", bitrate: "low" | "medium" | "high") => {
