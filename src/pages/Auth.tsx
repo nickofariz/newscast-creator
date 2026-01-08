@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Video, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { Video, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft, User, CheckCircle, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 // Validation schemas
 const emailSchema = z.string().email("Email tidak valid").max(255, "Email terlalu panjang");
 const passwordSchema = z.string().min(6, "Password minimal 6 karakter").max(128, "Password terlalu panjang");
+const nameSchema = z.string().min(2, "Nama minimal 2 karakter").max(100, "Nama terlalu panjang");
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -20,11 +21,13 @@ const Auth = () => {
   
   const [isLogin, setIsLogin] = useState(searchParams.get("mode") !== "signup");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showEmailSent, setShowEmailSent] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
 
   // Redirect if already logged in
   useEffect(() => {
@@ -34,7 +37,7 @@ const Auth = () => {
   }, [user, navigate]);
 
   const validateForm = (): boolean => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: { email?: string; password?: string; fullName?: string } = {};
     
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
@@ -45,6 +48,13 @@ const Auth = () => {
       const passwordResult = passwordSchema.safeParse(password);
       if (!passwordResult.success) {
         newErrors.password = passwordResult.error.errors[0].message;
+      }
+
+      if (!isLogin) {
+        const nameResult = nameSchema.safeParse(fullName);
+        if (!nameResult.success) {
+          newErrors.fullName = nameResult.error.errors[0].message;
+        }
       }
     }
     
@@ -66,8 +76,7 @@ const Auth = () => {
           toast.error("Gagal mengirim email reset password");
           return;
         }
-        toast.success("Link reset password telah dikirim ke email Anda");
-        setShowForgotPassword(false);
+        setShowEmailSent(true);
         return;
       }
 
@@ -86,7 +95,7 @@ const Auth = () => {
         toast.success("Berhasil masuk!");
         navigate("/editor", { replace: true });
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, fullName);
         if (error) {
           if (error.message.includes("User already registered")) {
             toast.error("Email sudah terdaftar. Silakan login.");
@@ -97,9 +106,10 @@ const Auth = () => {
           }
           return;
         }
-        toast.success("Akun berhasil dibuat! Silakan login.");
+        toast.success("Akun berhasil dibuat!");
         setIsLogin(true);
         setPassword("");
+        setFullName("");
       }
     } finally {
       setIsSubmitting(false);
@@ -121,6 +131,7 @@ const Auth = () => {
   const handleToggle = (loginMode: boolean) => {
     setIsLogin(loginMode);
     setShowForgotPassword(false);
+    setShowEmailSent(false);
     setErrors({});
   };
 
@@ -128,6 +139,45 @@ const Auth = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Email sent confirmation screen
+  if (showEmailSent) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8 relative overflow-hidden">
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/4 -left-32 w-64 md:w-96 h-64 md:h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 -right-32 w-64 md:w-96 h-64 md:h-96 bg-accent/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md relative z-10"
+        >
+          <div className="glass-card rounded-2xl p-8 border border-border/50 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+            <h1 className="font-display text-2xl font-bold text-foreground mb-2">
+              Email Terkirim!
+            </h1>
+            <p className="text-muted-foreground text-sm mb-6">
+              Kami telah mengirim link reset password ke <span className="text-foreground font-medium">{email}</span>. Silakan cek inbox atau folder spam Anda.
+            </p>
+            <Button
+              onClick={() => {
+                setShowEmailSent(false);
+                setShowForgotPassword(false);
+              }}
+              className="w-full"
+            >
+              Kembali ke Login
+            </Button>
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -163,17 +213,17 @@ const Auth = () => {
           </Link>
         </div>
 
-        {/* Folder Tabs - Above the card */}
+        {/* Folder Tabs - Full width above card */}
         {!showForgotPassword && (
-          <div className="flex">
+          <div className="grid grid-cols-2 gap-0">
             <button
               type="button"
               onClick={() => handleToggle(true)}
               disabled={isSubmitting}
-              className={`relative px-6 sm:px-8 py-3 rounded-t-xl font-medium text-sm transition-all ${
+              className={`relative py-3.5 rounded-t-xl font-semibold text-sm transition-all border-t border-l border-r ${
                 isLogin 
-                  ? "bg-card text-foreground z-10 border-t border-l border-r border-border/50" 
-                  : "bg-secondary/30 text-muted-foreground hover:text-foreground -mr-2"
+                  ? "gradient-news text-primary-foreground border-transparent z-10" 
+                  : "bg-secondary/50 text-muted-foreground hover:text-foreground border-border/50"
               }`}
               style={isLogin ? { marginBottom: "-1px" } : {}}
             >
@@ -183,10 +233,10 @@ const Auth = () => {
               type="button"
               onClick={() => handleToggle(false)}
               disabled={isSubmitting}
-              className={`relative px-6 sm:px-8 py-3 rounded-t-xl font-medium text-sm transition-all ${
+              className={`relative py-3.5 rounded-t-xl font-semibold text-sm transition-all border-t border-l border-r ${
                 !isLogin 
-                  ? "bg-card text-foreground z-10 border-t border-l border-r border-border/50" 
-                  : "bg-secondary/30 text-muted-foreground hover:text-foreground -ml-2"
+                  ? "gradient-news text-primary-foreground border-transparent z-10" 
+                  : "bg-secondary/50 text-muted-foreground hover:text-foreground border-border/50"
               }`}
               style={!isLogin ? { marginBottom: "-1px" } : {}}
             >
@@ -196,7 +246,7 @@ const Auth = () => {
         )}
 
         {/* Form Card */}
-        <div className="glass-card rounded-2xl rounded-tl-none p-5 sm:p-6 md:p-8 border border-border/50">
+        <div className={`glass-card rounded-2xl ${!showForgotPassword ? 'rounded-t-none' : ''} p-5 sm:p-6 md:p-8 border border-border/50`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={showForgotPassword ? "forgot" : isLogin ? "login" : "signup"}
@@ -269,6 +319,31 @@ const Auth = () => {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Full Name - Only for signup */}
+                {!isLogin && !showForgotPassword && (
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Nama Lengkap</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="fullName"
+                        type="text"
+                        placeholder="Nama lengkap Anda"
+                        value={fullName}
+                        onChange={(e) => {
+                          setFullName(e.target.value);
+                          setErrors((prev) => ({ ...prev, fullName: undefined }));
+                        }}
+                        className={`pl-10 h-11 ${errors.fullName ? "border-destructive" : ""}`}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    {errors.fullName && (
+                      <p className="text-xs text-destructive">{errors.fullName}</p>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
