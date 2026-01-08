@@ -40,22 +40,15 @@ const Header = () => {
           </div>
           
           {user ? (
-            <>
-              <Link to="/editor">
-                <Button variant="outline" size="sm">
-                  Buka Editor
-                </Button>
-              </Link>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Keluar</span>
-              </Button>
-            </>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleSignOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Keluar</span>
+            </Button>
           ) : (
             <>
               <Link to="/auth">
