@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Video, Mic, Smartphone, Zap, Download, Play, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Video, Mic, Smartphone, Zap, Download, Play, Sparkles, ArrowRight, CheckCircle2, Star, Quote } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +35,30 @@ const Landing = () => {
     { number: "01", title: "Tulis Berita", description: "Masukkan teks berita yang ingin dijadikan video" },
     { number: "02", title: "Pilih Suara", description: "Pilih voice over AI sesuai kebutuhan konten Anda" },
     { number: "03", title: "Generate & Export", description: "Proses otomatis dan download video siap upload" },
+  ];
+
+  const testimonials = [
+    {
+      name: "Andi Pratama",
+      role: "Content Creator",
+      avatar: "AP",
+      rating: 5,
+      content: "Short News benar-benar mengubah cara saya membuat konten. Dulu butuh berjam-jam, sekarang cuma hitungan menit!",
+    },
+    {
+      name: "Siti Rahma",
+      role: "Social Media Manager",
+      avatar: "SR",
+      rating: 5,
+      content: "Voice AI-nya sangat natural. Klien saya tidak percaya kalau ini dibuat dengan AI. Highly recommended!",
+    },
+    {
+      name: "Budi Santoso",
+      role: "News Portal Owner",
+      avatar: "BS",
+      rating: 5,
+      content: "Produktivitas tim saya meningkat 5x lipat sejak pakai Short News. Tools wajib untuk media digital!",
+    },
   ];
 
   return (
@@ -266,6 +290,67 @@ const Landing = () => {
                   </div>
                   <h3 className="font-semibold text-lg text-foreground mb-2">{feature.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="container mx-auto px-4 py-16 md:py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
+              Testimonial
+            </span>
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Apa Kata Mereka?
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Bergabung dengan ribuan kreator yang sudah merasakan kemudahan Short News
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonials.map((testimonial, index) => (
+              <motion.div
+                key={testimonial.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="group"
+              >
+                <div className="glass-card p-6 rounded-2xl border border-border/50 h-full hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all relative">
+                  <Quote className="absolute top-4 right-4 w-8 h-8 text-primary/10" />
+                  
+                  {/* Rating */}
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                    ))}
+                  </div>
+                  
+                  {/* Content */}
+                  <p className="text-muted-foreground mb-6 leading-relaxed">
+                    "{testimonial.content}"
+                  </p>
+                  
+                  {/* Author */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full gradient-news flex items-center justify-center text-primary-foreground font-semibold">
+                      {testimonial.avatar}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">{testimonial.name}</p>
+                      <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ))}
