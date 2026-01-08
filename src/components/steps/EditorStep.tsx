@@ -124,8 +124,11 @@ const EditorStep = ({
     preloadFFmpeg();
   }, [preloadFFmpeg]);
 
-  // Handle export start
+  // Handle export start - pause audio first to free up resources
   const handleStartExport = useCallback(async (quality: "720p" | "1080p", bitrate: "low" | "medium" | "high") => {
+    // Pause audio playback during export to save resources
+    onPause?.();
+    
     const videoUrl = await exportVideo({
       mediaFiles,
       editedClips,
@@ -139,7 +142,7 @@ const EditorStep = ({
 
     // If export successful, don't auto-save - let user choose via "Save to Cloud" button
     console.log("Export completed:", videoUrl);
-  }, [exportVideo, mediaFiles, editedClips, subtitleWords, audioUrl, audioDuration, subtitleStyle]);
+  }, [exportVideo, mediaFiles, editedClips, subtitleWords, audioUrl, audioDuration, subtitleStyle, onPause]);
 
   // Handle save to cloud after export
   const handleSaveToCloud = useCallback(async () => {
@@ -320,6 +323,7 @@ const EditorStep = ({
                     overlaySettings={overlaySettings}
                     videoFormat={videoFormat}
                     subtitleStyle={subtitleStyle}
+                    isExporting={isExporting}
                     onPlay={onPlay}
                     onPause={onPause}
                     onSeek={onSeek}
@@ -435,6 +439,7 @@ const EditorStep = ({
               overlaySettings={overlaySettings}
               videoFormat={videoFormat}
               subtitleStyle={subtitleStyle}
+              isExporting={isExporting}
               onPlay={onPlay}
               onPause={onPause}
               onSeek={onSeek}

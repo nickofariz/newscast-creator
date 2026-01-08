@@ -51,6 +51,7 @@ interface VideoPreviewProps {
   overlaySettings?: OverlaySettings;
   videoFormat?: VideoFormatType;
   subtitleStyle?: SubtitleStyleSettings;
+  isExporting?: boolean; // Stop all animations during export
   onPlay?: () => void;
   onPause?: () => void;
   onSeek?: (time: number) => void;
@@ -71,6 +72,7 @@ const VideoPreview = ({
   overlaySettings,
   videoFormat = "short",
   subtitleStyle = DEFAULT_SUBTITLE_STYLE,
+  isExporting = false,
   onPlay,
   onPause,
   onSeek,
@@ -235,7 +237,11 @@ const VideoPreview = ({
   }, [hasEditedClips, editedClips, audioDuration, mediaFiles.length]);
 
   // Internal timer for preview playback using requestAnimationFrame for smoother updates
+  // STOP animation loop during export to free up CPU resources
   useEffect(() => {
+    // Don't run animation during export
+    if (isExporting) return;
+
     let animationId: number;
     let lastTimestamp: number;
 
@@ -267,7 +273,7 @@ const VideoPreview = ({
         cancelAnimationFrame(animationId);
       }
     };
-  }, [isPlaying, isAudioPlaying, mediaFiles.length, editedClips.length, totalDuration]);
+  }, [isPlaying, isAudioPlaying, mediaFiles.length, editedClips.length, totalDuration, isExporting]);
 
   // Sync with audio playback - update internal time when audio is seeking
   useEffect(() => {
@@ -368,15 +374,18 @@ const VideoPreview = ({
   }, [subtitleWords, currentTime]);
 
   // Handle play/pause and seeking for video elements
+  // Pause video during export to save resources
   useEffect(() => {
     if (videoRef.current && currentMedia?.type === "video") {
-      if (isPlaying || isAudioPlaying) {
+      if (isExporting) {
+        videoRef.current.pause();
+      } else if (isPlaying || isAudioPlaying) {
         videoRef.current.play();
       } else {
         videoRef.current.pause();
       }
     }
-  }, [isPlaying, isAudioPlaying, currentMedia]);
+  }, [isPlaying, isAudioPlaying, currentMedia, isExporting]);
 
   // Seek video to correct position within clip when time changes
   useEffect(() => {
