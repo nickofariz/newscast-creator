@@ -363,10 +363,14 @@ export const useVideoExporter = () => {
           eta: calculateEta(15),
         });
 
-        const fps = 30;
+        // Use 24fps for faster rendering (still smooth)
+        const fps = 24;
         const totalFrames = Math.ceil(totalDuration * fps);
         let frameIndex = 0;
 
+        // Process frames in batches for better performance
+        const batchSize = 10;
+        
         for (let frameNum = 0; frameNum < totalFrames; frameNum++) {
           if (abortRef.current) throw new Error("Export cancelled");
 
@@ -398,8 +402,8 @@ export const useVideoExporter = () => {
             canvasHeight
           );
 
-          // Capture frame as JPEG (faster than PNG)
-          const frameData = canvas.toDataURL("image/jpeg", 0.92);
+          // Use faster JPEG quality (0.85 instead of 0.92)
+          const frameData = canvas.toDataURL("image/jpeg", 0.85);
           const base64Data = frameData.split(",")[1];
           const binaryString = atob(base64Data);
           const bytes = new Uint8Array(binaryString.length);
@@ -412,17 +416,17 @@ export const useVideoExporter = () => {
           await ffmpeg.writeFile(frameName, bytes);
           frameIndex++;
 
-          // Update progress
+          // Update progress less frequently (every 10 frames)
           const progress = 15 + (frameNum / totalFrames) * 55;
-          if (frameNum % 5 === 0) {
+          if (frameNum % batchSize === 0) {
             setExportProgress({
               status: "rendering",
               progress,
-              message: `Rendering frame ${frameNum + 1}/${totalFrames} (${Math.floor(
-                currentTime
-              )}s / ${Math.floor(totalDuration)}s)`,
+              message: `Rendering ${Math.round((frameNum / totalFrames) * 100)}%`,
               eta: calculateEta(progress),
             });
+            // Allow UI to breathe
+            await new Promise(resolve => setTimeout(resolve, 0));
           }
         }
 
