@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Video, Mic, Smartphone, Zap, Download, Play, Sparkles, ArrowRight, CheckCircle2, Star, Quote, Users, TrendingUp, Clock } from "lucide-react";
+import { Video, Mic, Smartphone, Zap, Download, Play, Sparkles, ArrowRight, CheckCircle2, Star, Quote, Users, TrendingUp, Clock, PenLine, AudioWaveform, Rocket } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,9 +32,9 @@ const Landing = () => {
   ];
 
   const steps = [
-    { number: "01", title: "Tulis Berita", description: "Masukkan teks berita yang ingin dijadikan video", icon: "✍️" },
-    { number: "02", title: "Pilih Suara", description: "Pilih voice over AI sesuai kebutuhan konten Anda", icon: "🎙️" },
-    { number: "03", title: "Generate & Export", description: "Proses otomatis dan download video siap upload", icon: "🚀" },
+    { number: "01", title: "Tulis Berita", description: "Masukkan teks berita yang ingin dijadikan video", icon: PenLine },
+    { number: "02", title: "Pilih Suara", description: "Pilih voice over AI sesuai kebutuhan konten Anda", icon: AudioWaveform },
+    { number: "03", title: "Generate & Export", description: "Proses otomatis dan download video siap upload", icon: Rocket },
   ];
 
   const testimonials = [
@@ -316,8 +316,10 @@ const Landing = () => {
                   <div className="hidden md:block absolute top-12 left-1/2 w-full h-0.5 bg-gradient-to-r from-primary/50 to-transparent" />
                 )}
                 <div className="relative z-10 glass-card p-5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl border border-border/50 text-center hover:border-primary/30 transition-all hover:shadow-lg hover:shadow-primary/5 group">
-                  <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">{step.icon}</div>
-                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold gradient-news bg-clip-text text-transparent mb-2 sm:mb-3 group-hover:scale-110 transition-transform inline-block">
+                  <div className="w-12 sm:w-14 md:w-16 h-12 sm:h-14 md:h-16 rounded-xl sm:rounded-2xl gradient-news flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-glow group-hover:scale-110 transition-transform">
+                    <step.icon className="w-6 sm:w-7 md:w-8 h-6 sm:h-7 md:h-8 text-primary-foreground" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl md:text-5xl font-bold gradient-news bg-clip-text text-transparent mb-2 sm:mb-3 inline-block">
                     {step.number}
                   </div>
                   <h3 className="font-display font-semibold text-lg sm:text-xl text-foreground mb-2">{step.title}</h3>
