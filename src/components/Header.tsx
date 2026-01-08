@@ -1,7 +1,17 @@
 import { motion } from "framer-motion";
-import { Video, Zap } from "lucide-react";
+import { Video, Zap, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Header = () => {
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Berhasil keluar");
+  };
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
@@ -27,6 +37,17 @@ const Header = () => {
             <Zap className="w-3 h-3 text-accent" />
             <span>MVP Version</span>
           </div>
+          {user && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleSignOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Keluar</span>
+            </Button>
+          )}
         </div>
       </div>
     </motion.header>

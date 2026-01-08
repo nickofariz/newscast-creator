@@ -57,9 +57,16 @@ export const useOverlayTemplates = (): UseOverlayTemplatesReturn => {
   const saveTemplate = useCallback(async (name: string, settings: OverlaySettings) => {
     setIsSaving(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
       const { error } = await supabase.from("overlay_templates").insert({
         name,
         settings: settings as unknown as Json,
+        user_id: user.id,
       });
 
       if (error) throw error;
