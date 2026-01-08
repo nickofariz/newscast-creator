@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef } from "react";
 import { SubtitleStyleSettings, DEFAULT_SUBTITLE_STYLE } from "@/components/SubtitlePreview";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
 interface SubtitleWord {
   text: string;
@@ -54,6 +52,7 @@ export const useVideoExporter = () => {
   });
   const [exportedVideoUrl, setExportedVideoUrl] = useState<string | null>(null);
   const exportStartTimeRef = useRef<number>(0);
+  const abortRef = useRef(false);
 
   const formatEta = (seconds: number): string => {
     if (seconds <= 0 || !isFinite(seconds)) return "";
@@ -72,48 +71,6 @@ export const useVideoExporter = () => {
     const remaining = totalEstimate - elapsed;
     return formatEta(remaining);
   };
-
-  const abortRef = useRef(false);
-  const ffmpegRef = useRef<FFmpeg | null>(null);
-  const ffmpegLoadedRef = useRef(false);
-  const ffmpegLoadingRef = useRef(false);
-
-  // Preload FFmpeg when hook is first used
-  const loadFFmpeg = useCallback(async () => {
-    // Already loaded
-    if (ffmpegLoadedRef.current && ffmpegRef.current) {
-      return ffmpegRef.current;
-    }
-
-    // Already loading - wait for it
-    if (ffmpegLoadingRef.current) {
-      // Wait until loading is complete
-      while (ffmpegLoadingRef.current && !ffmpegLoadedRef.current) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      return ffmpegRef.current!;
-    }
-
-    ffmpegLoadingRef.current = true;
-
-    try {
-      const ffmpeg = new FFmpeg();
-      ffmpegRef.current = ffmpeg;
-
-      // Use faster CDN with better caching
-      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
-
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-      });
-
-      ffmpegLoadedRef.current = true;
-      return ffmpeg;
-    } finally {
-      ffmpegLoadingRef.current = false;
-    }
-  }, []);
 
   const getActiveSubtitle = useCallback(
     (
@@ -270,7 +227,6 @@ export const useVideoExporter = () => {
     });
   };
 
-  // Wait for video to seek to specific time
   const seekVideo = (video: HTMLVideoElement, time: number): Promise<void> => {
     return new Promise((resolve) => {
       if (Math.abs(video.currentTime - time) < 0.01) {
@@ -296,25 +252,21 @@ export const useVideoExporter = () => {
         audioDuration,
         subtitleStyle = DEFAULT_SUBTITLE_STYLE,
         quality = "720p",
-        format = "mp4",
         bitrate = "medium",
       } = options;
 
-      // Bitrate/CRF settings - lower CRF = higher quality
-      const crfMap = { low: "32", medium: "23", high: "18" };
-      const audioBitrateMap = { low: "96k", medium: "128k", high: "192k" };
-      const crf = crfMap[bitrate];
-      const audioBitrate = audioBitrateMap[bitrate];
+      const bitrateMap = { low: 1_000_000, medium: 2_500_000, high: 5_000_000 };
+      const videoBitrate = bitrateMap[bitrate];
 
       abortRef.current = false;
       setExportedVideoUrl(null);
       exportStartTimeRef.current = Date.now();
 
       try {
-        // Phase 1: Prepare (0-5%)
+        // Phase 1: Prepare
         setExportProgress({
           status: "preparing",
-          progress: 0,
+          progress: 5,
           message: "Mempersiapkan canvas...",
           eta: undefined,
         });
@@ -345,21 +297,7 @@ export const useVideoExporter = () => {
         const totalDuration =
           audioDuration || clips.reduce((acc, c) => acc + c.effectiveDuration, 0);
 
-        // Phase 2: Load FFmpeg (5-10%)
-        setExportProgress({
-          status: "preparing",
-          progress: 5,
-          message: "Loading FFmpeg...",
-          eta: calculateEta(5),
-        });
-
-        const ffmpeg = await loadFFmpeg();
-
-        ffmpeg.on("log", ({ message }) => {
-          console.log("[FFmpeg]", message);
-        });
-
-        // Phase 3: Load Media (10-15%)
+        // Phase 2: Load Media
         setExportProgress({
           status: "preparing",
           progress: 10,
@@ -374,26 +312,84 @@ export const useVideoExporter = () => {
           mediaElements.push(element);
         }
 
-        // Phase 4: Render Frames (15-70%)
+        // Load audio if available
+        let audioElement: HTMLAudioElement | null = null;
+        if (audioUrl) {
+          audioElement = new Audio(audioUrl);
+          audioElement.crossOrigin = "anonymous";
+          await new Promise<void>((resolve, reject) => {
+            audioElement!.oncanplaythrough = () => resolve();
+            audioElement!.onerror = reject;
+            audioElement!.load();
+          });
+        }
+
+        // Phase 3: Setup MediaRecorder (Native browser API - FAST!)
         setExportProgress({
-          status: "rendering",
+          status: "preparing",
           progress: 15,
-          message: "Memulai render frame...",
+          message: "Mempersiapkan recorder...",
           eta: calculateEta(15),
         });
 
-        // Use 24fps for faster rendering (still smooth)
-        const fps = 24;
-        const totalFrames = Math.ceil(totalDuration * fps);
-        let frameIndex = 0;
-
-        // Process frames in batches for better performance
-        const batchSize = 10;
+        const canvasStream = canvas.captureStream(30);
         
-        for (let frameNum = 0; frameNum < totalFrames; frameNum++) {
-          if (abortRef.current) throw new Error("Export cancelled");
+        // Add audio track if available
+        if (audioElement) {
+          const audioContext = new AudioContext();
+          const source = audioContext.createMediaElementSource(audioElement);
+          const dest = audioContext.createMediaStreamDestination();
+          source.connect(dest);
+          source.connect(audioContext.destination);
+          
+          dest.stream.getAudioTracks().forEach(track => {
+            canvasStream.addTrack(track);
+          });
+        }
 
-          const currentTime = frameNum / fps;
+        // Use WebM for fastest encoding
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : 'video/webm';
+
+        const mediaRecorder = new MediaRecorder(canvasStream, {
+          mimeType,
+          videoBitsPerSecond: videoBitrate,
+        });
+
+        const chunks: Blob[] = [];
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
+        };
+
+        // Phase 4: Render in realtime
+        setExportProgress({
+          status: "rendering",
+          progress: 20,
+          message: "Merender video...",
+          eta: calculateEta(20),
+        });
+
+        const fps = 30;
+        const frameDuration = 1000 / fps;
+        let currentTime = 0;
+
+        // Start recording
+        mediaRecorder.start(100); // Collect data every 100ms
+
+        // Start audio playback
+        if (audioElement) {
+          audioElement.currentTime = 0;
+          audioElement.play();
+        }
+
+        // Render frames
+        while (currentTime < totalDuration) {
+          if (abortRef.current) {
+            mediaRecorder.stop();
+            if (audioElement) audioElement.pause();
+            throw new Error("Export cancelled");
+          }
 
           // Find current clip
           let clipIndex = clips.findIndex(
@@ -410,7 +406,7 @@ export const useVideoExporter = () => {
             await seekVideo(mediaElement, offsetInClip);
           }
 
-          // Draw frame to canvas
+          // Draw frame
           drawFrame(
             ctx,
             mediaElement,
@@ -421,197 +417,43 @@ export const useVideoExporter = () => {
             canvasHeight
           );
 
-          // Use faster JPEG quality (0.85 instead of 0.92)
-          const frameData = canvas.toDataURL("image/jpeg", 0.85);
-          const base64Data = frameData.split(",")[1];
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
+          // Advance time
+          currentTime += frameDuration / 1000;
 
-          // Write frame to FFmpeg filesystem
-          const frameName = `frame${String(frameIndex).padStart(5, "0")}.jpg`;
-          await ffmpeg.writeFile(frameName, bytes);
-          frameIndex++;
-
-          // Update progress less frequently (every 10 frames)
-          const progress = 15 + (frameNum / totalFrames) * 55;
-          if (frameNum % batchSize === 0) {
-            setExportProgress({
-              status: "rendering",
-              progress,
-              message: `Rendering ${Math.round((frameNum / totalFrames) * 100)}%`,
-              eta: calculateEta(progress),
-            });
-            // Allow UI to breathe
-            await new Promise(resolve => setTimeout(resolve, 0));
-          }
-        }
-
-        // Phase 5: Prepare Audio (70-75%)
-        setExportProgress({
-          status: "encoding",
-          progress: 70,
-          message: "Mempersiapkan audio...",
-          eta: calculateEta(70),
-        });
-
-        let hasAudioFile = false;
-        if (audioUrl) {
-          try {
-            const audioData = await fetchFile(audioUrl);
-            await ffmpeg.writeFile("audio.mp3", audioData);
-            hasAudioFile = true;
-          } catch (e) {
-            console.warn("Could not load audio:", e);
-          }
-        }
-
-        // Phase 6: Encode Video (75-95%)
-        setExportProgress({
-          status: "encoding",
-          progress: 75,
-          message: "Encoding video dengan FFmpeg...",
-          eta: calculateEta(75),
-        });
-
-        ffmpeg.on("progress", ({ progress }) => {
-          const encodeProgress = 75 + progress * 20;
+          // Update progress
+          const progress = 20 + (currentTime / totalDuration) * 70;
           setExportProgress({
-            status: "encoding",
-            progress: Math.min(95, encodeProgress),
-            message: `Encoding MP4... ${Math.round(progress * 100)}%`,
-            eta: calculateEta(Math.min(95, encodeProgress)),
+            status: "rendering",
+            progress: Math.min(90, progress),
+            message: `Merender ${Math.round((currentTime / totalDuration) * 100)}%`,
+            eta: calculateEta(progress),
           });
-        });
 
-        const outputFormat = format === "mp4" ? "mp4" : "webm";
-        const outputFile = `output.${outputFormat}`;
-
-        if (format === "mp4") {
-          if (hasAudioFile) {
-            await ffmpeg.exec([
-              "-framerate",
-              String(fps),
-              "-i",
-              "frame%05d.jpg",
-              "-i",
-              "audio.mp3",
-              "-c:v",
-              "libx264",
-              "-preset",
-              "ultrafast",
-              "-crf",
-              crf,
-              "-pix_fmt",
-              "yuv420p",
-              "-c:a",
-              "aac",
-              "-b:a",
-              audioBitrate,
-              "-shortest",
-              "-movflags",
-              "+faststart",
-              outputFile,
-            ]);
-          } else {
-            await ffmpeg.exec([
-              "-framerate",
-              String(fps),
-              "-i",
-              "frame%05d.jpg",
-              "-c:v",
-              "libx264",
-              "-preset",
-              "ultrafast",
-              "-crf",
-              crf,
-              "-pix_fmt",
-              "yuv420p",
-              "-movflags",
-              "+faststart",
-              outputFile,
-            ]);
-          }
-        } else {
-          // WebM format - CRF mapping for VP9
-          const webmCrfMap = { low: "40", medium: "30", high: "20" };
-          const webmCrf = webmCrfMap[bitrate];
-          
-          if (hasAudioFile) {
-            await ffmpeg.exec([
-              "-framerate",
-              String(fps),
-              "-i",
-              "frame%05d.jpg",
-              "-i",
-              "audio.mp3",
-              "-c:v",
-              "libvpx-vp9",
-              "-crf",
-              webmCrf,
-              "-b:v",
-              "0",
-              "-c:a",
-              "libopus",
-              "-b:a",
-              audioBitrate,
-              "-shortest",
-              outputFile,
-            ]);
-          } else {
-            await ffmpeg.exec([
-              "-framerate",
-              String(fps),
-              "-i",
-              "frame%05d.jpg",
-              "-c:v",
-              "libvpx-vp9",
-              "-crf",
-              webmCrf,
-              "-b:v",
-              "0",
-              outputFile,
-            ]);
-          }
+          // Wait for next frame (rendering at ~30fps)
+          await new Promise(resolve => setTimeout(resolve, frameDuration / 3));
         }
 
-        // Phase 7: Finalize (95-100%)
+        // Stop recording
+        if (audioElement) audioElement.pause();
+        
         setExportProgress({
           status: "encoding",
-          progress: 95,
-          message: "Finalizing...",
-          eta: "Almost done!",
+          progress: 92,
+          message: "Menyelesaikan export...",
+          eta: "Hampir selesai!",
         });
 
-        const outputData = await ffmpeg.readFile(outputFile);
-        let outputBytes: Uint8Array;
-        if (typeof outputData === "string") {
-          const encoder = new TextEncoder();
-          outputBytes = encoder.encode(outputData);
-        } else {
-          const buffer = new ArrayBuffer(outputData.byteLength);
-          new Uint8Array(buffer).set(outputData);
-          outputBytes = new Uint8Array(buffer);
-        }
+        // Wait for mediaRecorder to finish
+        const videoBlob = await new Promise<Blob>((resolve) => {
+          mediaRecorder.onstop = () => {
+            resolve(new Blob(chunks, { type: mimeType }));
+          };
+          mediaRecorder.stop();
+        });
 
-        const mimeType = format === "mp4" ? "video/mp4" : "video/webm";
-        const finalBlob = new Blob([outputBytes.buffer as ArrayBuffer], { type: mimeType });
-        const url = URL.createObjectURL(finalBlob);
-
-        // Cleanup FFmpeg files
-        for (let i = 0; i < frameIndex; i++) {
-          try {
-            await ffmpeg.deleteFile(`frame${String(i).padStart(5, "0")}.jpg`);
-          } catch {}
-        }
-        try {
-          await ffmpeg.deleteFile(outputFile);
-          if (hasAudioFile) await ffmpeg.deleteFile("audio.mp3");
-        } catch {}
-
+        const url = URL.createObjectURL(videoBlob);
         setExportedVideoUrl(url);
+        
         setExportProgress({
           status: "complete",
           progress: 100,
@@ -625,7 +467,7 @@ export const useVideoExporter = () => {
         return null;
       }
     },
-    [drawFrame, loadFFmpeg]
+    [drawFrame]
   );
 
   const cancelExport = useCallback(() => {
@@ -634,7 +476,7 @@ export const useVideoExporter = () => {
   }, []);
 
   const downloadVideo = useCallback(
-    (filename: string = "video-with-subtitle.mp4") => {
+    (filename: string = "video-with-subtitle.webm") => {
       if (!exportedVideoUrl) return;
 
       const a = document.createElement("a");
@@ -655,12 +497,10 @@ export const useVideoExporter = () => {
     setExportProgress({ status: "idle", progress: 0, message: "" });
   }, [exportedVideoUrl]);
 
-  // Preload FFmpeg in background
+  // No preload needed - using native MediaRecorder
   const preloadFFmpeg = useCallback(() => {
-    if (!ffmpegLoadedRef.current && !ffmpegLoadingRef.current) {
-      loadFFmpeg().catch(console.error);
-    }
-  }, [loadFFmpeg]);
+    // Native API - no preload required
+  }, []);
 
   return {
     exportVideo,
@@ -674,6 +514,6 @@ export const useVideoExporter = () => {
       exportProgress.status !== "idle" &&
       exportProgress.status !== "complete" &&
       exportProgress.status !== "error",
-    isFFmpegLoaded: ffmpegLoadedRef.current,
+    isFFmpegLoaded: true, // Always ready with native API
   };
 };
