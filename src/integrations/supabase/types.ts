@@ -22,6 +22,7 @@ export type Database = {
           name: string
           settings: Json
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -30,6 +31,7 @@ export type Database = {
           name: string
           settings: Json
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -38,6 +40,7 @@ export type Database = {
           name?: string
           settings?: Json
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -51,6 +54,7 @@ export type Database = {
           subtitle_url: string | null
           template: string | null
           title: string
+          user_id: string | null
           video_url: string
           voice: string | null
         }
@@ -63,6 +67,7 @@ export type Database = {
           subtitle_url?: string | null
           template?: string | null
           title: string
+          user_id?: string | null
           video_url: string
           voice?: string | null
         }
@@ -75,6 +80,7 @@ export type Database = {
           subtitle_url?: string | null
           template?: string | null
           title?: string
+          user_id?: string | null
           video_url?: string
           voice?: string | null
         }

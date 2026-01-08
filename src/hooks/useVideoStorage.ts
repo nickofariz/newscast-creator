@@ -123,6 +123,12 @@ export function useVideoStorage(): UseVideoStorageReturn {
         videoUrl = audioUrl;
       }
 
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
       // Save metadata to database
       const { data, error } = await supabase
         .from("videos")
@@ -135,6 +141,7 @@ export function useVideoStorage(): UseVideoStorageReturn {
           template: params.template,
           voice: params.voice,
           status: "completed",
+          user_id: user.id,
         })
         .select()
         .single();
