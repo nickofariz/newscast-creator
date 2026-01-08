@@ -9,6 +9,10 @@ const corsHeaders = {
 // Default voice ID if not provided
 const DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"; // Sarah
 
+// Input validation constants
+const MAX_TEXT_LENGTH = 5000;
+const VOICE_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -18,11 +22,61 @@ serve(async (req) => {
   try {
     const { text, voiceId, voiceSettings } = await req.json();
 
+    // Validate text is provided
     if (!text || text.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: "Text is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate text length
+    if (text.length > MAX_TEXT_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Text exceeds maximum length of ${MAX_TEXT_LENGTH} characters` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate voiceId format if provided
+    if (voiceId && !VOICE_ID_PATTERN.test(voiceId)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid voice ID format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate voice settings ranges if provided
+    if (voiceSettings) {
+      const { stability, similarity, style, speed } = voiceSettings;
+      
+      if (stability !== undefined && (stability < 0 || stability > 1)) {
+        return new Response(
+          JSON.stringify({ error: "Stability must be between 0 and 1" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (similarity !== undefined && (similarity < 0 || similarity > 1)) {
+        return new Response(
+          JSON.stringify({ error: "Similarity must be between 0 and 1" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (style !== undefined && (style < 0 || style > 1)) {
+        return new Response(
+          JSON.stringify({ error: "Style must be between 0 and 1" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (speed !== undefined && (speed < 0.5 || speed > 2)) {
+        return new Response(
+          JSON.stringify({ error: "Speed must be between 0.5 and 2" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
@@ -64,11 +118,11 @@ serve(async (req) => {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("ElevenLabs API error:", response.status, errorText);
+      // Log only status code, not full error text to avoid leaking sensitive info
+      console.error(`TTS API request failed with status: ${response.status}`);
       return new Response(
-        JSON.stringify({ error: "Failed to generate speech" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Service temporarily unavailable" }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -82,9 +136,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("TTS error:", error);
+    // Log error type only, not full message to prevent information leakage
+    console.error("TTS processing error:", error instanceof Error ? error.constructor.name : "Unknown");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: "An error occurred processing your request" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
