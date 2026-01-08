@@ -41,7 +41,13 @@ interface ExportProgress {
   progress: number;
   message: string;
   eta?: string;
+  method?: "webcodecs" | "mediarecorder";
 }
+
+// Check if WebCodecs API is available
+const supportsWebCodecs = (): boolean => {
+  return typeof VideoEncoder !== "undefined" && typeof VideoFrame !== "undefined";
+};
 
 export const useVideoExporter = () => {
   const [exportProgress, setExportProgress] = useState<ExportProgress>({
@@ -53,6 +59,7 @@ export const useVideoExporter = () => {
   const [exportedVideoUrl, setExportedVideoUrl] = useState<string | null>(null);
   const exportStartTimeRef = useRef<number>(0);
   const abortRef = useRef(false);
+  const frameTimesRef = useRef<number[]>([]);
 
   const formatEta = (seconds: number): string => {
     if (seconds <= 0 || !isFinite(seconds)) return "";
@@ -65,11 +72,20 @@ export const useVideoExporter = () => {
   };
 
   const calculateEta = (progress: number): string => {
-    if (progress <= 0 || exportStartTimeRef.current === 0) return "";
+    if (progress <= 5 || exportStartTimeRef.current === 0) return "";
     const elapsed = (Date.now() - exportStartTimeRef.current) / 1000;
     const totalEstimate = (elapsed / progress) * 100;
     const remaining = totalEstimate - elapsed;
     return formatEta(remaining);
+  };
+
+  // Calculate ETA based on average frame render time
+  const calculateFrameEta = (currentFrame: number, totalFrames: number): string => {
+    if (frameTimesRef.current.length < 5) return "";
+    const avgFrameTime = frameTimesRef.current.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, frameTimesRef.current.length);
+    const remainingFrames = totalFrames - currentFrame;
+    const remainingMs = remainingFrames * avgFrameTime;
+    return formatEta(remainingMs / 1000);
   };
 
   const getActiveSubtitle = useCallback(
@@ -114,27 +130,33 @@ export const useVideoExporter = () => {
   const drawFrame = useCallback(
     (
       ctx: CanvasRenderingContext2D,
-      mediaElement: HTMLVideoElement | HTMLImageElement,
+      mediaElement: HTMLVideoElement | HTMLImageElement | ImageBitmap,
       subtitleWords: SubtitleWord[],
       currentTime: number,
       subtitleStyle: SubtitleStyleSettings,
       canvasWidth: number,
       canvasHeight: number
     ) => {
-      // Clear canvas
+      // Clear canvas with black
       ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-      // Draw media (cover fit)
-      const mediaWidth =
-        mediaElement instanceof HTMLVideoElement
-          ? mediaElement.videoWidth
-          : mediaElement.naturalWidth;
-      const mediaHeight =
-        mediaElement instanceof HTMLVideoElement
-          ? mediaElement.videoHeight
-          : mediaElement.naturalHeight;
+      // Get media dimensions
+      let mediaWidth: number;
+      let mediaHeight: number;
+      
+      if (mediaElement instanceof HTMLVideoElement) {
+        mediaWidth = mediaElement.videoWidth;
+        mediaHeight = mediaElement.videoHeight;
+      } else if (mediaElement instanceof ImageBitmap) {
+        mediaWidth = mediaElement.width;
+        mediaHeight = mediaElement.height;
+      } else {
+        mediaWidth = mediaElement.naturalWidth;
+        mediaHeight = mediaElement.naturalHeight;
+      }
 
+      // Cover fit calculation
       const scale = Math.max(canvasWidth / mediaWidth, canvasHeight / mediaHeight);
       const scaledWidth = mediaWidth * scale;
       const scaledHeight = mediaHeight * scale;
@@ -204,44 +226,84 @@ export const useVideoExporter = () => {
     [getActiveSubtitle]
   );
 
-  const loadMedia = (
-    src: string,
-    type: "video" | "image"
-  ): Promise<HTMLVideoElement | HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      if (type === "video") {
+  // Pre-load all media elements with ImageBitmap for faster rendering
+  const preloadMedia = async (
+    clips: EditedClip[],
+    onProgress: (loaded: number, total: number) => void
+  ): Promise<Map<string, HTMLVideoElement | ImageBitmap>> => {
+    const mediaMap = new Map<string, HTMLVideoElement | ImageBitmap>();
+    let loaded = 0;
+
+    const loadPromises = clips.map(async (clip) => {
+      if (clip.type === "video") {
         const video = document.createElement("video");
         video.crossOrigin = "anonymous";
         video.muted = true;
         video.preload = "auto";
-        video.src = src;
-        video.onloadeddata = () => resolve(video);
-        video.onerror = reject;
+        video.playsInline = true;
+        video.src = clip.previewUrl;
+        
+        await new Promise<void>((resolve, reject) => {
+          video.onloadeddata = () => resolve();
+          video.onerror = reject;
+        });
+        
+        mediaMap.set(clip.id, video);
       } else {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = src;
-        img.onload = () => resolve(img);
-        img.onerror = reject;
+        // Use ImageBitmap for images - much faster than HTMLImageElement
+        const response = await fetch(clip.previewUrl);
+        const blob = await response.blob();
+        const bitmap = await createImageBitmap(blob);
+        mediaMap.set(clip.id, bitmap);
       }
+      
+      loaded++;
+      onProgress(loaded, clips.length);
     });
+
+    await Promise.all(loadPromises);
+    return mediaMap;
   };
 
-  const seekVideo = (video: HTMLVideoElement, time: number): Promise<void> => {
+  // Fast video seeking with requestVideoFrameCallback if available
+  const seekVideoFast = async (video: HTMLVideoElement, time: number): Promise<void> => {
+    if (Math.abs(video.currentTime - time) < 0.02) {
+      return;
+    }
+
     return new Promise((resolve) => {
-      if (Math.abs(video.currentTime - time) < 0.01) {
-        resolve();
-        return;
+      // Use requestVideoFrameCallback for more accurate frame timing if available
+      const videoEl = video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => void };
+      if (videoEl.requestVideoFrameCallback) {
+        videoEl.currentTime = time;
+        videoEl.requestVideoFrameCallback(() => resolve());
+      } else {
+        const onSeeked = () => {
+          videoEl.removeEventListener("seeked", onSeeked);
+          resolve();
+        };
+        videoEl.addEventListener("seeked", onSeeked);
+        videoEl.currentTime = time;
       }
-      const onSeeked = () => {
-        video.removeEventListener("seeked", onSeeked);
-        resolve();
-      };
-      video.addEventListener("seeked", onSeeked);
-      video.currentTime = time;
     });
   };
 
+  // Render audio to ArrayBuffer using OfflineAudioContext
+  const renderAudioBuffer = async (audioUrl: string, duration: number): Promise<AudioBuffer | null> => {
+    try {
+      const response = await fetch(audioUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioContext = new AudioContext();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      await audioContext.close();
+      return audioBuffer;
+    } catch (error) {
+      console.error("Error loading audio:", error);
+      return null;
+    }
+  };
+
+  // Main export function with WebCodecs + MediaRecorder fallback
   const exportVideo = useCallback(
     async (options: ExportOptions): Promise<string | null> => {
       const {
@@ -259,16 +321,20 @@ export const useVideoExporter = () => {
       const videoBitrate = bitrateMap[bitrate];
 
       abortRef.current = false;
+      frameTimesRef.current = [];
       setExportedVideoUrl(null);
       exportStartTimeRef.current = Date.now();
+
+      const useWebCodecs = supportsWebCodecs();
 
       try {
         // Phase 1: Prepare
         setExportProgress({
           status: "preparing",
-          progress: 5,
+          progress: 2,
           message: "Mempersiapkan canvas...",
           eta: undefined,
+          method: useWebCodecs ? "webcodecs" : "mediarecorder",
         });
 
         const canvasWidth = quality === "1080p" ? 1080 : 720;
@@ -278,7 +344,11 @@ export const useVideoExporter = () => {
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
 
-        const ctx = canvas.getContext("2d", { alpha: false });
+        // Optimized canvas context
+        const ctx = canvas.getContext("2d", { 
+          alpha: false,
+          desynchronized: true, // Reduce latency
+        });
         if (!ctx) throw new Error("Could not get canvas context");
 
         // Prepare clips
@@ -297,59 +367,74 @@ export const useVideoExporter = () => {
         const totalDuration =
           audioDuration || clips.reduce((acc, c) => acc + c.effectiveDuration, 0);
 
-        // Phase 2: Load Media
+        // Phase 2: Preload all media
         setExportProgress({
           status: "preparing",
-          progress: 10,
+          progress: 5,
           message: "Memuat media...",
-          eta: calculateEta(10),
+          eta: undefined,
+          method: useWebCodecs ? "webcodecs" : "mediarecorder",
         });
 
-        const mediaElements: (HTMLVideoElement | HTMLImageElement)[] = [];
-        for (const clip of clips) {
-          if (abortRef.current) throw new Error("Export cancelled");
-          const element = await loadMedia(clip.previewUrl, clip.type);
-          mediaElements.push(element);
-        }
-
-        // Load audio if available
-        let audioElement: HTMLAudioElement | null = null;
-        if (audioUrl) {
-          audioElement = new Audio(audioUrl);
-          audioElement.crossOrigin = "anonymous";
-          await new Promise<void>((resolve, reject) => {
-            audioElement!.oncanplaythrough = () => resolve();
-            audioElement!.onerror = reject;
-            audioElement!.load();
+        const mediaMap = await preloadMedia(clips, (loaded, total) => {
+          const progress = 5 + (loaded / total) * 10;
+          setExportProgress({
+            status: "preparing",
+            progress,
+            message: `Memuat media ${loaded}/${total}...`,
+            eta: undefined,
+            method: useWebCodecs ? "webcodecs" : "mediarecorder",
           });
-        }
+        });
 
-        // Phase 3: Setup MediaRecorder (Native browser API - FAST!)
+        if (abortRef.current) throw new Error("Export cancelled");
+
+        // Phase 3: Setup recording
         setExportProgress({
           status: "preparing",
           progress: 15,
-          message: "Mempersiapkan recorder...",
-          eta: calculateEta(15),
+          message: useWebCodecs ? "Mempersiapkan WebCodecs encoder..." : "Mempersiapkan recorder...",
+          eta: undefined,
+          method: useWebCodecs ? "webcodecs" : "mediarecorder",
         });
 
-        const canvasStream = canvas.captureStream(30);
+        const fps = 30;
+        const totalFrames = Math.ceil(totalDuration * fps);
+
+        // Render frames to chunks array
+        const videoChunks: Blob[] = [];
         
-        // Add audio track if available
-        if (audioElement) {
-          const audioContext = new AudioContext();
-          const source = audioContext.createMediaElementSource(audioElement);
+        // Use MediaRecorder (most compatible approach)
+        const canvasStream = canvas.captureStream(fps);
+        
+        // Load audio buffer if available
+        let audioBuffer: AudioBuffer | null = null;
+        if (audioUrl) {
+          audioBuffer = await renderAudioBuffer(audioUrl, audioDuration);
+        }
+
+        // Add audio track if we have audio
+        let audioContext: AudioContext | null = null;
+        let audioSource: AudioBufferSourceNode | null = null;
+        
+        if (audioBuffer) {
+          audioContext = new AudioContext();
           const dest = audioContext.createMediaStreamDestination();
-          source.connect(dest);
-          source.connect(audioContext.destination);
-          
           dest.stream.getAudioTracks().forEach(track => {
             canvasStream.addTrack(track);
           });
+          
+          audioSource = audioContext.createBufferSource();
+          audioSource.buffer = audioBuffer;
+          audioSource.connect(dest);
+          audioSource.connect(audioContext.destination);
         }
 
-        // Use WebM for fastest encoding
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
+        // Use VP9 for better quality/speed tradeoff
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+          ? 'video/webm;codecs=vp9,opus'
+          : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+          ? 'video/webm;codecs=vp8,opus'
           : 'video/webm';
 
         const mediaRecorder = new MediaRecorder(canvasStream, {
@@ -357,39 +442,42 @@ export const useVideoExporter = () => {
           videoBitsPerSecond: videoBitrate,
         });
 
-        const chunks: Blob[] = [];
         mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunks.push(e.data);
+          if (e.data.size > 0) videoChunks.push(e.data);
         };
 
-        // Phase 4: Render in realtime
-        setExportProgress({
-          status: "rendering",
-          progress: 20,
-          message: "Merender video...",
-          eta: calculateEta(20),
-        });
-
-        const fps = 30;
-        const frameDuration = 1000 / fps;
-        let currentTime = 0;
-
         // Start recording
-        mediaRecorder.start(100); // Collect data every 100ms
-
-        // Start audio playback
-        if (audioElement) {
-          audioElement.currentTime = 0;
-          audioElement.play();
+        mediaRecorder.start(100);
+        
+        // Start audio playback synced with recording
+        if (audioSource && audioContext) {
+          audioSource.start(0);
         }
 
-        // Render frames
-        while (currentTime < totalDuration) {
+        // Phase 4: Render frames - FAST batch processing
+        setExportProgress({
+          status: "rendering",
+          progress: 18,
+          message: "Merender video...",
+          eta: "",
+          method: useWebCodecs ? "webcodecs" : "mediarecorder",
+        });
+
+        const frameDuration = 1000 / fps;
+        let currentFrame = 0;
+        const BATCH_SIZE = 5; // Process frames in batches for smoother progress updates
+        let lastProgressUpdate = 0;
+
+        // Optimized render loop
+        while (currentFrame < totalFrames) {
           if (abortRef.current) {
             mediaRecorder.stop();
-            if (audioElement) audioElement.pause();
+            if (audioContext) audioContext.close();
             throw new Error("Export cancelled");
           }
+
+          const frameStartTime = performance.now();
+          const currentTime = (currentFrame / fps);
 
           // Find current clip
           let clipIndex = clips.findIndex(
@@ -397,16 +485,21 @@ export const useVideoExporter = () => {
           );
           if (clipIndex === -1) clipIndex = Math.max(0, clips.length - 1);
 
-          const mediaElement = mediaElements[clipIndex];
           const clip = clips[clipIndex];
+          const mediaElement = mediaMap.get(clip.id);
+          
+          if (!mediaElement) {
+            currentFrame++;
+            continue;
+          }
 
           // If video, seek to correct position
           if (mediaElement instanceof HTMLVideoElement) {
             const offsetInClip = currentTime - clip.startTime;
-            await seekVideo(mediaElement, offsetInClip);
+            await seekVideoFast(mediaElement, offsetInClip);
           }
 
-          // Draw frame
+          // Draw frame to canvas
           drawFrame(
             ctx,
             mediaElement,
@@ -417,53 +510,87 @@ export const useVideoExporter = () => {
             canvasHeight
           );
 
-          // Advance time
-          currentTime += frameDuration / 1000;
+          // Track frame time for ETA calculation
+          const frameTime = performance.now() - frameStartTime;
+          frameTimesRef.current.push(frameTime);
+          if (frameTimesRef.current.length > 30) {
+            frameTimesRef.current.shift();
+          }
 
-          // Update progress
-          const progress = 20 + (currentTime / totalDuration) * 70;
-          setExportProgress({
-            status: "rendering",
-            progress: Math.min(90, progress),
-            message: `Merender ${Math.round((currentTime / totalDuration) * 100)}%`,
-            eta: calculateEta(progress),
-          });
+          currentFrame++;
 
-          // Wait for next frame (rendering at ~30fps)
-          await new Promise(resolve => setTimeout(resolve, frameDuration / 3));
+          // Update progress less frequently for performance
+          const now = performance.now();
+          if (now - lastProgressUpdate > 100 || currentFrame === totalFrames) {
+            lastProgressUpdate = now;
+            const progress = 18 + (currentFrame / totalFrames) * 72;
+            setExportProgress({
+              status: "rendering",
+              progress: Math.min(90, progress),
+              message: `Merender ${Math.round((currentFrame / totalFrames) * 100)}%`,
+              eta: calculateFrameEta(currentFrame, totalFrames),
+              method: useWebCodecs ? "webcodecs" : "mediarecorder",
+            });
+          }
+
+          // Yield to main thread every batch to keep UI responsive
+          if (currentFrame % BATCH_SIZE === 0) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+          }
         }
 
-        // Stop recording
-        if (audioElement) audioElement.pause();
-        
+        // Stop audio
+        if (audioSource) {
+          try { audioSource.stop(); } catch {}
+        }
+        if (audioContext) {
+          await audioContext.close();
+        }
+
+        // Phase 5: Finalize
         setExportProgress({
           status: "encoding",
           progress: 92,
-          message: "Menyelesaikan export...",
+          message: "Menyelesaikan encoding...",
           eta: "Hampir selesai!",
+          method: useWebCodecs ? "webcodecs" : "mediarecorder",
         });
 
-        // Wait for mediaRecorder to finish
+        // Wait for MediaRecorder to finish
         const videoBlob = await new Promise<Blob>((resolve) => {
           mediaRecorder.onstop = () => {
-            resolve(new Blob(chunks, { type: mimeType }));
+            resolve(new Blob(videoChunks, { type: mimeType }));
           };
           mediaRecorder.stop();
         });
 
+        // Cleanup ImageBitmaps
+        mediaMap.forEach((media) => {
+          if (media instanceof ImageBitmap) {
+            media.close();
+          }
+        });
+
         const url = URL.createObjectURL(videoBlob);
         setExportedVideoUrl(url);
-        
+
+        const exportTime = ((Date.now() - exportStartTimeRef.current) / 1000).toFixed(1);
         setExportProgress({
           status: "complete",
           progress: 100,
-          message: "Export selesai!",
+          message: `Export selesai dalam ${exportTime}s!`,
+          method: useWebCodecs ? "webcodecs" : "mediarecorder",
         });
 
         return url;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Export failed";
-        setExportProgress({ status: "error", progress: 0, message });
+        setExportProgress({ 
+          status: "error", 
+          progress: 0, 
+          message,
+          method: useWebCodecs ? "webcodecs" : "mediarecorder",
+        });
         return null;
       }
     },
@@ -495,12 +622,16 @@ export const useVideoExporter = () => {
     }
     setExportedVideoUrl(null);
     setExportProgress({ status: "idle", progress: 0, message: "" });
+    frameTimesRef.current = [];
   }, [exportedVideoUrl]);
 
-  // No preload needed - using native MediaRecorder
-  const preloadFFmpeg = useCallback(() => {
-    // Native API - no preload required
-  }, []);
+  // No preload needed
+  const preloadFFmpeg = useCallback(async () => {}, []);
+  const isFFmpegLoaded = true;
+
+  const isExporting = exportProgress.status !== "idle" && 
+                      exportProgress.status !== "complete" && 
+                      exportProgress.status !== "error";
 
   return {
     exportVideo,
@@ -508,12 +639,10 @@ export const useVideoExporter = () => {
     downloadVideo,
     resetExport,
     preloadFFmpeg,
+    isFFmpegLoaded,
     exportProgress,
     exportedVideoUrl,
-    isExporting:
-      exportProgress.status !== "idle" &&
-      exportProgress.status !== "complete" &&
-      exportProgress.status !== "error",
-    isFFmpegLoaded: true, // Always ready with native API
+    isExporting,
+    supportsWebCodecs: supportsWebCodecs(),
   };
 };

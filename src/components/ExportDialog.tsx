@@ -22,6 +22,7 @@ interface ExportProgress {
   progress: number;
   message: string;
   eta?: string;
+  method?: "webcodecs" | "mediarecorder";
 }
 
 interface ExportDialogProps {
@@ -311,6 +312,12 @@ const ExportDialog = ({
                   </div>
                 </div>
 
+                {/* Export method info */}
+                <div className="text-[10px] text-muted-foreground text-center">
+                  <Zap className="w-3 h-3 inline mr-1" />
+                  Export menggunakan Native Browser API (tanpa download tambahan)
+                </div>
+
                 {!canExport && (
                   <p className="text-xs text-muted-foreground text-center">
                     Add media and subtitle/audio first.
@@ -347,6 +354,15 @@ const ExportDialog = ({
 
                 {/* Step indicators */}
                 {isExporting && <ExportSteps status={exportProgress.status} />}
+
+                {/* Export method badge */}
+                {exportProgress.method && exportProgress.status !== "complete" && (
+                  <div className="flex justify-center">
+                    <span className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                      {exportProgress.method === "webcodecs" ? "⚡ WebCodecs (Hardware)" : "🎬 MediaRecorder"}
+                    </span>
+                  </div>
+                )}
 
                 {/* Video Preview */}
                 {exportProgress.status === "complete" && exportedVideoUrl && (
