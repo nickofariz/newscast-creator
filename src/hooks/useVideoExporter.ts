@@ -76,24 +76,43 @@ export const useVideoExporter = () => {
   const abortRef = useRef(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const ffmpegLoadedRef = useRef(false);
+  const ffmpegLoadingRef = useRef(false);
 
+  // Preload FFmpeg when hook is first used
   const loadFFmpeg = useCallback(async () => {
+    // Already loaded
     if (ffmpegLoadedRef.current && ffmpegRef.current) {
       return ffmpegRef.current;
     }
 
-    const ffmpeg = new FFmpeg();
-    ffmpegRef.current = ffmpeg;
+    // Already loading - wait for it
+    if (ffmpegLoadingRef.current) {
+      // Wait until loading is complete
+      while (ffmpegLoadingRef.current && !ffmpegLoadedRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return ffmpegRef.current!;
+    }
 
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+    ffmpegLoadingRef.current = true;
 
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    });
+    try {
+      const ffmpeg = new FFmpeg();
+      ffmpegRef.current = ffmpeg;
 
-    ffmpegLoadedRef.current = true;
-    return ffmpeg;
+      // Use faster CDN with better caching
+      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      });
+
+      ffmpegLoadedRef.current = true;
+      return ffmpeg;
+    } finally {
+      ffmpegLoadingRef.current = false;
+    }
   }, []);
 
   const getActiveSubtitle = useCallback(
@@ -636,16 +655,25 @@ export const useVideoExporter = () => {
     setExportProgress({ status: "idle", progress: 0, message: "" });
   }, [exportedVideoUrl]);
 
+  // Preload FFmpeg in background
+  const preloadFFmpeg = useCallback(() => {
+    if (!ffmpegLoadedRef.current && !ffmpegLoadingRef.current) {
+      loadFFmpeg().catch(console.error);
+    }
+  }, [loadFFmpeg]);
+
   return {
     exportVideo,
     cancelExport,
     downloadVideo,
     resetExport,
+    preloadFFmpeg,
     exportProgress,
     exportedVideoUrl,
     isExporting:
       exportProgress.status !== "idle" &&
       exportProgress.status !== "complete" &&
       exportProgress.status !== "error",
+    isFFmpegLoaded: ffmpegLoadedRef.current,
   };
 };
