@@ -1,16 +1,18 @@
 import { motion } from "framer-motion";
 import { Video, Zap, LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const Header = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
     toast.success("Berhasil keluar");
+    navigate("/", { replace: true });
   };
 
   return (
