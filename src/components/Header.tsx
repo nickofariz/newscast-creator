@@ -52,18 +52,11 @@ const Header = () => {
               <span className="hidden sm:inline">Keluar</span>
             </Button>
           ) : (
-            <>
-              <Link to="/auth">
-                <Button variant="ghost" size="sm">
-                  Masuk
-                </Button>
-              </Link>
-              <Link to="/auth?mode=signup">
-                <Button size="sm" className="gradient-news text-primary-foreground">
-                  Daftar
-                </Button>
-              </Link>
-            </>
+            <Link to="/auth">
+              <Button size="sm" className="gradient-news text-primary-foreground">
+                Masuk
+              </Button>
+            </Link>
           )}
         </div>
       </div>
