@@ -125,7 +125,7 @@ const EditorStep = ({
   }, [preloadFFmpeg]);
 
   // Handle export start
-  const handleStartExport = useCallback(async (quality: "720p" | "1080p", format: "mp4" | "webm", bitrate: "low" | "medium" | "high") => {
+  const handleStartExport = useCallback(async (quality: "720p" | "1080p", bitrate: "low" | "medium" | "high") => {
     const videoUrl = await exportVideo({
       mediaFiles,
       editedClips,
@@ -134,7 +134,6 @@ const EditorStep = ({
       audioDuration,
       subtitleStyle,
       quality,
-      format,
       bitrate,
     });
 

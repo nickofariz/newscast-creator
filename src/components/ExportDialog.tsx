@@ -30,7 +30,7 @@ interface ExportDialogProps {
   exportProgress: ExportProgress;
   exportedVideoUrl: string | null;
   isExporting: boolean;
-  onStartExport: (quality: "720p" | "1080p", format: "mp4" | "webm", bitrate: "low" | "medium" | "high") => void;
+  onStartExport: (quality: "720p" | "1080p", bitrate: "low" | "medium" | "high") => void;
   onCancel: () => void;
   onDownload: () => void;
   onReset: () => void;
@@ -177,7 +177,6 @@ const ExportDialog = ({
   hasMedia,
 }: ExportDialogProps) => {
   const [quality, setQuality] = useState<"720p" | "1080p">("720p");
-  const [format, setFormat] = useState<"mp4" | "webm">("mp4");
   const [bitrate, setBitrate] = useState<"low" | "medium" | "high">("medium");
   const [displayProgress, setDisplayProgress] = useState(0);
 
@@ -281,19 +280,6 @@ const ExportDialog = ({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium">Format</label>
-                      <Select value={format} onValueChange={(v) => setFormat(v as "mp4" | "webm")}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mp4">MP4</SelectItem>
-                          <SelectItem value="webm">WebM (faster)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
                       <label className="text-xs font-medium">Bitrate</label>
                       <Select value={bitrate} onValueChange={(v) => setBitrate(v as "low" | "medium" | "high")}>
                         <SelectTrigger className="h-8 text-xs">
@@ -389,7 +375,7 @@ const ExportDialog = ({
               <Button variant="ghost" size="sm" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button size="sm" onClick={() => onStartExport(quality, format, bitrate)} disabled={!canExport}>
+              <Button size="sm" onClick={() => onStartExport(quality, bitrate)} disabled={!canExport}>
                 <Video className="w-4 h-4 mr-1.5" />
                 Export
               </Button>
