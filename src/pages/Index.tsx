@@ -113,7 +113,26 @@ const Index = () => {
     }
   }, [audioUrl, generateSubtitles]);
 
-  // Video generation
+  // Video export handler - called when video is exported with subtitles burned in
+  const handleVideoExported = useCallback(async (videoBlob: Blob, _videoUrl: string) => {
+    toast.info("Mengupload video ke cloud...");
+    
+    const savedVideo = await saveVideo({
+      title: newsText.substring(0, 40) + (newsText.length > 40 ? "..." : ""),
+      videoBlob: videoBlob,
+      audioUrl: audioUrl || undefined,
+      subtitleWords: subtitleWords,
+      duration: Math.round(duration) || Math.round((newsText.split(/\s+/).length / 150) * 60),
+      template: selectedTemplate,
+      voice: selectedVoice,
+    });
+
+    if (savedVideo) {
+      toast.success("Video MP4 berhasil disimpan ke cloud!");
+    }
+  }, [newsText, audioUrl, subtitleWords, duration, selectedTemplate, selectedVoice, saveVideo]);
+
+  // Quick save (audio only, no video render) - legacy function
   const handleGenerate = useCallback(async () => {
     if (!newsText.trim()) {
       toast.error("Masukkan teks berita terlebih dahulu");
@@ -263,6 +282,7 @@ const Index = () => {
                   isGeneratingSubtitles={isGeneratingSubtitles}
                   onGenerateSubtitles={handleGenerateSubtitles}
                   onDownloadSRT={downloadSRT}
+                  onVideoExported={handleVideoExported}
                 />
               )}
 
