@@ -51,6 +51,8 @@ interface EditorStepProps {
   isGeneratingSubtitles?: boolean;
   onGenerateSubtitles?: () => void;
   onDownloadSRT?: () => void;
+  // Video export callback
+  onVideoExported?: (videoBlob: Blob, videoUrl: string) => void;
 }
 
 const SEEK_STEP = 5; // seconds
@@ -80,11 +82,13 @@ const EditorStep = ({
   isGeneratingSubtitles = false,
   onGenerateSubtitles,
   onDownloadSRT,
+  onVideoExported,
 }: EditorStepProps) => {
   const [editedClips, setEditedClips] = useState<EditedClip[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyleSettings>(DEFAULT_SUBTITLE_STYLE);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isSavingToCloud, setIsSavingToCloud] = useState(false);
 
   // Video exporter hook
   const {
@@ -98,8 +102,8 @@ const EditorStep = ({
   } = useVideoExporter();
 
   // Handle export start
-  const handleStartExport = useCallback((quality: "720p" | "1080p", format: "mp4" | "webm") => {
-    exportVideo({
+  const handleStartExport = useCallback(async (quality: "720p" | "1080p", format: "mp4" | "webm", bitrate: "low" | "medium" | "high") => {
+    const videoUrl = await exportVideo({
       mediaFiles,
       editedClips,
       subtitleWords,
@@ -108,8 +112,28 @@ const EditorStep = ({
       subtitleStyle,
       quality,
       format,
+      bitrate,
     });
+
+    // If export successful, don't auto-save - let user choose via "Save to Cloud" button
+    console.log("Export completed:", videoUrl);
   }, [exportVideo, mediaFiles, editedClips, subtitleWords, audioUrl, audioDuration, subtitleStyle]);
+
+  // Handle save to cloud after export
+  const handleSaveToCloud = useCallback(async () => {
+    if (!exportedVideoUrl || !onVideoExported) return;
+    
+    setIsSavingToCloud(true);
+    try {
+      const response = await fetch(exportedVideoUrl);
+      const blob = await response.blob();
+      await onVideoExported(blob, exportedVideoUrl);
+    } catch (error) {
+      console.error("Error saving to cloud:", error);
+    } finally {
+      setIsSavingToCloud(false);
+    }
+  }, [exportedVideoUrl, onVideoExported]);
 
   // Toggle fullscreen mode
   const toggleFullscreen = useCallback(() => {
@@ -539,37 +563,39 @@ const EditorStep = ({
           Kembali
         </Button>
         
-        {/* Export Video Button */}
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={() => setIsExportDialogOpen(true)}
-          disabled={isGenerating || mediaFiles.length === 0}
-          className="sm:w-auto"
-        >
-          <Film className="w-5 h-5 mr-2" />
-          Export dengan Subtitle
-        </Button>
-
+        {/* Export Video Button - Renders full MP4 with burned subtitles */}
         <Button
           variant="news"
           size="lg"
+          onClick={() => setIsExportDialogOpen(true)}
+          disabled={isGenerating || isExporting || mediaFiles.length === 0}
+          className="flex-1"
+        >
+          <Film className="w-5 h-5 mr-2" />
+          Export Video MP4
+        </Button>
+
+        {/* Quick save - saves audio and metadata only */}
+        <Button
+          variant="outline"
+          size="lg"
           onClick={onGenerate}
           disabled={isGenerating}
-          className="flex-1"
+          className="sm:w-auto"
         >
           {isGenerating ? (
             <>
-              <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-              Memproses...
+              <div className="w-5 h-5 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+              Menyimpan...
             </>
           ) : (
             <>
-              <Sparkles className="w-5 h-5" />
-              Generate Video
+              <Sparkles className="w-5 h-5 mr-2" />
+              Simpan Draft
             </>
           )}
         </Button>
+        
         <Button variant="glass" size="lg" onClick={onNext} className="sm:w-auto">
           Lanjut
           <ChevronRight className="w-5 h-5" />
@@ -587,6 +613,8 @@ const EditorStep = ({
         onCancel={cancelExport}
         onDownload={downloadVideo}
         onReset={resetExport}
+        onSaveToCloud={onVideoExported ? handleSaveToCloud : undefined}
+        isSavingToCloud={isSavingToCloud}
         hasSubtitles={subtitleWords.length > 0}
         hasAudio={!!audioUrl}
         hasMedia={mediaFiles.length > 0}

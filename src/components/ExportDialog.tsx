@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, X, Loader2, CheckCircle, AlertCircle, Film } from "lucide-react";
+import { Download, X, Loader2, CheckCircle, AlertCircle, Film, Cloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -35,6 +35,8 @@ interface ExportDialogProps {
   onCancel: () => void;
   onDownload: () => void;
   onReset: () => void;
+  onSaveToCloud?: () => void;
+  isSavingToCloud?: boolean;
   hasSubtitles: boolean;
   hasAudio: boolean;
   hasMedia: boolean;
@@ -50,6 +52,8 @@ const ExportDialog = ({
   onCancel,
   onDownload,
   onReset,
+  onSaveToCloud,
+  isSavingToCloud = false,
   hasSubtitles,
   hasAudio,
   hasMedia,
@@ -267,6 +271,20 @@ const ExportDialog = ({
               <Button variant="outline" onClick={handleClose}>
                 Tutup
               </Button>
+              {onSaveToCloud && (
+                <Button 
+                  variant="outline" 
+                  onClick={onSaveToCloud}
+                  disabled={isSavingToCloud}
+                >
+                  {isSavingToCloud ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Cloud className="w-4 h-4 mr-2" />
+                  )}
+                  {isSavingToCloud ? "Menyimpan..." : "Simpan ke Cloud"}
+                </Button>
+              )}
               <Button onClick={onDownload}>
                 <Download className="w-4 h-4 mr-2" />
                 Download Video

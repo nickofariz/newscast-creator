@@ -76,7 +76,7 @@ const VideoHistory = ({ videos, onDownload, onDelete }: VideoHistoryProps) => {
                 </div>
 
                 {/* Status */}
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   {video.status === "completed" && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-xs">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -95,12 +95,17 @@ const VideoHistory = ({ videos, onDownload, onDelete }: VideoHistoryProps) => {
                       Gagal
                     </span>
                   )}
-                  {video.videoUrl && (
+                  {/* Show if it's a proper MP4 video vs just audio */}
+                  {video.videoUrl && video.videoUrl.includes(".mp4") ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
                       <Cloud className="w-3 h-3" />
-                      Cloud
+                      Video MP4
                     </span>
-                  )}
+                  ) : video.audioUrl ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-xs">
+                      Audio Only
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
