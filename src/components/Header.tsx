@@ -1,9 +1,16 @@
 import { motion } from "framer-motion";
-import { Video, Zap, LogOut } from "lucide-react";
+import { Video, Zap, LogOut, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const { user, signOut } = useAuth();
@@ -42,15 +49,38 @@ const Header = () => {
           </div>
           
           {user ? (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleSignOut}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Keluar</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <div className="w-7 h-7 rounded-full gradient-news flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                    {user.email?.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden sm:inline text-sm max-w-[100px] truncate">
+                    {user.email?.split("@")[0]}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <User className="w-4 h-4" />
+                    Profil Saya
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Keluar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Link to="/auth">
               <Button size="sm" className="gradient-news text-primary-foreground">
